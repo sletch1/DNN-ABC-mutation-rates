@@ -1,0 +1,11 @@
+# macOS / editor junk
+.DS_Store
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+dnnenv/
+# copyright: the published Version of Record (Elsevier) is not redistributable
+# publicly. Cite it via DOI instead — https://doi.org/10.1016/j.jtbi.2023.111467
+MutationRates_ABC_paper.pdf
