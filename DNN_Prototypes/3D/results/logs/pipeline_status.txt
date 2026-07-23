@@ -1,0 +1,10 @@
+STEP|validate_simulator|0|56
+STEP|train_surrogate|0|125
+STEP|architecture_search|0|879
+STEP|ensemble_check|0|558
+STEP|surrogate_quality|0|5
+STEP|gp_scaling|0|59
+STEP|abc_tables|0|17042
+STEP|abc_coverage|0|1
+STEP|figures|0|2100
+STEP|architecture_svg|0|0

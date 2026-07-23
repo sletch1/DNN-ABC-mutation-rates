@@ -9,7 +9,10 @@
 set -u
 cd "$(dirname "$0")"
 DIR="$(pwd)"
-PY="$HOME/miniconda3/envs/abc/bin/python"
+# Python from the pip/conda env built by build_env.sh. On stat86 the NFS home
+# cannot host a conda env (the .conda format needs backward seeks NFS refuses),
+# so the env lives on the node-local /tmp. Override with ABC_PY if it moves.
+PY="${ABC_PY:-/tmp/sach_abc_env/bin/python}"
 STATUS="$DIR/results/logs/pipeline_status.txt"
 mkdir -p results/logs results/figures results/tables results/model
 
@@ -17,6 +20,8 @@ mkdir -p results/logs results/figures results/tables results/model
 # run_experiments does not oversubscribe the 32 cores.
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
+# keep caches off the NFS home (matplotlib font cache on NFS can stall first run)
+export MPLCONFIGDIR=/tmp/sach_mpl; mkdir -p "$MPLCONFIGDIR"
 
 : > "$STATUS"
 echo "=== run_all.sh start $(date) ==="

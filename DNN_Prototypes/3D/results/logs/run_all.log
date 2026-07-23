@@ -1,0 +1,244 @@
+=== run_all.sh start Wed Jul 22 11:27:49 PM EDT 2026 ===
+python: /tmp/sach_abc_env/bin/python
+env ok 2.12.1
+
+>>> [validate_simulator] 23:27:53
+# Simulator port validation
+
+## 1. Plating time tp (all 100 (p,a) grid points)
+- max |tp_py - tp_csv| = 3.02e-05, mean = 6.91e-06
+- **PASS** (threshold 1e-4)
+
+## 2. Summary-stat mean log10(d_bar): Python slow-sim vs CSV
+| p | a | delta | CSV mean | Python mean | abs diff |
+|---|---|---|---|---|---|
+| 1e-02 | 1.17 | 1.83 | -0.460 | -0.435 | 0.025 |
+| 1e-02 | 1.00 | 1.50 | -0.506 | -0.507 | 0.002 |
+| 2e-03 | 1.33 | 1.17 | -0.904 | -0.903 | 0.002 |
+| 2e-03 | 1.33 | 0.50 | -1.144 | -1.147 | 0.003 |
+| 1e-02 | 1.33 | 1.00 | -0.660 | -0.651 | 0.009 |
+| 1e-02 | 0.67 | 1.33 | -0.549 | -0.555 | 0.006 |
+| 2e-03 | 1.00 | 2.00 | -0.651 | -0.639 | 0.012 |
+| 1e-02 | 1.50 | 1.17 | -0.598 | -0.595 | 0.003 |
+- max abs diff = 0.025  -> **PASS** (distributional, threshold 0.15)
+
+## 3. Estimator unit check (p_true=5e-3, 3000 cultures)
+- MOM = 5.148e-03, MLE = 5.629e-03, truth = 5.000e-03
+- **PASS** (within 50% of truth)
+
+## Overall: ALL CHECKS PASSED
+
+written -> results/logs/validate_simulator.md
+<<< [validate_simulator] exit=0  0m56s
+
+>>> [train_surrogate] 23:28:49
+train n=4999  val n=2999  test n=2000  (features=['log10p', 'a', 'delta'])
+Early stopping at epoch 238 (best val NLL=-2.0015)
+conformal sd_scale = 1.0032
+[train] n=4999  MSE(log)=0.01279  MAE(log)=0.07260  MSE(d_bar)=9.795e-05  95%cover=0.957
+[val] n=2999  MSE(log)=0.01325  MAE(log)=0.07569  MSE(d_bar)=1.173e-04  95%cover=0.951
+[test] n=2000  MSE(log)=0.01415  MAE(log)=0.07452  MSE(d_bar)=9.901e-05  95%cover=0.960
+saved -> /stat-nx1/stat/home/grad/sach/NN_ABC/DNN_Prototypes/3D/results/model/surrogate_3d.pt, /stat-nx1/stat/home/grad/sach/NN_ABC/DNN_Prototypes/3D/results/model/surrogate_metrics.json, plots in /stat-nx1/stat/home/grad/sach/NN_ABC/DNN_Prototypes/3D/results/figures
+<<< [train_surrogate] exit=0  2m5s
+
+>>> [architecture_search] 23:30:54
+train n=4999  surface pts=1000  irreducible noise var(log)~0.0130
+
+  GP budget 300 fit in 1.9s
+  GP budget 1000 fit in 24.0s
+  ResMLP silu+LN (w128, 3blk) [chosen]: 119.2s
+  ResMLP silu, NO LayerNorm (w128, 3blk): 121.8s
+  ResMLP gelu+LN (w128, 3blk): 75.2s
+  ResMLP silu+LN small (w64, 2blk): 51.2s
+  ResMLP silu+LN big (w256, 4blk): 331.8s
+  ResMLP relu+LN (w128, 3blk): 149.4s
+
+| model | mean-surface MSE | vs GP(300) |
+|---|---|---|
+| ResMLP relu+LN (w128, 3blk) | 1.34012e-03 | +24% better |
+| ResMLP silu+LN big (w256, 4blk) | 1.44363e-03 | +18% better |
+| ResMLP silu, NO LayerNorm (w128, 3blk) | 1.44635e-03 | +18% better |
+| ResMLP silu+LN (w128, 3blk) [chosen] | 1.46240e-03 | +17% better |
+| ResMLP silu+LN small (w64, 2blk) | 1.46711e-03 | +17% better |
+| ResMLP gelu+LN (w128, 3blk) | 1.48691e-03 | +16% better |
+| GP (budget 1000, fit 24.0s) | 1.60691e-03 | +9% better |
+| GP (budget 300, fit 1.9s) | 1.76652e-03 | — (baseline) |
+
+written -> results/logs/benchmark_arch.md
+<<< [architecture_search] exit=0  14m39s
+
+>>> [ensemble_check] 23:45:33
+| model | mean-surface MSE |
+|---|---|
+| single ResMLP (mean of 5 seeds) | 1.45888e-03 +/- 1.2e-05 |
+| single ResMLP (best seed) | 1.43688e-03 |
+| deep ensemble x5 | 1.44174e-03 (+1.2% vs single mean) |
+
+verdict: ensemble's 1.2% gain is below the 5% bar for its 5x cost -> keep the single network
+
+written -> results/logs/benchmark_round2.md
+<<< [ensemble_check] exit=0  9m18s
+
+>>> [surrogate_quality] 23:54:51
+# Surrogate quality (held-out test set)
+
+## 1. Calibration reliability
+| nominal | empirical | status |
+|---|---|---|
+| 0.50 | 0.499 | OK |
+| 0.80 | 0.825 | OK |
+| 0.90 | 0.913 | OK |
+| 0.95 | 0.960 | OK |
+| 0.99 | 0.989 | OK |
+
+## 2. Per-region error over (a, delta)
+- overall test MSE(log) = 0.01415
+- best region:  a=1.50, delta=0.50 -> MSE 0.00094
+- worst region: a=0.50, delta=2.00 -> MSE 0.11182
+- worst/best ratio = 119.5x  (uniformity of fit)
+
+## 3. Residual diagnostics (standardized)
+- mean(z) = -0.022 (target 0), std(z) = 0.985 (target 1)
+
+
+written -> results/logs/surrogate_quality.md + calibration/region tables + figures
+<<< [surrogate_quality] exit=0  0m5s
+
+>>> [gp_scaling] 23:54:56
+  GP budget    50: mse 6.4304e-03  fit   1.0s  query    1.9us/pt
+  GP budget   100: mse 2.6880e-03  fit   0.1s  query    3.2us/pt
+  GP budget   200: mse 2.0110e-03  fit   1.0s  query    7.1us/pt
+  GP budget   300: mse 1.7564e-03  fit   1.3s  query   12.3us/pt
+  GP budget   500: mse 1.7526e-03  fit   4.1s  query   26.8us/pt
+  GP budget  1000: mse 1.6263e-03  fit  23.1s  query   89.2us/pt
+  GP budget  1000: mse 1.6263e-03  fit  23.2s  query   88.8us/pt
+  DNN (all ~5000): mse 1.4624e-03  query 17.9us/pt (flat in n)
+
+written -> results/tables/gp_scaling.csv, results/logs/gp_scaling.md, figure
+<<< [gp_scaling] exit=0  0m59s
+
+>>> [abc_tables] 23:55:55
+
+=== Phase A: accuracy (Table 1 & 2) ===
+accuracy: 384 tasks (2p x 3 regimes x 2J x 32 reps) on 30 workers
+  [10/384] done  elapsed 34.1m  eta 1276.7m
+  [20/384] done  elapsed 35.6m  eta 647.8m
+  [30/384] done  elapsed 38.6m  eta 455.5m
+  [40/384] done  elapsed 70.2m  eta 603.5m
+  [50/384] done  elapsed 72.4m  eta 483.8m
+  [60/384] done  elapsed 76.8m  eta 414.7m
+  [70/384] done  elapsed 107.0m  eta 479.9m
+  [80/384] done  elapsed 109.3m  eta 415.4m
+  [90/384] done  elapsed 112.8m  eta 368.4m
+  [100/384] done  elapsed 125.5m  eta 356.5m
+  [110/384] done  elapsed 128.7m  eta 320.7m
+  [120/384] done  elapsed 137.0m  eta 301.3m
+  [130/384] done  elapsed 143.7m  eta 280.8m
+  [140/384] done  elapsed 147.2m  eta 256.5m
+  [150/384] done  elapsed 154.5m  eta 240.9m
+  [160/384] done  elapsed 160.8m  eta 225.1m
+  [170/384] done  elapsed 168.8m  eta 212.4m
+  [180/384] done  elapsed 173.9m  eta 197.1m
+  [190/384] done  elapsed 182.3m  eta 186.1m
+  [200/384] done  elapsed 189.5m  eta 174.3m
+  [210/384] done  elapsed 195.6m  eta 162.1m
+  [220/384] done  elapsed 203.4m  eta 151.6m
+  [230/384] done  elapsed 210.9m  eta 141.2m
+  [240/384] done  elapsed 216.7m  eta 130.0m
+  [250/384] done  elapsed 223.5m  eta 119.8m
+  [260/384] done  elapsed 233.3m  eta 111.2m
+  [270/384] done  elapsed 241.1m  eta 101.8m
+  [280/384] done  elapsed 245.0m  eta 91.0m
+  [290/384] done  elapsed 248.6m  eta 80.6m
+  [300/384] done  elapsed 253.0m  eta 70.8m
+  [310/384] done  elapsed 255.8m  eta 61.1m
+  [320/384] done  elapsed 258.8m  eta 51.8m
+  [330/384] done  elapsed 263.0m  eta 43.0m
+  [340/384] done  elapsed 266.6m  eta 34.5m
+  [350/384] done  elapsed 269.4m  eta 26.2m
+  [360/384] done  elapsed 274.2m  eta 18.3m
+  [370/384] done  elapsed 277.1m  eta 10.5m
+  [380/384] done  elapsed 278.6m  eta 2.9m
+  [384/384] done  elapsed 279.9m  eta 0.0m
+
+=== Phase B: timing (Table 3) ===
+  timed p=1e-03 a=1.0 d=1.0 J=100: ABC-MCMC=117.42s GPS-ABC=0.125s DNN-ABC=0.161s per 100 iter
+  timed p=1e-03 a=1.5 d=1.5 J=100: ABC-MCMC=128.87s GPS-ABC=0.124s DNN-ABC=0.157s per 100 iter
+  timed p=1e-03 a=1.0 d=0.5 J=100: ABC-MCMC=127.50s GPS-ABC=0.124s DNN-ABC=0.157s per 100 iter
+  timed p=1e-02 a=1.0 d=1.0 J=100: ABC-MCMC=72.88s GPS-ABC=0.124s DNN-ABC=0.157s per 100 iter
+  timed p=1e-02 a=1.5 d=1.5 J=100: ABC-MCMC=81.46s GPS-ABC=0.124s DNN-ABC=0.157s per 100 iter
+  timed p=1e-02 a=1.0 d=0.5 J=100: ABC-MCMC=76.57s GPS-ABC=0.123s DNN-ABC=0.157s per 100 iter
+
+| p | regime | J | MOM | MLE | ABC-MCMC | GPS-ABC | DNN-ABC |
+|---|---|---|---|---|---|---|---|
+| 1e-03 | a=1.0,d=1.0 | 50 | 2.68e-07 (0.52) | 3.09e-07 (0.56) | 1.81e-07 (0.43) | 2.16e-07 (0.46) | 1.80e-07 (0.42) |
+| 1e-03 | a=1.0,d=1.0 | 100 | 1.35e-07 (0.37) | 1.65e-07 (0.41) | 3.19e-08 (0.18) | 5.78e-08 (0.24) | 3.32e-08 (0.18) |
+| 1e-03 | a=1.5,d=1.5 | 50 | 1.69e-04 (13.00) | 1.95e-04 (13.98) | 1.71e-07 (0.41) | 1.98e-07 (0.44) | 1.69e-07 (0.41) |
+| 1e-03 | a=1.5,d=1.5 | 100 | 1.01e-04 (10.03) | 1.17e-04 (10.82) | 9.59e-08 (0.31) | 8.05e-08 (0.28) | 7.67e-08 (0.28) |
+| 1e-03 | a=1.0,d=0.5 | 50 | 5.43e-07 (0.74) | 5.14e-07 (0.72) | 3.72e-08 (0.19) | 6.22e-08 (0.25) | 3.76e-08 (0.19) |
+| 1e-03 | a=1.0,d=0.5 | 100 | 5.32e-07 (0.73) | 5.03e-07 (0.71) | 3.25e-08 (0.18) | 4.49e-08 (0.21) | 2.92e-08 (0.17) |
+| 1e-02 | a=1.0,d=1.0 | 50 | 1.08e-05 (0.33) | 1.61e-05 (0.40) | 8.92e-06 (0.30) | 6.71e-06 (0.26) | 9.80e-06 (0.31) |
+| 1e-02 | a=1.0,d=1.0 | 100 | 4.48e-06 (0.21) | 7.06e-06 (0.27) | 2.86e-06 (0.17) | 2.62e-06 (0.16) | 2.70e-06 (0.16) |
+| 1e-02 | a=1.5,d=1.5 | 50 | 8.58e-04 (2.93) | 1.11e-03 (3.33) | 1.11e-05 (0.33) | 6.57e-06 (0.26) | 1.20e-05 (0.35) |
+| 1e-02 | a=1.5,d=1.5 | 100 | 9.44e-04 (3.07) | 1.22e-03 (3.49) | 2.96e-06 (0.17) | 3.20e-06 (0.18) | 2.98e-06 (0.17) |
+| 1e-02 | a=1.0,d=0.5 | 50 | 3.98e-05 (0.63) | 3.50e-05 (0.59) | 3.91e-06 (0.20) | 3.41e-06 (0.18) | 3.86e-06 (0.20) |
+| 1e-02 | a=1.0,d=0.5 | 100 | 4.20e-05 (0.65) | 3.73e-05 (0.61) | 1.49e-06 (0.12) | 1.70e-06 (0.13) | 1.67e-06 (0.13) |
+
+| p | regime | J | ABC-MCMC (s/100it) | GPS-ABC (s/100it) | DNN-ABC (s/100it) | ABC/DNN speedup |
+|---|---|---|---|---|---|---|
+| 1e-03 | a=1.0,d=1.0 | 100 | 117.42 | 0.125 | 0.161 | 731x |
+| 1e-03 | a=1.5,d=1.5 | 100 | 128.87 | 0.124 | 0.157 | 819x |
+| 1e-03 | a=1.0,d=0.5 | 100 | 127.50 | 0.124 | 0.157 | 811x |
+| 1e-02 | a=1.0,d=1.0 | 100 | 72.88 | 0.124 | 0.157 | 465x |
+| 1e-02 | a=1.5,d=1.5 | 100 | 81.46 | 0.124 | 0.157 | 518x |
+| 1e-02 | a=1.0,d=0.5 | 100 | 76.57 | 0.123 | 0.157 | 487x |
+
+total wall time: 284.0 min
+results written to /stat-nx1/stat/home/grad/sach/NN_ABC/DNN_Prototypes/3D/results
+<<< [abc_tables] exit=0  284m2s
+
+>>> [abc_coverage] 04:39:57
+# ABC 95% credible-interval coverage (target 0.95)
+
+## Overall (all cells pooled)
+| method | coverage | n |
+|---|---|---|
+| ABC-MCMC | 0.927 | 384 | OK
+| GPS-ABC | 0.992 | 384 | OK
+| DNN-ABC | 0.865 | 384 | LOW
+
+## Per cell
+| p | a | delta | J | ABC-MCMC | GPS-ABC | DNN-ABC |
+|---|---|---|---|---|---|---|
+| 1e-03 | 1.0 | 0.5 | 50 | 0.97 | 1.00 | 0.84 |
+| 1e-03 | 1.0 | 0.5 | 100 | 0.91 | 1.00 | 0.91 |
+| 1e-03 | 1.0 | 1.0 | 50 | 0.88 | 0.94 | 0.69 |
+| 1e-03 | 1.0 | 1.0 | 100 | 0.97 | 1.00 | 0.94 |
+| 1e-03 | 1.5 | 1.5 | 50 | 0.78 | 0.97 | 0.62 |
+| 1e-03 | 1.5 | 1.5 | 100 | 0.94 | 1.00 | 0.94 |
+| 1e-02 | 1.0 | 0.5 | 50 | 0.94 | 1.00 | 0.91 |
+| 1e-02 | 1.0 | 0.5 | 100 | 1.00 | 1.00 | 0.97 |
+| 1e-02 | 1.0 | 1.0 | 50 | 0.97 | 1.00 | 0.91 |
+| 1e-02 | 1.0 | 1.0 | 100 | 0.94 | 1.00 | 0.91 |
+| 1e-02 | 1.5 | 1.5 | 50 | 0.88 | 1.00 | 0.78 |
+| 1e-02 | 1.5 | 1.5 | 100 | 0.97 | 1.00 | 0.97 |
+
+Reading: coverage near 0.95 means the intervals are honest. If DNN-ABC holds ~0.95 while giving shorter intervals than GPS-ABC (Table 2), its extra precision is real, not overconfidence.
+
+
+written -> results/tables/abc_coverage.csv, results/logs/abc_coverage.md
+<<< [abc_coverage] exit=0  0m1s
+
+>>> [figures] 04:39:58
+fig_uncertainty...
+fig_table1_mse...
+fig_timing...
+fig_posterior (runs a few short chains)...
+figures written to /stat-nx1/stat/home/grad/sach/NN_ABC/DNN_Prototypes/3D/results/figures
+<<< [figures] exit=0  35m0s
+
+>>> [architecture_svg] 05:14:58
+wrote /stat-nx1/stat/home/grad/sach/NN_ABC/DNN_Prototypes/3D/results/figures/architecture.svg (7361 bytes)
+<<< [architecture_svg] exit=0  0m0s
+
+>>> packaging results

@@ -17,6 +17,14 @@ tested configuration, produces consistently tighter (still-calibrated) credible
 intervals, and delivers calibrated input-dependent uncertainty the GP cannot — at
 the same ~100–2500× speedup over exact ABC-MCMC.**
 
+**A 3-D extension is now complete** — a joint `(p, a, δ)` neural surrogate, the
+three-parameter regime the paper never attempted. See
+[`DNN_Prototypes/3D/`](DNN_Prototypes/3D/README.md) and the summary in **§9**. In
+brief: the **surrogate/scaling wins are even clearer in 3-D** (the DNN beats every
+affordable GP and the GP hits an explicit O(n³) wall), while the downstream ABC
+inference is a more honest, mixed story with one flagged limitation (small-`J`
+interval coverage).
+
 ---
 
 ## 1. The neural network
@@ -332,9 +340,12 @@ From `../../dnn_improvement.md`, quantified against this run:
   nRMSE in all 9 cells and up to ~40% lower at `p=1e-2` (Table 1), with tighter
   intervals (Table 2) — despite the paper's own note that a GP is near-optimal in
   1-D, so parity was the expected ceiling.
-- **Dimensionality (target #3) — next.** This 1-D pipeline is the template for the
-  3-D `(p, a, δ)` surrogate (`slow_data_3D.csv`, still generating on stat86), where
-  the GP faces the curse of dimensionality and the DNN's advantages should widen.
+- **Dimensionality (target #3) — achieved.** The 3-D `(p, a, δ)` surrogate is built
+  and tested ([`DNN_Prototypes/3D/`](DNN_Prototypes/3D/README.md), §9): a residual
+  MLP that beats a budget-limited GP by 17–24 % on surface fit and even a
+  1,000-point GP by 10 % (while that GP takes 24 s to fit), with near-perfect
+  regression calibration. The GP's curse of dimensionality shows up as an explicit
+  O(n³) cost wall, exactly as predicted.
 
 ---
 
@@ -406,3 +417,51 @@ paper-scale study.
   dataset will enable.
 - 40 replicates (vs the paper's 100) — MSE cells carry modest Monte-Carlo noise;
   turn `--reps` up for publication-grade error bars.
+
+---
+
+## 9. 3-D extension: a joint `(p, a, δ)` surrogate
+
+The 1-D pipeline above is the template for a genuine three-parameter surrogate over
+mutation probability `p`, division rate `a`, and mutant relative growth `δ` —
+jointly, the regime the paper never attempted. Full write-up, code, and figures:
+**[`DNN_Prototypes/3D/`](DNN_Prototypes/3D/README.md)**.
+
+**The network is different by design.** Where 1-D used a shallow 2-layer funnel MLP
+(its target is a smooth monotone curve), 3-D uses a **pre-activation residual MLP**
+— input projection → 3 residual blocks (LayerNorm + SiLU + skip connections) → two
+heteroscedastic heads — because the `(p, a, δ)` response is a *surface* with real
+interactions. LayerNorm (never BatchNorm, per the 1-D lesson) keeps the deeper net
+stable.
+
+![3-D architecture](DNN_Prototypes/3D/results/figures/architecture.svg)
+
+**What the 3-D run (32 reps, 600 MCMC it, on stat86) shows — reported honestly:**
+
+*Clear wins — the surrogate and its scaling (targets #1, #3):*
+- The residual MLP beats a **budget-300 GP by 17–24 %** on surface fit, and even a
+  **1,000-point GP by 10 %** — while that GP takes **24 s** to fit and its per-query
+  cost climbs to 89 µs/pt; the DNN's is a flat **17.9 µs/pt** regardless of size.
+- **Near-perfect calibration** on held-out data (nominal→empirical: 0.95→0.96,
+  0.99→0.99).
+- **MOM/MLE fail catastrophically off `a=1`** (nRMSE 13–14 at `a=1.5`) while every
+  `(a,δ)`-aware ABC method stays accurate — the surrogate is what makes 3-D
+  inference feasible.
+
+![GP vs DNN scaling](DNN_Prototypes/3D/results/figures/fig_gp_scaling.png)
+
+*Nuanced / mixed — the ABC inference:*
+- DNN-ABC point accuracy ≤ GPS-ABC in **8/12 cells** (a clean sweep at `p=1e-3`, but
+  it **loses in several `p=1e-2, J=50` cells**) — overall a tie.
+- **465–819× faster** than exact ABC-MCMC; at the deployed GP budget, GPS-ABC's
+  query is actually a touch faster — the DNN's edge is *scaling*, not the
+  small-budget query.
+- DNN-ABC gives the **tightest** credible intervals but they **under-cover at small
+  `J`** (pooled 0.865 vs nominal 0.95; fine at `J=100`, down to 0.62 at `J=50`).
+  GPS-ABC over-covers (0.992). This likelihood-width calibration issue is the main
+  open problem, deliberately reported rather than tuned away.
+
+**Takeaway:** 3-D confirms the surrogate/scaling thesis more strongly than 1-D and
+surfaces a genuine, well-localized weakness (small-`J` interval coverage) — the kind
+of finding a harder benchmark is meant to produce. See §4.5 of the 3-D README for
+the diagnosis and the proposed fix.
