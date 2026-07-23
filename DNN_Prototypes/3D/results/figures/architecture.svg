@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 620" font-family="Helvetica Neue, Arial, sans-serif">
+<rect x="0" y="0" width="1180" height="620" fill="#ffffff"/>
+<rect x="8" y="8" width="1164" height="604" rx="18" fill="#fbfcfe" stroke="#e5e9f0" stroke-width="1.5"/>
+<defs><linearGradient id="meanG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3f2fd"/><stop offset="1" stop-color="#bbdefb"/></linearGradient><linearGradient id="varG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5e9fc"/><stop offset="1" stop-color="#e6ccf7"/></linearGradient><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ef6c00"/></marker></defs>
+<text x="590.0" y="46" text-anchor="middle" font-size="24" font-weight="700" fill="#1f2937">Heteroscedastic residual MLP surrogate (3-D)</text>
+<text x="590.0" y="74" text-anchor="middle" font-size="15" fill="#6b7280">inputs  (log&#8321;&#8320;(p), a, &#948;)   &#8594;   two outputs:  mean and log-variance of  log&#8321;&#8320;(d&#772;),   d&#772; = mean&#7522; &#8730;(X&#7522;/Z&#7522;)</text>
+<circle cx="92" cy="254" r="15" fill="#fff3e0" stroke="#f59e0b" stroke-width="2.5"/>
+<text x="92" y="259" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2937">log&#8321;&#8320;(p)</text>
+<circle cx="92" cy="300" r="15" fill="#fff3e0" stroke="#f59e0b" stroke-width="2.5"/>
+<text x="92" y="305" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2937">a</text>
+<circle cx="92" cy="346" r="15" fill="#fff3e0" stroke="#f59e0b" stroke-width="2.5"/>
+<text x="92" y="351" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2937">&#948;</text>
+<text x="92" y="220" text-anchor="middle" font-size="12" fill="#6b7280">input (3)</text>
+<rect x="208" y="205" width="84" height="190" rx="12" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+<text x="250" y="296" text-anchor="middle" font-size="14" font-weight="700" fill="#2e7d32">Linear</text>
+<text x="250" y="316" text-anchor="middle" font-size="12.5" fill="#1f2937">3 &#8594; 128</text>
+<line x1="107" y1="254" x2="208" y2="300" stroke="#111827" stroke-width="0.9" opacity="0.5"/>
+<line x1="107" y1="300" x2="208" y2="300" stroke="#111827" stroke-width="0.9" opacity="0.5"/>
+<line x1="107" y1="346" x2="208" y2="300" stroke="#111827" stroke-width="0.9" opacity="0.5"/>
+<rect x="370.0" y="195.0" width="120" height="210" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+<text x="430" y="219.0" text-anchor="middle" font-size="13.5" font-weight="700" fill="#6366f1">Res block 1</text>
+<text x="430" y="243.0" text-anchor="middle" font-size="11.5" fill="#1f2937">LayerNorm</text>
+<text x="430" y="267.0" text-anchor="middle" font-size="11.5" fill="#1f2937">SiLU</text>
+<text x="430" y="291.0" text-anchor="middle" font-size="11.5" fill="#1f2937">Linear 128</text>
+<text x="430" y="315.0" text-anchor="middle" font-size="11.5" fill="#1f2937">LayerNorm</text>
+<text x="430" y="339.0" text-anchor="middle" font-size="11.5" fill="#1f2937">SiLU</text>
+<text x="430" y="363.0" text-anchor="middle" font-size="11.5" fill="#1f2937">Linear 128</text>
+<path d="M 370.0 187.0 C 390 149.0, 470 149.0, 490.0 187.0" fill="none" stroke="#ef6c00" stroke-width="2.2" marker-end="url(#arrow)"/>
+<text x="430" y="143.0" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ef6c00">+ skip</text>
+<rect x="580.0" y="195.0" width="120" height="210" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+<text x="640" y="219.0" text-anchor="middle" font-size="13.5" font-weight="700" fill="#6366f1">Res block 2</text>
+<text x="640" y="243.0" text-anchor="middle" font-size="11.5" fill="#1f2937">LayerNorm</text>
+<text x="640" y="267.0" text-anchor="middle" font-size="11.5" fill="#1f2937">SiLU</text>
+<text x="640" y="291.0" text-anchor="middle" font-size="11.5" fill="#1f2937">Linear 128</text>
+<text x="640" y="315.0" text-anchor="middle" font-size="11.5" fill="#1f2937">LayerNorm</text>
+<text x="640" y="339.0" text-anchor="middle" font-size="11.5" fill="#1f2937">SiLU</text>
+<text x="640" y="363.0" text-anchor="middle" font-size="11.5" fill="#1f2937">Linear 128</text>
+<path d="M 580.0 187.0 C 600 149.0, 680 149.0, 700.0 187.0" fill="none" stroke="#ef6c00" stroke-width="2.2" marker-end="url(#arrow)"/>
+<text x="640" y="143.0" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ef6c00">+ skip</text>
+<rect x="790.0" y="195.0" width="120" height="210" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+<text x="850" y="219.0" text-anchor="middle" font-size="13.5" font-weight="700" fill="#6366f1">Res block 3</text>
+<text x="850" y="243.0" text-anchor="middle" font-size="11.5" fill="#1f2937">LayerNorm</text>
+<text x="850" y="267.0" text-anchor="middle" font-size="11.5" fill="#1f2937">SiLU</text>
+<text x="850" y="291.0" text-anchor="middle" font-size="11.5" fill="#1f2937">Linear 128</text>
+<text x="850" y="315.0" text-anchor="middle" font-size="11.5" fill="#1f2937">LayerNorm</text>
+<text x="850" y="339.0" text-anchor="middle" font-size="11.5" fill="#1f2937">SiLU</text>
+<text x="850" y="363.0" text-anchor="middle" font-size="11.5" fill="#1f2937">Linear 128</text>
+<path d="M 790.0 187.0 C 810 149.0, 890 149.0, 910.0 187.0" fill="none" stroke="#ef6c00" stroke-width="2.2" marker-end="url(#arrow)"/>
+<text x="850" y="143.0" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ef6c00">+ skip</text>
+<line x1="292" y1="300" x2="370.0" y2="300" stroke="#111827" stroke-width="1.6" opacity="0.7"/>
+<line x1="490.0" y1="300" x2="580.0" y2="300" stroke="#111827" stroke-width="1.6" opacity="0.7"/>
+<line x1="700.0" y1="300" x2="790.0" y2="300" stroke="#111827" stroke-width="1.6" opacity="0.7"/>
+<line x1="910.0" y1="300" x2="1010" y2="300" stroke="#111827" stroke-width="1.6" opacity="0.7"/>
+<circle cx="1040" cy="248" r="16" fill="url(#meanG)" stroke="#1e88e5" stroke-width="2.5"/>
+<circle cx="1040" cy="352" r="16" fill="url(#varG)" stroke="#8e44ad" stroke-width="2.5"/>
+<line x1="1010" y1="300" x2="1024" y2="248" stroke="#1e88e5" stroke-width="1.6"/>
+<line x1="1010" y1="300" x2="1024" y2="352" stroke="#8e44ad" stroke-width="1.6"/>
+<text x="1040" y="216" text-anchor="middle" font-size="14" font-weight="700" fill="#1e88e5">&#956;</text>
+<text x="1040" y="200" text-anchor="middle" font-size="11.5" fill="#1f2937">mean log&#8321;&#8320;(d&#772;)</text>
+<text x="1040" y="392" text-anchor="middle" font-size="14" font-weight="700" fill="#8e44ad">log &#963;&#178;</text>
+<text x="1040" y="408" text-anchor="middle" font-size="11.5" fill="#1f2937">log pred. variance</text>
+<rect x="40" y="546" width="1100" height="52" rx="10" fill="#f7f9fc" stroke="#e5e9f0" stroke-width="1"/>
+<text x="60" y="568" font-size="12.5" fill="#1f2937"><tspan font-weight="700">Structure:</tspan> input projection &#8594; 3 pre-activation residual blocks (width 128, LayerNorm + SiLU, identity skip) &#8594; two linear heads. Depth + skips fit the (p, a, &#948;) interaction surface; LayerNorm (never BatchNorm) avoids the 1-D model&#8217;s batch-noise failure.</text>
+<text x="60" y="588" font-size="12.5" fill="#1f2937"><tspan font-weight="700">Training:</tspan> Adam, MSE warm-up on the mean head, then Gaussian NLL; early stopping on val NLL; a single conformal scale factor calibrates &#963; to 95% coverage.</text>
+</svg>
