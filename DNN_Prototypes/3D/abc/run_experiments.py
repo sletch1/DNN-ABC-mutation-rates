@@ -111,6 +111,8 @@ def _one_replicate(task):
         p_hat, ci_lo, ci_hi, ci_len = point_and_interval(samples, cfg["burnin"])
         out[name] = p_hat
         out[name + "_cilen"] = ci_len
+        out[name + "_cilo"] = ci_lo
+        out[name + "_cihi"] = ci_hi
         out[name + "_acc"] = acc
     return out
 
@@ -118,6 +120,11 @@ def _one_replicate(task):
 def run_accuracy(cfg, ckpt_path):
     tasks = [(p, a, d, J, r) for p in cfg["p_grid"] for (a, d) in cfg["regimes"]
              for J in cfg["J_grid"] for r in range(cfg["reps"])]
+    # Expensive-tasks-first (longest-processing-time) so dynamic scheduling never
+    # leaves cores idle waiting on one big job at the tail. Per-task cost of the
+    # ABC-MCMC baseline ~ J * exp(a*tp) (simulator population x cultures).
+    tasks.sort(key=lambda t: t[3] * np.exp(t[1] * solve_tp(1, t[1], t[0], 20)),
+               reverse=True)
     n = len(tasks)
     print(f"accuracy: {n} tasks ({len(cfg['p_grid'])}p x {len(cfg['regimes'])} regimes "
           f"x {len(cfg['J_grid'])}J x {cfg['reps']} reps) on {cfg['workers']} workers",
