@@ -45,16 +45,22 @@ def main():
 
     ens = surface_mse(ens_pred, X_true, y_true)
     smean, sstd = float(np.mean(singles)), float(np.std(singles))
+    gain = (smean - ens) / smean  # fractional surface-MSE improvement of the ensemble
 
     lines = [
         "| model | mean-surface MSE |",
         "|---|---|",
         f"| single ResMLP (mean of {K} seeds) | {smean:.5e} +/- {sstd:.1e} |",
         f"| single ResMLP (best seed) | {min(singles):.5e} |",
-        f"| deep ensemble x{K} | {ens:.5e} |",
+        f"| deep ensemble x{K} | {ens:.5e} ({gain*100:+.1f}% vs single mean) |",
     ]
-    verdict = ("ensemble helps beyond seed noise" if ens < smean - sstd
-               else "ensemble gain within seed noise -> keep single network")
+    # Cost-aware rule: an x{K} ensemble costs K-fold train + inference, so it must
+    # clear a margin worth that cost (5%) -- not merely beat seed noise -- to deploy.
+    COST_THRESHOLD = 0.05
+    verdict = (f"ensemble improves surface fit by {gain*100:.1f}% -- above the {COST_THRESHOLD*100:.0f}% "
+               f"bar for its {K}x cost, worth deploying" if gain >= COST_THRESHOLD
+               else f"ensemble's {gain*100:.1f}% gain is below the {COST_THRESHOLD*100:.0f}% bar for its "
+                    f"{K}x cost -> keep the single network")
     table = "\n".join(lines)
     print(table + f"\n\nverdict: {verdict}")
     (LOG_DIR / "benchmark_round2.md").write_text(
