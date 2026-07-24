@@ -424,23 +424,66 @@ so the flat imports work across folders without an install step.
 
 ## 8. Reproducibility
 
+### Setup
+
 ```bash
-# train + conformally calibrate the DNN surrogate
+git clone https://github.com/sletch1/DNN-ABC-mutation-rates.git
+cd DNN-ABC-mutation-rates
+python3 -m venv .venv && source .venv/bin/activate   # Python 3.9+
+pip install -r requirements.txt
+```
+
+`requirements.txt` (repo root) pins `numpy`, `pandas`, `scipy`, `matplotlib`,
+`scikit-learn` (used for the GPS-ABC Gaussian-process baseline), and `torch` (the
+DNN). No GPU is required — every model here is small enough to train on CPU in
+seconds to minutes.
+
+### 1-D pipeline
+
+The ground-truth data (`data/slow_data_1D.csv`) is already committed, so no
+simulation needs to be regenerated first. Run everything from
+[`DNN_Prototypes/1D/`](DNN_Prototypes/1D):
+
+```bash
+cd DNN_Prototypes/1D
+
+# train + conformally calibrate the DNN surrogate (~seconds)
 python network/train.py
 
-# reproduce Tables 1/2/3 with the DNN column (this run's settings)
+# reproduce Tables 1/2/3 with the DNN column (this run's settings, ~minutes)
 python abc/run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 \
     --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
 
 # regenerate all figures + the architecture SVG
 python figures/make_figures.py && python network/gen_architecture_svg.py
 
-# (optional) re-run the architecture search
+# (optional) re-run the architecture search behind §5
 python network/architecture_search/benchmark_arch.py
 ```
 
 All scale knobs are CLI flags, so the same code runs the quick demo and a
-paper-scale study.
+paper-scale study. Outputs land in `DNN_Prototypes/1D/results/` (`tables/`,
+`figures/`, `model/`, `logs/`) — the same layout described in §7.
+
+### 3-D pipeline
+
+The 3-D surrogate has its own self-contained reproduction steps (data, one-command
+full run, or individual stages) — see **[§8 of
+`DNN_Prototypes/3D/README.md`](DNN_Prototypes/3D/README.md#8-reproducibility)**.
+In short, from [`DNN_Prototypes/3D/`](DNN_Prototypes/3D):
+
+```bash
+cd DNN_Prototypes/3D
+python network/train.py                          # train + calibrate the surrogate
+python abc/run_experiments.py --reps 32 --nmcmc 600 --ns 6 --workers 30
+python tests/gp_scaling.py                        # GP-vs-DNN scaling study
+python tests/abc_coverage.py                      # interval coverage
+python figures/make_figures.py
+```
+
+(`run_all.sh` in that folder chains all of the above plus an email report — it is
+tailored to the server it was built on, so running the stages individually as shown
+is the portable path.)
 
 ### Scope & honest caveats
 
