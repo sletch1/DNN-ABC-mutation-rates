@@ -27,6 +27,44 @@ interval coverage).
 
 ---
 
+## Key findings & contributions
+
+**Contributions**
+
+- Full reproduction of Lu, Zhu & Wu (2023)'s four estimators (MOM, MLE, ABC-MCMC,
+  GPS-ABC) as the baseline this project extends.
+- A new **heteroscedastic DNN surrogate**, added as a fourth ABC backend in place of
+  GPS-ABC's Gaussian process, with input-dependent predictive uncertainty and
+  split-conformal calibration (§1, §4.5).
+- A controlled architecture study (§5) that isolates the actual driver of surrogate
+  quality — removing BatchNorm, not the choice of activation — which is what took the
+  DNN from *losing* to GPS-ABC to beating it.
+- A novel **3-D joint `(p, a, δ)` surrogate** (§9), the multi-parameter regime the
+  original paper never attempted, built with a pre-activation residual MLP.
+- A fully reproducible pipeline (§8): one command trains the surrogate, one
+  reproduces all result tables, one regenerates every figure.
+
+**Major findings**
+
+- **Accuracy:** DNN-ABC has lower (or equal) MSE than GPS-ABC in **all 9** tested
+  1-D configurations — ~21% lower on average, up to 62% lower at `p=1e-2`
+  (Table 1, §4.2).
+- **Precision:** ~27% tighter 95% credible intervals than GPS-ABC on average (up to
+  47% tighter), in 8 of 9 cells, with no loss of coverage (Table 2, §4.3).
+- **Speed:** 75×–2567× faster than exact ABC-MCMC — a dead tie with GPS-ABC in
+  1-D — at flat cost regardless of `p` or `J` (Table 3, §4.4).
+- **Calibration:** the heteroscedastic head + conformal calibration achieve exactly
+  **0.950** test-set coverage, with predictive uncertainty that tracks the data's
+  true input-dependent noise — something GPS-ABC's homoscedastic GP cannot
+  represent (§4.5).
+- **3-D extension:** the surrogate/scaling advantage is even clearer than in 1-D —
+  it beats a budget-300 GP by 17–24% and a 1,000-point GP by 10%, at a flat
+  17.9 µs/pt query cost vs. the GP's 89 µs/pt (and 24 s fit time). Downstream ABC
+  inference is a more mixed, honestly-reported story, with one flagged limitation:
+  credible-interval under-coverage at small `J` (§9).
+
+---
+
 ## 1. The neural network
 
 ![DNN architecture](DNN_Prototypes/1D/results/figures/architecture.svg)
