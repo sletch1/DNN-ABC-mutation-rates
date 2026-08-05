@@ -5,6 +5,12 @@ Markov branching process using approximate Bayesian computation,"* J. Theoretica
 Biology 565:111467 — with a deep-neural-network surrogate added as a fourth
 estimator alongside the paper's MOM/MLE, ABC-MCMC, and GPS-ABC.**
 
+**Manuscript:** [`manuscript.pdf`](manuscript.pdf) ([source](manuscript.tex)) —
+a full writeup of both studies below, formatted for submission to a
+computational/applied statistics journal (JASA / JCGS / AoAS), with formal
+ABC-MCMC notation, Monte Carlo standard errors on every simulation-study
+comparison, and a complete reproducibility statement.
+
 The paper's central methodological contribution is **GPS-ABC**: replacing the
 expensive Markov-branching-process (MBP) simulator inside the ABC-MCMC loop with a
 **Gaussian-process** surrogate. This project asks a direct follow-up question:
@@ -12,10 +18,13 @@ expensive Markov-branching-process (MBP) simulator inside the ABC-MCMC loop with
 > *Can a neural network replace that Gaussian process — and does it help?*
 
 The headline answer, on the paper's own 1-D constant-mutation-rate benchmark:
-**the DNN surrogate matches or beats GPS-ABC on estimation accuracy in every
-tested configuration, produces consistently tighter (still-calibrated) credible
-intervals, and delivers calibrated input-dependent uncertainty the GP cannot — at
-the same ~100–2500× speedup over exact ABC-MCMC.**
+**the DNN surrogate is never worse than GPS-ABC on estimation accuracy in any
+tested configuration, and clearly better (beyond Monte Carlo simulation noise)
+at the largest tested mutation rate; it produces consistently tighter
+(still-calibrated) credible intervals, and delivers calibrated input-dependent
+uncertainty the GP cannot — at the same ~100–2500× speedup over exact
+ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
+(most cells are a statistical tie on point accuracy; see §4.3/Table 3 there).
 
 **A 3-D extension is now complete** — a joint `(p, a, δ)` neural surrogate, the
 three-parameter regime the paper never attempted. See
@@ -407,12 +416,13 @@ DNN_Prototypes/1D/
 │   ├── estimators.py              # MOM / MLE (paper Eqs. 11–12)
 │   ├── surrogates.py              # predict(θ)→(mean,sd): DNNSurrogate + GP baseline
 │   ├── abc_mcmc.py                # one MH sampler, 3 backends (sim / GP / DNN)
-│   └── run_experiments.py         # reproduces Tables 1/2/3 (parallel, progress-logged)
+│   ├── run_experiments.py         # reproduces Tables 1/2/3 (parallel, progress-logged)
+│   └── mcse.py                    # Monte Carlo SEs + Delta/SE for Table 1 (manuscript.tex)
 ├── figures/
 │   └── make_figures.py            # all result figures
 └── results/
     ├── figures/                   # 7 PNGs + architecture.svg
-    ├── tables/                    # TABLES.md, table1/2/3_*.csv
+    ├── tables/                    # TABLES.md, table1/2/3_*.csv, mcse.md
     ├── model/                     # surrogate_1d.pt, surrogate_metrics.json
     └── logs/                      # experiment_config.json, raw_replicates.csv, benchmark_*.md
 ```

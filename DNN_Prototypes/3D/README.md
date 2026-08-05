@@ -348,7 +348,8 @@ DNN_Prototypes/3D/
 │   ├── estimators.py              # MOM / MLE
 │   ├── surrogates.py              # DNNSurrogate3D + budget-limited GP baseline
 │   ├── abc_mcmc.py                # one MH sampler, 3 backends (sim / GP / DNN)
-│   └── run_experiments.py         # Tables 1/2/3 (expensive-first parallel dispatch)
+│   ├── run_experiments.py         # Tables 1/2/3 (expensive-first parallel dispatch)
+│   └── mcse.py                    # Monte Carlo SEs + Delta/SE for Table 1 (manuscript.tex)
 ├── tests/                         # the thorough-test suite
 │   ├── validate_simulator.py      # port validation vs the R/CSV ground truth
 │   ├── surrogate_quality.py       # calibration reliability + per-region error

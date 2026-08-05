@@ -46,12 +46,18 @@ doing so helps. We develop a heteroscedastic multilayer-perceptron surrogate,
 calibrated by split-conformal prediction \citep{lei2018}, that substitutes
 directly for the GP inside the same ABC-MCMC sampler with no other change to
 the inference procedure. In a one-dimensional simulation study reproducing the
-constant-mutation-rate benchmark of \citet{lu2023}, the neural surrogate
-matches or improves on GPS-ABC's point-estimation mean squared error in all
-nine tested configurations (21\% lower on average, up to 62\% lower), produces
-tighter 95\% credible intervals with no loss of empirical coverage, and
-achieves near-exact conformal calibration, all at the same two-to-three
-order-of-magnitude speedup over exact ABC-MCMC that the GP already provides.
+constant-mutation-rate benchmark of \citet{lu2023}, replicated with Monte
+Carlo standard errors reported throughout \citep{morris2019}, the neural
+surrogate is never worse than GPS-ABC on point-estimation mean squared error
+in any of nine tested configurations and is tighter by a margin that clearly
+exceeds simulation noise at the largest tested mutation rate (up to 62\%
+lower MSE, a gap of 5--8 Monte Carlo standard errors); at smaller mutation
+rates the two surrogates are statistically indistinguishable on point
+accuracy. The neural surrogate nonetheless produces tighter 95\% credible
+intervals with no loss of empirical coverage in eight of nine configurations,
+and achieves near-exact conformal calibration, all at the same
+two-to-three-order-of-magnitude speedup over exact ABC-MCMC that the GP
+already provides.
 In a second simulation study we extend the model to a joint
 three-parameter regime -- mutation probability, division rate, and mutant
 relative growth -- that a Gaussian-process surrogate cannot reach
@@ -71,6 +77,10 @@ deploying conformally calibrated surrogates inside likelihood-free samplers
 more generally. Code, data, and a fully scripted reproduction pipeline are
 available at \url{https://github.com/sletch1/DNN-ABC-mutation-rates}.
 \end{abstract}
+
+\noindent\textbf{Keywords:} approximate Bayesian computation; likelihood-free
+inference; surrogate modeling; conformal prediction; heteroscedastic
+regression; simulation study; Markov branching process
 
 % =============================================================================
 \section{Introduction}
@@ -325,6 +335,43 @@ and the simulator's simulated $\dbar$ means are compared against the
 committed ground-truth CSV at matched grid points (Sections~\ref{sec:sim1D}
 and \ref{sec:sim3D} report the resulting agreement for each study).
 
+\subsection{Simulation design and reporting}
+\label{sec:ademp}
+
+We report both simulation studies following the structure recommended by
+\citet{morris2019}: \emph{aims} -- compare five estimators (MOM, MLE, exact
+ABC-MCMC, GPS-ABC, DNN-ABC) on point accuracy, interval precision and
+coverage, and computational cost, under known ground truth; \emph{data-generating
+mechanisms} -- the validated MBP simulator of Section~\ref{sec:validation}, at
+the parameter grids specified in Sections~\ref{sec:sim1D_results} and
+\ref{sec:sim3D_abc}; \emph{estimands} -- the mutation probability $p$ (via
+$\theta=\log_{10}p$), with $(a,\delta)$ known covariates in Study II;
+\emph{methods} -- the five estimators of Section~\ref{sec:abcmcmc} and
+\ref{sec:method}, all evaluated on identical simulated data sets within a
+cell; and \emph{performance measures} -- MSE and normalized RMSE of $\hat p$,
+mean 95\% credible-interval length, empirical coverage, and wall-clock time
+per 100 MCMC iterations.
+
+Each cell of each study is evaluated over $R$ independent replicated data
+sets ($R=40$ in Study I, $R=32$ in Study II), and, following
+\citeauthor{morris2019}'s recommendation, we accompany every MSE comparison
+with its Monte Carlo standard error (MCSE), computed as the usual standard
+error of a sample mean applied to the per-replicate squared errors: writing
+$e_r = (\hat p_r - p)^2$ for replicate $r=1,\dots,R$ under a given method and
+cell, $\widehat{\mathrm{MSE}} = R^{-1}\sum_r e_r$ has
+$\widehat{\mathrm{MCSE}} = \mathrm{sd}(e_r)/\sqrt{R}$. For the head-to-head
+comparison between the two surrogates in each cell, we report the gap
+$\widehat{\mathrm{MSE}}_{\mathrm{GPS}} - \widehat{\mathrm{MSE}}_{\mathrm{DNN}}$
+in units of its own combined Monte Carlo standard error $\sqrt{\mathrm{MCSE}_{\mathrm{GPS}}^2
++ \mathrm{MCSE}_{\mathrm{DNN}}^2}$ (a $\Delta/\mathrm{SE}$ column in
+Tables~\ref{tab:mse1D} and \ref{tab:mse3D}); this is a descriptive diagnostic
+of whether a point comparison is resolved at this replicate count, not a
+formal hypothesis test, and we use it throughout to avoid over-interpreting
+small numerical differences as the replicate count varies across cells and
+between the two studies ($R=40$ versus $R=32$, further split unevenly by the
+number of live workers available for the most expensive, exact-simulator
+cells).
+
 % =============================================================================
 \section{Simulation Study I: One-Dimensional Constant Mutation Rate}
 \label{sec:sim1D}
@@ -466,36 +513,44 @@ closed-form expressions and serve as classical, non-ABC baselines.
 \centering
 \caption{Study I, Table 1: MSE of $\hat p$ across five estimators; normalized
 RMSE $\sqrt{\mathrm{MSE}}/p$ in parentheses. Bold marks the lower of GPS-ABC
-and DNN-ABC in each row.}
+and DNN-ABC in each row. $\Delta/\mathrm{SE}$ is the GPS-ABC$-$DNN-ABC MSE gap
+in units of its combined Monte Carlo standard error (Section~\ref{sec:ademp});
+values below $\sim 2$ in magnitude are not clearly resolved at $R=40$
+replicates.}
 \label{tab:mse1D}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{rrrrrrr}
+\begin{tabular}{rrrrrrrr}
 \toprule
-$p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC \\
+$p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \midrule
-$10^{-4}$ & 10  & 9.36e-9 (0.97)  & 1.02e-8 (1.01)  & 2.90e-9 (0.54) & 7.02e-9 (0.84) & \textbf{6.32e-9 (0.80)} \\
-$10^{-4}$ & 50  & 8.68e-9 (0.93)  & 9.59e-9 (0.98)  & 1.91e-9 (0.44) & 1.88e-9 (0.43) & \textbf{1.74e-9 (0.42)} \\
-$10^{-4}$ & 100 & 4.18e-9 (0.65)  & 4.64e-9 (0.68)  & 7.75e-10 (0.28) & 8.21e-10 (0.29) & \textbf{7.28e-10 (0.27)} \\
-$10^{-3}$ & 10  & 1.38e-6 (1.17)  & 1.60e-6 (1.26)  & 4.60e-7 (0.68) & 5.10e-7 (0.71) & \textbf{5.05e-7 (0.71)} \\
-$10^{-3}$ & 50  & 3.21e-7 (0.57)  & 3.85e-7 (0.62)  & 1.15e-7 (0.34) & 1.23e-7 (0.35) & \textbf{1.12e-7 (0.33)} \\
-$10^{-3}$ & 100 & 2.71e-7 (0.52)  & 3.29e-7 (0.57)  & 4.33e-8 (0.21) & 4.29e-8 (0.21) & \textbf{4.21e-8 (0.21)} \\
-$10^{-2}$ & 10  & 3.42e-5 (0.58)  & 4.40e-5 (0.66)  & 2.64e-5 (0.51) & 1.14e-5 (0.34) & \textbf{8.76e-6 (0.30)} \\
-$10^{-2}$ & 50  & 7.71e-6 (0.28)  & 1.17e-5 (0.34)  & 4.78e-6 (0.22) & 5.98e-6 (0.24) & \textbf{2.27e-6 (0.15)} \\
-$10^{-2}$ & 100 & 4.01e-6 (0.20)  & 6.08e-6 (0.25)  & 2.62e-6 (0.16) & 6.22e-6 (0.25) & \textbf{2.34e-6 (0.15)} \\
+$10^{-4}$ & 10  & 9.36e-9 (0.97)  & 1.02e-8 (1.01)  & 2.90e-9 (0.54) & 7.02e-9 (0.84) & \textbf{6.32e-9 (0.80)} & 0.13 \\
+$10^{-4}$ & 50  & 8.68e-9 (0.93)  & 9.59e-9 (0.98)  & 1.91e-9 (0.44) & 1.88e-9 (0.43) & \textbf{1.74e-9 (0.42)} & 0.34 \\
+$10^{-4}$ & 100 & 4.18e-9 (0.65)  & 4.64e-9 (0.68)  & 7.75e-10 (0.28) & 8.21e-10 (0.29) & \textbf{7.28e-10 (0.27)} & 0.36 \\
+$10^{-3}$ & 10  & 1.38e-6 (1.17)  & 1.60e-6 (1.26)  & 4.60e-7 (0.68) & 5.10e-7 (0.71) & \textbf{5.05e-7 (0.71)} & 0.03 \\
+$10^{-3}$ & 50  & 3.21e-7 (0.57)  & 3.85e-7 (0.62)  & 1.15e-7 (0.34) & 1.23e-7 (0.35) & \textbf{1.12e-7 (0.33)} & 0.24 \\
+$10^{-3}$ & 100 & 2.71e-7 (0.52)  & 3.29e-7 (0.57)  & 4.33e-8 (0.21) & 4.29e-8 (0.21) & \textbf{4.21e-8 (0.21)} & 0.06 \\
+$10^{-2}$ & 10  & 3.42e-5 (0.58)  & 4.40e-5 (0.66)  & 2.64e-5 (0.51) & 1.14e-5 (0.34) & \textbf{8.76e-6 (0.30)} & 0.79 \\
+$10^{-2}$ & 50  & 7.71e-6 (0.28)  & 1.17e-5 (0.34)  & 4.78e-6 (0.22) & 5.98e-6 (0.24) & \textbf{2.27e-6 (0.15)} & \textbf{5.68} \\
+$10^{-2}$ & 100 & 4.01e-6 (0.20)  & 6.08e-6 (0.25)  & 2.62e-6 (0.16) & 6.22e-6 (0.25) & \textbf{2.34e-6 (0.15)} & \textbf{8.03} \\
 \bottomrule
 \end{tabular}}
 \end{table}
 
-DNN-ABC attains the lower nRMSE of the two surrogates in all nine cells,
-never worse than GPS-ABC, an average $21\%$ reduction in MSE and up to
-$62\%$ at $p=10^{-2}$. Both surrogates match, and in several cells slightly
-improve on, the exact ABC-MCMC baseline, and all ABC-based methods
-substantially outperform the classical MOM/MLE estimators -- reproducing
-\citeauthor{lu2023}'s central finding that ABC dominates the classical
-estimators for this model. The gap between the two surrogates is a
-near-exact tie at small $p$, where a GP fit on $\sim 800$ points is already
-close to optimal, and widens at $p=10^{-2}$ (nRMSE $0.15$ for DNN-ABC versus
-$0.24$--$0.25$ for GPS-ABC at $J\in\{50,100\}$).
+DNN-ABC's point estimate is never worse than GPS-ABC's in nRMSE in any of
+the nine cells, but the $\Delta/\mathrm{SE}$ column shows this point-estimate
+comparison is only clearly resolved beyond simulation noise in two of them:
+$p=10^{-2}$ at $J=50$ and $J=100$, where the gap is $5.7$ and $8.0$ combined
+Monte Carlo standard errors. In the other seven cells $|\Delta/\mathrm{SE}| <
+1$, so DNN-ABC's numerically lower MSE there is not distinguishable from
+GPS-ABC's at $R=40$ replicates -- a near-exact statistical tie, consistent
+with a GP fit on $\sim 800$ points already being close to optimal at these
+smaller mutation rates. The one regime where the surrogates are reliably
+distinguished is the largest tested rate, $p=10^{-2}$, where DNN-ABC's nRMSE
+is $0.15$ against GPS-ABC's $0.24$--$0.25$. Both surrogates match, and in
+several cells slightly improve on, the exact ABC-MCMC baseline, and all
+ABC-based methods substantially outperform the classical MOM/MLE estimators
+-- reproducing \citeauthor{lu2023}'s central finding that ABC dominates the
+classical estimators for this model.
 
 \begin{table}[H]
 \centering
@@ -798,25 +853,28 @@ $p \in \{10^{-3}, 10^{-2}\}$, $(a,\delta) \in
 \begin{table}[H]
 \centering
 \caption{Study II, Table 1: MSE of $\hat p$ (nRMSE in parentheses). Bold
-marks the lower of GPS-ABC and DNN-ABC in each row.}
+marks the lower of GPS-ABC and DNN-ABC in each row. $\Delta/\mathrm{SE}$ is
+the GPS-ABC$-$DNN-ABC MSE gap in units of its combined Monte Carlo standard
+error (Section~\ref{sec:ademp}); none exceed $2$ in magnitude at $R=32$
+replicates.}
 \label{tab:mse3D}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{rlrrrrrr}
+\begin{tabular}{rlrrrrrrr}
 \toprule
-$p$ & $(a,\delta)$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC \\
+$p$ & $(a,\delta)$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \midrule
-$10^{-3}$ & $(1,1)$     & 50  & 2.68e-7 (0.52)  & 3.09e-7 (0.56)  & 1.81e-7 & 2.16e-7 & \textbf{1.80e-7 (0.42)} \\
-$10^{-3}$ & $(1,1)$     & 100 & 1.35e-7 (0.37)  & 1.65e-7 (0.41)  & 3.19e-8 & 5.78e-8 & \textbf{3.32e-8 (0.18)} \\
-$10^{-3}$ & $(1.5,1.5)$ & 50  & 1.69e-4 (13.00) & 1.95e-4 (13.98) & 1.71e-7 & 1.98e-7 & \textbf{1.69e-7 (0.41)} \\
-$10^{-3}$ & $(1.5,1.5)$ & 100 & 1.01e-4 (10.03) & 1.17e-4 (10.82) & 9.59e-8 & 8.05e-8 & \textbf{7.67e-8 (0.28)} \\
-$10^{-3}$ & $(1,0.5)$   & 50  & 5.43e-7 (0.74)  & 5.14e-7 (0.72)  & 3.72e-8 & 6.22e-8 & \textbf{3.76e-8 (0.19)} \\
-$10^{-3}$ & $(1,0.5)$   & 100 & 5.32e-7 (0.73)  & 5.03e-7 (0.71)  & 3.25e-8 & 4.49e-8 & \textbf{2.92e-8 (0.17)} \\
-$10^{-2}$ & $(1,1)$     & 50  & 1.08e-5 (0.33)  & 1.61e-5 (0.40)  & 8.92e-6 & \textbf{6.71e-6} & 9.80e-6 (0.31) \\
-$10^{-2}$ & $(1,1)$     & 100 & 4.48e-6 (0.21)  & 7.06e-6 (0.27)  & 2.86e-6 & \textbf{2.62e-6} & 2.70e-6 (0.16) \\
-$10^{-2}$ & $(1.5,1.5)$ & 50  & 8.58e-4 (2.93)  & 1.11e-3 (3.33)  & 1.11e-5 & \textbf{6.57e-6} & 1.20e-5 (0.35) \\
-$10^{-2}$ & $(1.5,1.5)$ & 100 & 9.44e-4 (3.07)  & 1.22e-3 (3.49)  & 2.96e-6 & 3.20e-6 & \textbf{2.98e-6 (0.17)} \\
-$10^{-2}$ & $(1,0.5)$   & 50  & 3.98e-5 (0.63)  & 3.50e-5 (0.59)  & 3.91e-6 & \textbf{3.41e-6} & 3.86e-6 (0.20) \\
-$10^{-2}$ & $(1,0.5)$   & 100 & 4.20e-5 (0.65)  & 3.73e-5 (0.61)  & 1.49e-6 & 1.70e-6 & \textbf{1.67e-6 (0.13)} \\
+$10^{-3}$ & $(1,1)$     & 50  & 2.68e-7 (0.52)  & 3.09e-7 (0.56)  & 1.81e-7 & 2.16e-7 & \textbf{1.80e-7 (0.42)} & 0.44 \\
+$10^{-3}$ & $(1,1)$     & 100 & 1.35e-7 (0.37)  & 1.65e-7 (0.41)  & 3.19e-8 & 5.78e-8 & \textbf{3.32e-8 (0.18)} & 1.87 \\
+$10^{-3}$ & $(1.5,1.5)$ & 50  & 1.69e-4 (13.00) & 1.95e-4 (13.98) & 1.71e-7 & 1.98e-7 & \textbf{1.69e-7 (0.41)} & 0.55 \\
+$10^{-3}$ & $(1.5,1.5)$ & 100 & 1.01e-4 (10.03) & 1.17e-4 (10.82) & 9.59e-8 & 8.05e-8 & \textbf{7.67e-8 (0.28)} & 0.15 \\
+$10^{-3}$ & $(1,0.5)$   & 50  & 5.43e-7 (0.74)  & 5.14e-7 (0.72)  & 3.72e-8 & 6.22e-8 & \textbf{3.76e-8 (0.19)} & 1.64 \\
+$10^{-3}$ & $(1,0.5)$   & 100 & 5.32e-7 (0.73)  & 5.03e-7 (0.71)  & 3.25e-8 & 4.49e-8 & \textbf{2.92e-8 (0.17)} & 1.12 \\
+$10^{-2}$ & $(1,1)$     & 50  & 1.08e-5 (0.33)  & 1.61e-5 (0.40)  & 8.92e-6 & \textbf{6.71e-6} & 9.80e-6 (0.31) & $-0.67$ \\
+$10^{-2}$ & $(1,1)$     & 100 & 4.48e-6 (0.21)  & 7.06e-6 (0.27)  & 2.86e-6 & \textbf{2.62e-6} & 2.70e-6 (0.16) & $-0.10$ \\
+$10^{-2}$ & $(1.5,1.5)$ & 50  & 8.58e-4 (2.93)  & 1.11e-3 (3.33)  & 1.11e-5 & \textbf{6.57e-6} & 1.20e-5 (0.35) & $-1.24$ \\
+$10^{-2}$ & $(1.5,1.5)$ & 100 & 9.44e-4 (3.07)  & 1.22e-3 (3.49)  & 2.96e-6 & 3.20e-6 & \textbf{2.98e-6 (0.17)} & 0.18 \\
+$10^{-2}$ & $(1,0.5)$   & 50  & 3.98e-5 (0.63)  & 3.50e-5 (0.59)  & 3.91e-6 & \textbf{3.41e-6} & 3.86e-6 (0.20) & $-0.38$ \\
+$10^{-2}$ & $(1,0.5)$   & 100 & 4.20e-5 (0.65)  & 3.73e-5 (0.61)  & 1.49e-6 & 1.70e-6 & \textbf{1.67e-6 (0.13)} & 0.06 \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -825,13 +883,21 @@ We report this table honestly rather than selectively. At $p=10^{-3}$
 DNN-ABC has the lowest MSE in all six cells. At $p=10^{-2}$ it loses to
 GPS-ABC in four of six cells (particularly at $J=50$): overall a
 near-statistical tie on point accuracy, not the clean sweep of
-Study~I. The result that \emph{is} unambiguous is the MOM/MLE column at
-$(a,\delta)=(1.5,1.5)$: nRMSE of $10$--$14$, because both classical
-estimators implicitly assume $a=1$ and are simply wrong once that assumption
-fails, while every $(a,\delta)$-aware ABC method -- surrogate or exact --
-remains accurate (nRMSE $\approx 0.2$--$0.4$). A genuine joint surrogate is
-what makes three-dimensional inference feasible at all; whether it is a GP or
-a neural network is, for point accuracy alone, closer to a wash.
+Study~I. The $\Delta/\mathrm{SE}$ column confirms this reading with real
+uncertainty quantification rather than raw win/loss counts: in every one of
+the twelve cells $|\Delta/\mathrm{SE}| < 2$, so \emph{none} of the
+cell-level differences between GPS-ABC and DNN-ABC on point accuracy are
+clearly resolved at $R=32$ replicates -- both the wins and the losses in
+this table are within reach of simulation noise, which is the correct,
+literal sense in which the two surrogates are a statistical tie on point
+accuracy in three dimensions. The result that \emph{is} unambiguous is the
+MOM/MLE column at $(a,\delta)=(1.5,1.5)$: nRMSE of $10$--$14$, because both
+classical estimators implicitly assume $a=1$ and are simply wrong once that
+assumption fails, while every $(a,\delta)$-aware ABC method -- surrogate or
+exact -- remains accurate (nRMSE $\approx 0.2$--$0.4$). A genuine joint
+surrogate is what makes three-dimensional inference feasible at all; whether
+it is a GP or a neural network is, for point accuracy alone, closer to a
+wash.
 
 \begin{table}[H]
 \centering
@@ -980,18 +1046,28 @@ domain, BatchNorm's per-minibatch statistics appear to be actively
 counter-productive; LayerNorm \citep{ba2016}, which normalizes per-sample,
 avoided this failure mode entirely in the deeper three-dimensional network.
 
-\paragraph{Scope and limitations.} This paper is a simulation study; we do
-not apply the method to a real fluctuation-experiment data set, as
-\citet{lu2023} do for their own estimator. We view this as the natural next
-step rather than a limitation of the comparisons reported here, which are
-designed, as in the original paper, to isolate estimator behavior under known
-ground truth. The one-dimensional study uses $40$ replicates per cell
-(versus \citeauthor{lu2023}'s $100$), so individual MSE cells in
-Table~\ref{tab:mse1D} carry non-trivial Monte Carlo noise, and the three-dimensional
-study's $12$-cell grid, while chosen to span the parameter space broadly,
-does not cover it exhaustively. The exact ABC-MCMC prior is bounded in both
-studies to keep the exact simulator feasible inside the sampling loop;
-surrogates are trained on a wider range and only queried within it. Finally,
+\paragraph{Scope and limitations.} This paper is a simulation study
+evaluated entirely under known ground truth; we do not apply the method to a
+real fluctuation-experiment data set, as \citet{lu2023} do for their own
+estimator in their real-data application to drug-resistance experiments. We
+view a real-data application, ideally to the same or a comparable
+fluctuation-experiment data set, as the natural and immediate next step,
+and we are explicit that the comparisons in this paper are not a substitute
+for one: a simulation study can establish that an estimator is well
+calibrated and competitive under a correctly specified model, but only a
+real-data application can speak to robustness under the model misspecification
+that any laboratory data set will exhibit to some degree. The
+one-dimensional study uses $40$ replicates per cell (versus
+\citeauthor{lu2023}'s $100$); Section~\ref{sec:ademp} reports Monte Carlo
+standard errors throughout for exactly this reason, and
+Sections~\ref{sec:sim1D_results} and \ref{sec:sim3D_abc} use them to
+identify which point-accuracy comparisons are, and are not, resolved at
+this replicate count, rather than over-interpreting numerically lower MSE
+as a real effect in every cell. The three-dimensional study's $12$-cell grid,
+while chosen to span the parameter space broadly, does not cover it
+exhaustively. The exact ABC-MCMC prior is bounded in both studies to keep
+the exact simulator feasible inside the sampling loop; surrogates are
+trained on a wider range and only queried within it. Finally,
 Section~\ref{sec:sim3D_coverage}'s coverage limitation is, by construction,
 specific to the finite-$J$ regime and to the particular acceptance-kernel
 construction used here; whether the same $J$-aware fix generalizes to other
@@ -1002,21 +1078,41 @@ ABC summary statistics is an open question.
 \label{sec:repro}
 % =============================================================================
 
-All code, data, trained model weights, and the exact configuration used for
-every table and figure in this paper are available at
-\url{https://github.com/sletch1/DNN-ABC-mutation-rates}. The one-dimensional
-ground-truth data set (Section~\ref{sec:sim1D}) is committed directly to the
-repository; the three-dimensional ground-truth data set
-(Section~\ref{sec:groundtruth3D}) is likewise committed, and the exact
-simulator that generated it, together with the two correctness corrections
-described in Section~\ref{sec:groundtruth3D}, is included so that it can be
-independently re-run. Each study's surrogate can be retrained, its ABC tables
-reproduced, and its figures regenerated with three scripted commands
-documented in the repository; the three-dimensional pipeline additionally
-provides a single orchestration script that runs simulator validation,
+\paragraph{Code and data availability.} All code, data, trained model
+weights, and the exact configuration used for every table and figure in this
+paper are available at
+\url{https://github.com/sletch1/DNN-ABC-mutation-rates} under a public
+repository, with no access restrictions. The one-dimensional ground-truth
+data set (Section~\ref{sec:sim1D}) is committed directly to the repository
+as a plain-text, non-proprietary CSV file; the three-dimensional ground-truth
+data set (Section~\ref{sec:groundtruth3D}) is likewise committed in the same
+format, and the exact simulator that generated it, together with the two
+correctness corrections described in Section~\ref{sec:groundtruth3D}, is
+included so that it can be independently re-run rather than taken on faith.
+Every CSV's columns are self-documenting from their header row (parameter
+values, replicate index, and the resulting summary statistic or estimator
+output); no external data dictionary is required to interpret them.
+
+\paragraph{Computational environment.} All code is Python (minimum versions
+pinned in the repository's \texttt{requirements.txt}: \texttt{numpy},
+\texttt{pandas}, \texttt{scipy}, \texttt{matplotlib}, \texttt{scikit-learn}
+for the Gaussian-process baseline, and \texttt{torch} for the neural
+surrogates). No GPU is required for any part of the pipeline; every model in
+both studies trains on CPU in seconds to minutes.
+
+\paragraph{Instructions for reproduction.} Each study's surrogate can be
+retrained, its ABC tables reproduced, and its figures regenerated with three
+scripted commands documented in the repository's README; the
+three-dimensional pipeline additionally provides a single orchestration
+script (a Makefile-style shell script) that runs simulator validation,
 training, the architecture search, quality diagnostics, the Gaussian-process
-scaling study, the ABC tables, coverage evaluation, and figure generation
-end to end. No GPU is required for any part of the pipeline.
+scaling study, the ABC tables, coverage evaluation, and figure generation end
+to end, in the order the results are presented in this paper. Every number
+reported in Tables~\ref{tab:mse1D}--\ref{tab:coverage3D} is produced by these
+scripts directly from the committed data, with no manual post-processing;
+the Monte Carlo standard errors and $\Delta/\mathrm{SE}$ columns introduced
+in Section~\ref{sec:ademp} are computed from the same per-replicate output
+each script already writes to disk.
 
 % =============================================================================
 \section{Conclusion}
