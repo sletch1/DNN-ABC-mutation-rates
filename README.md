@@ -139,7 +139,7 @@ calibration set gives **exactly 0.950 test-set coverage**.
 ### Training data & split
 
 Ground truth is the **exact/slow simulator** (Algorithm 2, `mut_bmbp_slow`),
-delivered as `../../data/slow_data_1D.csv`: 101 log-spaced `p` in
+delivered as `data/slow_data_1D.csv`: 101 log-spaced `p` in
 `log10(p) ∈ [−8,−2]`, 10 replicates each (1010 rows), `a = δ = Z0 = 1`, `J = 100`.
 Split **by replicate** so every grid point appears in every split with no leakage:
 
@@ -440,8 +440,8 @@ seconds to minutes.
 
 ### 1-D pipeline
 
-The ground-truth data (`data/slow_data_1D.csv`) is already committed, so no
-simulation needs to be regenerated first. Run everything from
+The ground-truth data (`DNN_Prototypes/1D/data/slow_data_1D.csv`) is already
+committed, so no simulation needs to be regenerated first. Run everything from
 [`DNN_Prototypes/1D/`](DNN_Prototypes/1D):
 
 ```bash

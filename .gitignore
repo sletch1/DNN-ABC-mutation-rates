@@ -9,3 +9,12 @@ dnnenv/
 # copyright: the published Version of Record (Elsevier) is not redistributable
 # publicly. Cite it via DOI instead — https://doi.org/10.1016/j.jtbi.2023.111467
 MutationRates_ABC_paper.pdf
+# LaTeX build byproducts (manuscript.tex/.bib/.pdf are tracked; these are not)
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz

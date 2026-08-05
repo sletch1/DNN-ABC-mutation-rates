@@ -1,7 +1,7 @@
 """Train the heteroscedastic MLP surrogate for the 1-D constant-mutation-rate
 case: log10(p) -> ( mean log10(d_bar), predictive variance ).
 
-Ground truth: NN_ABC/data/slow_data_1D.csv (exact/slow simulator, Algorithm 2),
+Ground truth: DNN_Prototypes/1D/data/slow_data_1D.csv (exact/slow simulator, Algorithm 2),
 101 log-spaced p in log10(p) in [-8,-2], 10 replicates each (1010 rows).
 
 Splits by replicate so every p grid point appears in every split with no leakage:
@@ -13,7 +13,7 @@ so the 95% predictive interval has valid empirical coverage -- this is what make
 the surrogate's uncertainty trustworthy inside the ABC-MCMC acceptance step.
 
 Usage:
-    python train.py --data ../../data/slow_data_1D.csv --outdir ./results
+    python train.py --data ./data/slow_data_1D.csv --outdir ./results
 """
 
 import argparse
