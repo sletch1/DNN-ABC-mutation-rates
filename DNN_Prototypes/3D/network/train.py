@@ -55,6 +55,13 @@ FEATURES = ["log10p", "a", "delta"]
 
 
 def load_splits(csv_path):
+    """Read the ground-truth CSV and split it into train/val/test by
+    replicate. Returns `((X_train, y_train), (X_val, y_val), (X_test, y_test))`
+    where each X is an [n, 3] array of the three input features (in
+    `FEATURES` order: log10(p), a, delta) and each y is log10(d_bar) --
+    the 3-D analog of 1D/network/train.py's `load_splits`, generalized
+    from a single x column to three.
+    """
     df = pd.read_csv(csv_path)
     X = np.column_stack([np.log10(df["p"].to_numpy()),
                          df["a"].to_numpy(),
@@ -70,15 +77,32 @@ def load_splits(csv_path):
 
 
 def _tx(a):
+    """[n, 3] numpy feature array -> float32 torch tensor of the same
+    shape (no unsqueeze needed here, unlike 1D's `_t`, since the input
+    already has its feature dimension)."""
     return torch.tensor(np.asarray(a), dtype=torch.float32)
 
 
 def _ty(a):
+    """1-D numpy target array -> float32 torch column tensor [n, 1] --
+    same role as 1D's `_t`, just renamed to make the x/y distinction
+    explicit now that x and y have different shapes."""
     return torch.tensor(np.asarray(a), dtype=torch.float32).unsqueeze(1)
 
 
 def train_model(X_train, y_train, X_val, y_val, arch=None, epochs=1200,
                 patience=60, warmup=80, seed=0):
+    """Fit a HeteroscedasticResMLP and return `(model, x_scaler, y_scaler)`.
+
+    The training loop itself (optimizer step, warmup-then-NLL loss
+    switch, early stopping) is identical in structure to the 1-D model's
+    `train_model` in ../../1D/network/train.py -- see that function's
+    docstring for a full walk-through of the PyTorch mechanics (zero_grad
+    / backward / step, train()/eval() mode, early-stopping bookkeeping).
+    The only real difference here is the input has 3 columns instead of 1
+    and the network is a HeteroscedasticResMLP instead of the shallow
+    funnel MLP (see model.py's module docstring for why).
+    """
     torch.manual_seed(seed)
     np.random.seed(seed)
     arch = arch or ARCH
@@ -144,6 +168,9 @@ def calibrate_conformal(model, x_scaler, y_scaler, X_val, y_val):
 
 
 def evaluate(surr, X, y, label):
+    """Compute and print held-out performance for one split. Same metrics
+    as the 1-D `evaluate`: log-scale and raw-scale MSE, MAE, and empirical
+    95%-interval coverage (should track close to 0.95)."""
     mean, sd = surr.predict(X)
     mse_log = float(np.mean((mean - y) ** 2))
     mae_log = float(np.mean(np.abs(mean - y)))
@@ -157,6 +184,16 @@ def evaluate(surr, X, y, label):
 
 
 def make_plots(surr, splits, csv_path, outdir):
+    """Save two diagnostic figures to `outdir`: (1) predicted-vs-true
+    parity on the test split, and (2) a 3x3 grid of the fitted curve (mean
+    + calibrated 95% band) along log10(p), one panel per combination of
+    3 representative `a` values x 3 representative `delta` values -- since
+    the true surface is 3-D and can't be plotted directly, this takes
+    fixed-(a, delta) "slices" through it and plots each slice as a 1-D
+    curve, the same way you'd read off a contour plot along one axis at a
+    time. Raw data points at each slice's exact (a, delta) are overlaid
+    for comparison.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -207,6 +244,11 @@ def make_plots(surr, splits, csv_path, outdir):
 
 
 def run(csv_path=None, outdir=None, seed=0, arch=None):
+    """End-to-end entry point, same shape as the 1-D `run`: load data ->
+    train -> conformally calibrate -> evaluate on all three splits -> save
+    plots, model checkpoint, and a metrics JSON. `load_surrogate` below is
+    the matching loader for the checkpoint this writes.
+    """
     csv_path = csv_path or str(DATA)
     arch = arch or ARCH
     (X_tr, y_tr), (X_va, y_va), (X_te, y_te) = load_splits(csv_path)
@@ -237,6 +279,10 @@ def run(csv_path=None, outdir=None, seed=0, arch=None):
 
 
 def load_surrogate(ckpt_path):
+    """Rebuild a DNNSurrogate3D from a checkpoint saved by `run` above --
+    same role as the 1-D `load_surrogate`. `weights_only=False` is needed
+    because the checkpoint bundles plain Python config/state alongside
+    tensor weights (see the 1-D version's docstring for detail)."""
     ckpt = torch.load(ckpt_path, weights_only=False)
     model = HeteroscedasticResMLP(in_dim=3, **ckpt["arch"])
     model.load_state_dict(ckpt["model_state"]); model.eval()

@@ -53,11 +53,24 @@ from paths import DATA, RESULTS, TABLE_DIR, FIG_DIR, MODEL_DIR, LOG_DIR
 # the surrogates are still trained on the full [-8,-2] and only queried in-range.
 PRIOR_RANGE = (-5.0, -2.0)
 
-# worker globals (populated by _init_worker)
+# Worker globals, populated once per process by _init_worker (see below).
+# This is the standard pattern for sharing read-only, expensive-to-build
+# state (here: the fitted DNN and GP surrogates) across parallel workers in
+# Python's multiprocessing: each worker process gets its own copy of this
+# module and its own _G dict, set up once when the process starts, rather
+# than re-loading/re-fitting the surrogates for every single task.
 _G = {}
 
 
 def _init_worker(ckpt_path, data_path, cfg):
+    """Runs once per worker process when the Pool below is created (passed
+    as `initializer`/`initargs`, not called directly). Loads the trained
+    DNN and fits the GP baseline once per process, storing them in the
+    module-level `_G` dict so `_one_replicate` can find them without
+    re-loading/re-fitting on every task -- both are expensive enough
+    (especially the GP, which is cubic-cost to fit) that doing this per
+    task instead of per worker would dominate the runtime.
+    """
     import warnings
     warnings.filterwarnings("ignore")
     dnn = load_surrogate(ckpt_path)
@@ -70,12 +83,24 @@ def _init_worker(ckpt_path, data_path, cfg):
 
 
 def _clamp_init(p_hat):
+    """Turn a point estimate p_hat (e.g. from MOM) into a valid MCMC
+    starting value on the theta=log10(p) scale, falling back to the
+    midpoint of the prior range if p_hat is missing/non-positive, and
+    nudging away from the exact boundary so the chain doesn't start
+    outside the (open) prior support."""
     lo, hi = PRIOR_RANGE
     th = np.log10(max(p_hat, 1e-8)) if (p_hat is not None and np.isfinite(p_hat) and p_hat > 0) else 0.5 * (lo + hi)
     return float(min(max(th, lo + 1e-6), hi - 1e-6))
 
 
 def _one_replicate(task):
+    """Run all five estimators (MOM, MLE, ABC-MCMC, GPS-ABC, DNN-ABC) on
+    one simulated dataset and return a single results row. `task` is a
+    `(p_true, J, rep)` tuple -- this is the function each parallel worker
+    actually calls, once per task, via `pool.imap_unordered` in
+    `run_accuracy` below. Reads the pre-built DNN/GP surrogates from `_G`
+    (set up once per worker by `_init_worker`) rather than rebuilding them.
+    """
     p_true, J, rep = task
     cfg = _G["cfg"]
     dnn, gp = _G["dnn"], _G["gp"]
@@ -112,6 +137,12 @@ def _one_replicate(task):
 
 
 def run_accuracy(cfg, ckpt_path):
+    """Build the full (p, J, replicate) task grid and run `_one_replicate`
+    on each task in parallel across `cfg["workers"]` processes, returning
+    one DataFrame with a row per task. This is the "many independent
+    simulated datasets" step that Table 1/2's MSE and interval-length
+    numbers get aggregated from (by `aggregate_tables` below).
+    """
     tasks = [(p, J, r) for p in cfg["p_grid"] for J in cfg["J_grid"]
              for r in range(cfg["reps"])]
     n = len(tasks)
@@ -132,6 +163,10 @@ def run_accuracy(cfg, ckpt_path):
 
 
 def aggregate_tables(df, cfg):
+    """Collapse the per-replicate results from `run_accuracy` into the two
+    summary tables: for every (p, J) cell, MSE (and normalized RMSE) of
+    each method's point estimate across replicates (-> Table 1), and mean
+    95% credible-interval length across replicates (-> Table 2)."""
     methods = ["MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC"]
     t1, t2 = [], []
     for p in cfg["p_grid"]:
@@ -238,6 +273,11 @@ def timing_plot(t3, outpath):
 
 
 def main():
+    """CLI entry point (see module docstring for the `python run_experiments.py`
+    usage example). Order of operations: (re)train the DNN surrogate if
+    needed -> Phase A accuracy sweep -> Phase B timing sweep -> write CSVs
+    and a combined TABLES.md with all three tables formatted as markdown.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--reps", type=int, default=8)
     ap.add_argument("--nmcmc", type=int, default=600)

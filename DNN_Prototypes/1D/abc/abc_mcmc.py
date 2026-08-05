@@ -28,6 +28,11 @@ from simulator import fluc_exp, summary_stat
 
 
 def _trunc_norm_sample(mu, s, lo, hi, rng):
+    """Draw one proposal from N(mu, s^2) truncated to [lo, hi] -- the MH
+    proposal distribution. scipy's `truncnorm` parameterizes the bounds as
+    standard-normal z-scores relative to (mu, s), hence the (a, b) rescaling
+    below, rather than accepting `lo`/`hi` directly.
+    """
     a, b = (lo - mu) / s, (hi - mu) / s
     from scipy.stats import truncnorm
     return float(truncnorm.rvs(a, b, loc=mu, scale=s, random_state=rng))
@@ -111,6 +116,13 @@ def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
     lp_cur = _log_prior(theta_init, lam, lo, hi)
     n_accept = 0
 
+    # Standard Metropolis-Hastings loop: propose theta_can from the current
+    # state, compute the log acceptance ratio (log-likelihood ratio +
+    # log-prior ratio + a Hastings term correcting for the proposal not
+    # being symmetric, since it's truncated), then accept/reject by
+    # comparing that ratio to a uniform draw on the log scale
+    # (log(rng.random()) < log_alpha is the log-scale version of
+    # "accept with probability exp(log_alpha) = min(1, alpha)").
     for i in range(1, n_mcmc):
         theta = samples[i - 1]
         theta_can = _trunc_norm_sample(theta, s, lo, hi, rng)
@@ -124,7 +136,7 @@ def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
             ll_cur, lp_cur = ll_can, lp_can
             n_accept += 1
         else:
-            samples[i] = theta
+            samples[i] = theta  # rejected: chain stays at the current state
     return samples, n_accept / (n_mcmc - 1)
 
 

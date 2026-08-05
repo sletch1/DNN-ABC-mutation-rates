@@ -38,6 +38,8 @@ BUDGETS = [50, 100, 200, 300, 500, 1000, 1500]
 
 
 def _feats(d):
+    """DataFrame -> (N, 3) feature matrix [log10(p), a, delta], the input
+    shape both surrogates expect."""
     return np.column_stack([np.log10(d["p"]), d["a"], d["delta"]]).astype(float)
 
 
@@ -45,6 +47,12 @@ def main():
     df = pd.read_csv(DATA)
     tr = df[df["rep"].isin([1, 2, 3, 4, 5, 6, 7, 8])]
     X_tr, y_tr = _feats(tr), np.log10(tr["d_bar"].to_numpy())
+    # "Denoised" ground truth for measuring surface fit: average
+    # log10(d_bar) across all 10 replicates at each grid point, rather
+    # than comparing to any single noisy observation. This is a different
+    # question from the downstream ABC accuracy tables (Table 1/2) -- it's
+    # asking "how well does the surrogate recover the true underlying
+    # mean surface," independent of any one simulated dataset's noise.
     g = df.groupby(["p", "a", "delta"])["d_bar"].apply(lambda s: np.mean(np.log10(s)))
     keys = np.array(list(g.index))
     X_true = np.column_stack([np.log10(keys[:, 0]), keys[:, 1], keys[:, 2]])

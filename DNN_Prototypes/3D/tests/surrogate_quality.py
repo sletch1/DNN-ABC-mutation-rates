@@ -40,11 +40,15 @@ def main():
     (_, _), (_, _), (X_te, y_te) = load_splits(DATA)
     mean, sd = surr.predict(X_te)
     resid = y_te - mean
-    z = resid / np.maximum(sd, 1e-9)
+    z = resid / np.maximum(sd, 1e-9)  # standardized residuals: should look ~N(0,1) if calibration is good
 
     # 1. calibration reliability
     cal_rows = []
     for lv in LEVELS:
+        # norm.ppf(0.5 + lv/2) is the z-critical-value for a *central*
+        # interval covering probability `lv` (e.g. lv=0.95 -> the
+        # familiar 1.96) -- converts "nominal coverage level" into "how
+        # many standardized residuals to include on each side."
         zc = norm.ppf(0.5 + lv / 2)
         emp = float(np.mean(np.abs(z) <= zc))
         cal_rows.append({"nominal": lv, "empirical": emp})

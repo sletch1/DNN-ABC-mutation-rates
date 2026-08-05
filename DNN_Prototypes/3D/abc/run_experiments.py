@@ -55,10 +55,19 @@ GP_BUDGET = 300  # the GPS-ABC ceiling in 3-D (space-filling); DNN uses all ~500
 # (a, delta) regimes: paper's constant-rate point, both-elevated, slow-mutant.
 REGIMES = [(1.0, 1.0), (1.5, 1.5), (1.0, 0.5)]
 
+# Worker globals populated once per process by _init_worker -- see the
+# 1-D run_experiments.py's more heavily-commented version of this same
+# pattern for why (avoids re-loading/re-fitting the expensive DNN and GP
+# surrogates on every single task).
 _G = {}
 
 
 def _init_worker(ckpt_path, data_path, cfg):
+    """Runs once per worker process (passed as the Pool's `initializer`
+    below). Loads the trained DNN and fits the GP baseline (capped at
+    `cfg["gp_budget"]` points via the space-filling design in
+    surrogates.py) once per process, stashing both in `_G` for
+    `_one_replicate` to reuse."""
     import warnings
     warnings.filterwarnings("ignore")
     dnn = load_surrogate(ckpt_path)
@@ -72,12 +81,23 @@ def _init_worker(ckpt_path, data_path, cfg):
 
 
 def _clamp_init(p_hat):
+    """Turn a point estimate into a valid MCMC starting theta, falling
+    back to the prior midpoint if p_hat is missing/non-positive and
+    nudging away from the exact prior boundary -- identical logic to the
+    1-D version's `_clamp_init`."""
     lo, hi = PRIOR_RANGE
     th = np.log10(max(p_hat, 1e-8)) if (p_hat is not None and np.isfinite(p_hat) and p_hat > 0) else 0.5 * (lo + hi)
     return float(min(max(th, lo + 1e-6), hi - 1e-6))
 
 
 def _one_replicate(task):
+    """Run all five estimators on one simulated 3-D dataset at a given
+    (p_true, a, delta, J) and return one results row. `task` is a
+    `(p_true, a, delta, J, rep)` tuple; `a`/`delta` are fixed, known
+    covariates for this task (not estimated -- see abc_mcmc.py), passed
+    through to `run_abc_mcmc` as `a_known`/`delta_known` so the surrogates
+    are queried at the correct point in the 3-D input space.
+    """
     p_true, a, delta, J, rep = task
     cfg = _G["cfg"]
     dnn, gp = _G["dnn"], _G["gp"]
@@ -118,11 +138,20 @@ def _one_replicate(task):
 
 
 def run_accuracy(cfg, ckpt_path):
+    """Build the full (p, (a, delta) regime, J, replicate) task grid, sort
+    it so the slowest tasks run first (see comment below), and run
+    `_one_replicate` on each task in parallel. Returns one DataFrame with
+    a row per task, later collapsed into Table 1/2 by `aggregate_tables`.
+    """
     tasks = [(p, a, d, J, r) for p in cfg["p_grid"] for (a, d) in cfg["regimes"]
              for J in cfg["J_grid"] for r in range(cfg["reps"])]
     # Expensive-tasks-first (longest-processing-time) so dynamic scheduling never
     # leaves cores idle waiting on one big job at the tail. Per-task cost of the
     # ABC-MCMC baseline ~ J * exp(a*tp) (simulator population x cultures).
+    # This is a standard load-balancing trick for parallel task scheduling:
+    # if the biggest job ran last, every other worker could finish early
+    # and sit idle waiting on it; running big jobs first instead lets
+    # smaller jobs backfill any idle time near the end of the run.
     tasks.sort(key=lambda t: t[3] * np.exp(t[1] * solve_tp(1, t[1], t[0], 20)),
                reverse=True)
     n = len(tasks)
@@ -143,6 +172,10 @@ def run_accuracy(cfg, ckpt_path):
 
 
 def aggregate_tables(df, cfg):
+    """Collapse per-replicate results into Table 1 (MSE/nRMSE per method
+    per (p, regime, J) cell) and Table 2 (mean 95% interval length),
+    exactly as the 1-D `aggregate_tables`, just with an extra grouping
+    dimension for the (a, delta) regime."""
     methods = ["MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC"]
     t1, t2 = [], []
     for p in cfg["p_grid"]:
@@ -167,6 +200,9 @@ def aggregate_tables(df, cfg):
 
 
 def run_timing(cfg, ckpt_path):
+    """Single-process seconds/100 MCMC iterations for each ABC method, at
+    the largest J in `cfg["J_grid"]` for each (p, regime) combination --
+    the 3-D analog of the 1-D `run_timing`."""
     import warnings
     warnings.filterwarnings("ignore")
     dnn = load_surrogate(ckpt_path)
@@ -234,6 +270,11 @@ def fmt_table3(t3):
 
 
 def main():
+    """CLI entry point. Same order of operations as the 1-D script:
+    (re)train the DNN if needed -> Phase A accuracy sweep across the full
+    (p, regime, J, rep) grid -> Phase B timing sweep -> write CSVs and a
+    combined TABLES.md.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--reps", type=int, default=24)
     ap.add_argument("--nmcmc", type=int, default=600)

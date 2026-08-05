@@ -39,6 +39,12 @@ warnings.filterwarnings("ignore")
 
 
 def check_tp(df):
+    """Check 1 (plating time). For every distinct (p, a) pair in the CSV,
+    recompute tp with the Python `solve_tp` and compare to the CSV's own
+    `tp` column. Returns (max abs error, mean abs error, number of pairs
+    checked). `.groupby(["p","a"]).first()` collapses the CSV down to one
+    row per distinct (p, a) combination, since tp only depends on those
+    two (not on delta or replicate)."""
     g = df.groupby(["p", "a"]).first().reset_index()
     err = []
     for _, r in g.iterrows():
@@ -48,6 +54,12 @@ def check_tp(df):
 
 
 def check_summary(df, n_cultures=4000, seed=0):
+    """Check 2 (summary-statistic distribution). Picks 8 random (p, a,
+    delta) grid points from the "safe" subset (see the SAFETY note in the
+    module docstring), runs the Python slow simulator for `n_cultures`
+    fresh cultures at each, and compares the resulting mean log10(d_bar)
+    to the CSV's own replicate-average at that same grid point. Returns a
+    list of `(p, a, delta, csv_mean, python_mean, abs_diff)` tuples."""
     rng = np.random.default_rng(seed)
     sub = df[(df["p"] >= 1e-3) & (df["a"] <= 1.5)]
     keys = sub.groupby(["p", "a", "delta"]).groups.keys()
@@ -65,6 +77,10 @@ def check_summary(df, n_cultures=4000, seed=0):
 
 
 def check_estimators(seed=0):
+    """Check 3 (estimator sanity). Simulates one large (3000-culture)
+    dataset at a known p_true and checks that MOM/MLE recover something
+    close to it -- a basic correctness check on `estimators.py`,
+    independent of the simulator-port question checks 1-2 address."""
     rng = np.random.default_rng(seed)
     p_true, a, delta = 5e-3, 1.0, 1.0
     tp = solve_tp(1, a, p_true, 20)
@@ -73,6 +89,8 @@ def check_estimators(seed=0):
 
 
 def main():
+    """Run all three checks in order and write a combined pass/fail
+    report to results/logs/validate_simulator.md (and print it)."""
     df = pd.read_csv(DATA)
     lines = ["# Simulator port validation\n"]
 

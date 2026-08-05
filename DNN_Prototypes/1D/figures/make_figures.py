@@ -46,6 +46,9 @@ METHOD_COLORS = {"MOM": "#9e9e9e", "MLE": "#607d8b", "ABC-MCMC": "#e53935",
 
 
 def _load():
+    """Load the trained DNN checkpoint and refit the GP baseline (same
+    training data both surrogates saw), plus the raw ground-truth
+    DataFrame -- the three objects every figure function below needs."""
     dnn = load_surrogate(MODEL_DIR / "surrogate_1d.pt")
     df = pd.read_csv(DATA)
     tr = df[df["rep"].isin([1, 2, 3, 4, 5, 6, 7, 8])]

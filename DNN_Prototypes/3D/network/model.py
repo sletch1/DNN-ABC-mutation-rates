@@ -46,9 +46,31 @@ _ACT = {"relu": nn.ReLU, "tanh": nn.Tanh, "gelu": nn.GELU, "silu": nn.SiLU}
 
 
 class _ResBlock(nn.Module):
-    """Pre-activation residual block: x -> x + MLP(x), width preserved."""
+    """Pre-activation residual block: x -> x + MLP(x), width preserved.
+
+    `self.body` is two [LayerNorm -> activation -> (Dropout) -> Linear]
+    sub-layers stacked. "Pre-activation" refers to normalizing/activating
+    *before* each Linear rather than after (the more common textbook
+    order) -- this ordering is the standard fix (from the ResNet
+    literature) for keeping gradients well-behaved in a deep stack of
+    residual blocks. The `forward` method's `x + self.body(x)` is the
+    residual ("skip") connection itself: the block only has to learn a
+    *correction* to its input, and even if `self.body` learned nothing
+    useful, the block would still pass its input through unchanged rather
+    than corrupting it -- this is what lets `n_blocks` be increased for
+    more capacity without the network becoming harder to train.
+    """
 
     def __init__(self, width, activation="silu", use_ln=True, dropout=0.0):
+        """
+        Args:
+            width: both the input and output dimension of this block (a
+                residual connection requires them to match).
+            activation: one of the keys in `_ACT` above.
+            use_ln: whether to include the LayerNorm before each Linear.
+            dropout: dropout probability after each activation; 0.0
+                disables it.
+        """
         super().__init__()
         act = _ACT[activation]
         layers = []
@@ -90,12 +112,21 @@ class HeteroscedasticResMLP(nn.Module):
         self.max_logvar = max_logvar
 
     def forward(self, x):
+        """Run the network on a batch `x` of shape [batch, 3] (the three
+        columns being standardized log10(p), a, delta) and return
+        `(mean, logvar)`, each [batch, 1] -- same contract as the 1-D
+        model's `forward`. Pipeline: project the 3 raw inputs up to
+        `width` (`input_proj`), pass through the stack of residual blocks,
+        apply one final activation, then split into the two heads.
+        """
         h = self.input_proj(x)
         h = self.blocks(h)
         h = self.out_act(h)
         mean = self.mean_head(h)
         logvar = self.logvar_head(h)
-        # soft-clamp log-variance to a sane range for numerical stability
+        # Soft-clamp log-variance into [min_logvar, max_logvar]; see the
+        # 1-D model.py for why this uses softplus rather than a hard
+        # clamp (keeps a gradient signal near the bounds).
         logvar = self.max_logvar - torch.nn.functional.softplus(self.max_logvar - logvar)
         logvar = self.min_logvar + torch.nn.functional.softplus(logvar - self.min_logvar)
         return mean, logvar
@@ -120,14 +151,25 @@ class Standardizer:
         self.std_ = None
 
     def fit(self, x: torch.Tensor):
+        """Compute and store a per-column mean/std of `x` (shape [N, d]),
+        call once on training data only. `keepdim=True` keeps the result
+        shape [1, d] rather than [d], so it broadcasts directly against
+        [N, d] batches in `transform`/`inverse` without a manual reshape.
+        `clamp_min` guards against a constant column (std=0), which would
+        otherwise divide by zero in `transform`.
+        """
         self.mean_ = x.mean(dim=0, keepdim=True)
         self.std_ = x.std(dim=0, keepdim=True).clamp_min(1e-8)
         return self
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the stored per-column z-score transform to `x`."""
         return (x - self.mean_) / self.std_
 
     def inverse(self, x: torch.Tensor) -> torch.Tensor:
+        """Undo `transform`: standardized-scale -> original units. Used on
+        the (single-column) target, not the 3-column input, so `x` here
+        is [N, 1]."""
         return x * self.std_ + self.mean_
 
     def inverse_std(self, s: torch.Tensor) -> torch.Tensor:
@@ -135,9 +177,11 @@ class Standardizer:
         return s * self.std_.squeeze()
 
     def state_dict(self):
+        """Package the fitted mean/std for saving alongside a model checkpoint."""
         return {"mean": self.mean_, "std": self.std_}
 
     def load_state_dict(self, d):
+        """Restore mean/std from a dict produced by `state_dict`."""
         self.mean_ = d["mean"]
         self.std_ = d["std"]
         return self

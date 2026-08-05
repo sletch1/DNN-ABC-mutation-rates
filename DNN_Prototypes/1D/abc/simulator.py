@@ -48,6 +48,25 @@ def mut_bmbp_slow(Z0, a, delta, p, tp, rng: np.random.Generator):
 
     Returns (Z, X): total viable cells and mutant cells at time tp.
     Cost grows like exp(a*tp), so this is only practical for larger p.
+
+    Implementation note: rather than literally recursing cell-by-cell,
+    each "generation" is processed as a batch over every currently-live
+    lineage at once (the `dtvec`/`mvec` arrays), which is just a
+    vectorized way of writing the same branching process -- every cell
+    still divides independently with its own division-time and mutation
+    draws, this just avoids a slow Python-level recursive tree. One pass
+    of the `while` loop below = one generation:
+      1. every surviving lineage splits into 2 offspring (`np.repeat(..., 2)`
+         duplicates each parent's state to both children),
+      2. each child is independently a mutant (prob 1 if its parent already
+         was one -- mutation is irreversible here -- else prob p) via one
+         binomial draw per child,
+      3. each child's own division/death time is drawn from an exponential
+         with rate a (non-mutants) or a*delta (mutants, who may grow at a
+         different rate), added to its parent's arrival time,
+      4. any lineage whose arrival time has now passed `tp` "exits" the
+         simulation (it's counted into Z, and into X if it's a mutant);
+         everything else continues to the next generation.
     """
     Z0 = int(Z0)
     Z = 0
@@ -82,6 +101,25 @@ def mut_bmbp_fast(Z0, a, delta, p, tp, rng: np.random.Generator):
     Returns (Z, X). O(1)-ish per culture: draws Z from a geometric, seeds
     round(Z*p) mutations at times sampled from the truncated arrival law, and
     grows each mutant clone via a geometric.
+
+    This replaces `mut_bmbp_slow`'s generation-by-generation simulation
+    with closed-form distributional shortcuts for a pure Yule (birth-only)
+    process, so the whole culture is drawn in a handful of vector ops
+    instead of one exponential draw per cell per generation:
+      - a Yule process started from Z0 ancestors and run to time tp has a
+        known population-size distribution, so Z can be sampled directly
+        (as a sum of Z0 geometrics) rather than simulated division-by-division.
+      - given Z total cells, the expected mutation count is Z*p (M below);
+        each mutation's arrival time is drawn from the arrival-time law
+        implied by the same Yule process, restricted (truncated) to [0, tp]
+        -- that's what the inverse-CDF line `arrtime = log(u*(exp(a*tp)-1)+1)/a`
+        is doing, with `u` the uniform draws being inverted.
+      - each mutant clone then grows independently as its own (delta-rate)
+        Yule process for the remaining time `tp - arrtime`, so its final
+        size is again a single geometric draw.
+    This is only valid in the large-Z0/large-Z regime where the exact
+    discrete branching process is well approximated by these continuous
+    shortcuts -- see `mut_bmbp_slow`'s docstring for the exact alternative.
     """
     Z0 = int(Z0)
     # Z = sum of Z0 geometrics with success prob exp(-a*tp); R rgeom support {0,1,...}

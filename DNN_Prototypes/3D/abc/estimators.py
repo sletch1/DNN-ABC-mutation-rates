@@ -36,12 +36,20 @@ def estimate_mle(Z_vec, X_vec) -> float:
 
     # Faithful to MATLAB fzero(fun, st): local root nearest the MOM start, not a
     # wide bracket (which can latch onto the spurious root near ph=0.5).
+    # fsolve is a local (Newton-type) root-finder, so it needs a starting
+    # guess `st` rather than a bracketing interval like brentq -- using the
+    # MOM estimate as that guess is what keeps it converging to the root
+    # near the true p rather than the other, spurious one.
     st = max(1e-10, estimate_mom(Z_vec, X_vec))
+    # fsolve can print a "did not converge" RuntimeWarning on some (Z,X)
+    # values where it still returns a usable estimate; that's caught below
+    # and the result is sanity-checked directly (finite, in (0, 0.5)), so
+    # the warning itself is silenced rather than left to clutter stdout.
     with np.errstate(all="ignore"):
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             root = float(fsolve(fun, st, xtol=1e-12, full_output=False)[0])
     if not np.isfinite(root) or root <= 0 or root >= 0.5:
-        return estimate_mom(Z_vec, X_vec)
+        return estimate_mom(Z_vec, X_vec)  # fall back to MOM if MLE failed/diverged
     return root

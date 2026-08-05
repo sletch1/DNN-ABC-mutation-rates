@@ -32,6 +32,13 @@ from simulator import fluc_exp, summary_stat
 
 
 def _trunc_norm_sample(mu, s, lo, hi, rng):
+    """Draw one proposal from N(mu, s^2) truncated to [lo, hi] -- the MH
+    proposal distribution over theta=log10(p) (a and delta are treated as
+    known, not sampled -- see the module docstring). scipy's `truncnorm`
+    parameterizes the bounds as standard-normal z-scores relative to
+    (mu, s), hence the (a, b) rescaling below rather than passing
+    `lo`/`hi` directly.
+    """
     a, b = (lo - mu) / s, (hi - mu) / s
     from scipy.stats import truncnorm
     return float(truncnorm.rvs(a, b, loc=mu, scale=s, random_state=rng))
@@ -78,6 +85,9 @@ def run_abc_mcmc(obs, backend, a_known=1.0, delta_known=1.0,
         sk = sim_kwargs
 
         def summary_at(theta):
+            """Run `ns` fresh slow-simulator replicates at this theta (with
+            a_known/delta_known fixed) and return their summary statistics
+            on the log10 scale."""
             vals = np.empty(ns)
             for k in range(ns):
                 Z, X = fluc_exp(sk["Z0"], a_known, delta_known, 10.0 ** theta,
@@ -86,12 +96,23 @@ def run_abc_mcmc(obs, backend, a_known=1.0, delta_known=1.0,
             return _log10_floor(vals)
 
         def log_like(theta):
+            # Synthetic-likelihood ABC (Wood 2010): estimate the summary
+            # stat's mean/variance from `ns` pilot simulations at this
+            # theta, then score the observed value under a Gaussian with
+            # that mean and eps^2+variance -- the same mean+variance
+            # likelihood form the surrogate backends use below, just paid
+            # for here by brute-force simulation instead of a learned
+            # prediction.
             sims = summary_at(theta)
             m = float(np.mean(sims))
             v = float(np.var(sims, ddof=1)) if ns > 1 else 0.0
             return norm.logpdf(obs_log, loc=m, scale=np.sqrt(eps ** 2 + v))
     elif backend in ("dnn", "gp"):
         def log_like(theta):
+            # `[theta, a_known, delta_known]` is the 3-input query the
+            # surrogate expects (see network/model.py) -- this is the one
+            # line where the 3-D sampler differs structurally from the
+            # 1-D version, which only ever queries a 1-D theta.
             mean, sd = surrogate.predict([theta, a_known, delta_known])
             scale = np.sqrt(eps ** 2 + sd ** 2)
             return norm.logpdf(obs_log, loc=mean, scale=scale)
@@ -106,6 +127,10 @@ def run_abc_mcmc(obs, backend, a_known=1.0, delta_known=1.0,
     lp_cur = _log_prior(theta_init, lam, lo, hi)
     n_accept = 0
 
+    # Standard Metropolis-Hastings loop -- see the 1-D sampler's more
+    # heavily-commented version of this same loop for a full walk-through;
+    # unchanged here except that log_like above now conditions on
+    # a_known/delta_known.
     for i in range(1, n_mcmc):
         theta = samples[i - 1]
         theta_can = _trunc_norm_sample(theta, s, lo, hi, rng)
@@ -118,12 +143,13 @@ def run_abc_mcmc(obs, backend, a_known=1.0, delta_known=1.0,
             ll_cur, lp_cur = ll_can, lp_can
             n_accept += 1
         else:
-            samples[i] = theta
+            samples[i] = theta  # rejected: chain stays at the current state
     return samples, n_accept / (n_mcmc - 1)
 
 
 def point_and_interval(samples, burn_in, cred=0.95):
-    """Posterior mean of p = mean(10**theta) and its 95% credible interval."""
+    """Posterior mean of p = mean(10**theta) and its 95% credible interval,
+    from the post-burn-in samples (`samples[burn_in:]`)."""
     post = samples[burn_in:]
     p_post = 10.0 ** post
     p_hat = float(np.mean(p_post))

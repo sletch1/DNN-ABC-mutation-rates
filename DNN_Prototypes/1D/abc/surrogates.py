@@ -28,20 +28,39 @@ from model import HeteroscedasticMLP, Standardizer
 
 
 class DNNSurrogate:
+    """Wraps a trained HeteroscedasticMLP (model.py) to satisfy the
+    `predict(theta) -> (mean, sd)` contract described in the module
+    docstring above -- the piece of glue that lets the ABC sampler treat
+    the DNN exactly like it treats a GP, without knowing anything about
+    tensors, standardization, or PyTorch internals.
+    """
+
     def __init__(self, model: HeteroscedasticMLP, x_scaler: Standardizer,
                  y_scaler: Standardizer, sd_scale: float = 1.0):
-        self.model = model.eval()
+        self.model = model.eval()  # inference mode: matters if/when Dropout or BatchNorm are enabled
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
         self.sd_scale = sd_scale  # conformal calibration multiplier on predictive sd
 
-    @torch.no_grad()
+    @torch.no_grad()  # no training happens here, so skip building the autograd graph
     def predict(self, theta):
+        """theta: a scalar or array of log10(p) values (already on the
+        natural/unstandardized scale). Returns `(mean, sd)` on that same
+        scale -- a Python float pair if `theta` was scalar, else a pair of
+        numpy arrays -- by running the network on the standardized input,
+        then undoing the standardization on both outputs (mean and sd) so
+        callers never have to think about the internal scaling.
+        """
         theta = np.atleast_1d(np.asarray(theta, dtype=np.float32))
         xt = self.x_scaler.transform(torch.tensor(theta).unsqueeze(1))
         mean_std, logvar_std = self.model(xt)
         mean = self.y_scaler.inverse(mean_std).squeeze(1).numpy()
-        # std on standardized target -> original log scale via the y-scaler sigma
+        # std on standardized target -> original log scale via the y-scaler sigma.
+        # exp(0.5*logvar) = exp(logvar)**0.5 = variance**0.5 = std; the model
+        # predicts log-variance (see model.py) rather than std/variance
+        # directly because it's numerically friendlier to train (always
+        # positive automatically, no risk of the network trying to predict
+        # a negative variance).
         sd_std = torch.exp(0.5 * logvar_std).squeeze(1)
         sd = self.y_scaler.inverse_std(sd_std).numpy() * self.sd_scale
         if mean.size == 1:
@@ -52,12 +71,21 @@ class DNNSurrogate:
 
 
 class GPSurrogate:
+    """Same `predict(theta) -> (mean, sd)` contract as DNNSurrogate, but
+    backed by a fitted scikit-learn GaussianProcessRegressor -- this is
+    the GPS-ABC baseline the DNN is being compared against, wrapped so the
+    sampler doesn't need separate code paths for the two methods."""
+
     def __init__(self, gpr, budget: int):
         self.gpr = gpr
         self.budget = budget  # number of training points the GP was fit on
 
     def predict(self, theta):
         theta = np.atleast_1d(np.asarray(theta, dtype=float)).reshape(-1, 1)
+        # return_std=True: sklearn's GP regressor can report the posterior
+        # predictive standard deviation directly (the analytic GP
+        # uncertainty), not just the mean -- this is the GP's built-in
+        # equivalent of the DNN's learned variance head.
         mean, sd = self.gpr.predict(theta, return_std=True)
         if mean.size == 1:
             return float(mean[0]), float(sd[0])
@@ -92,6 +120,14 @@ def fit_gp_surrogate(x_train, y_train, budget=None, seed: int = 0):
 
     n_used = len(x_train)
     xs = x_train.reshape(-1, 1)
+    # Standard signal + noise GP kernel: ConstantKernel * RBF is the usual
+    # squared-exponential covariance (amplitude x smoothness), and adding
+    # a WhiteKernel gives the GP a separate, learnable homoscedastic noise
+    # term -- this is exactly the "one fixed noise level everywhere" the
+    # DNN's heteroscedastic variance head is designed to improve on (see
+    # model.py's module docstring). The (lo, hi) pairs after each
+    # hyperparameter are bounds the optimizer searches within during
+    # fitting, not fixed values.
     kernel = (ConstantKernel(1.0, (1e-3, 1e3))
               * RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
               + WhiteKernel(noise_level=1e-2, noise_level_bounds=(1e-6, 1e1)))

@@ -30,7 +30,13 @@ from model import HeteroscedasticResMLP, Standardizer
 
 
 def _as_matrix(X):
-    """Coerce a scalar-free feature input to a float32 (N, 3) array."""
+    """Coerce a feature input to a float32 (N, 3) array, whether it was
+    passed as a single length-3 list/tuple (one query point) or an
+    already-2-D (N, 3) array/list of points. `np.atleast_2d` turns a flat
+    length-3 input into shape (1, 3); the `if` below additionally catches
+    the case where a bare `[theta, a, delta]` list produced shape (3, 1)
+    instead (a transposed single point) and fixes it to (1, 3).
+    """
     X = np.atleast_2d(np.asarray(X, dtype=np.float32))
     if X.shape[1] != 3 and X.shape[0] == 3:
         X = X.reshape(1, 3)
@@ -38,6 +44,14 @@ def _as_matrix(X):
 
 
 class DNNSurrogate3D:
+    """3-D analog of 1D/abc/surrogates.py's DNNSurrogate: wraps a trained
+    HeteroscedasticResMLP so it satisfies the `predict(X) -> (mean, sd)`
+    contract the sampler expects, handling standardization/un-standardization
+    on both the 3-column input and the two outputs. See the 1-D
+    DNNSurrogate for a more heavily-commented version of the same logic
+    (identical here, just with a 3-column `X` instead of a scalar `theta`).
+    """
+
     def __init__(self, model: HeteroscedasticResMLP, x_scaler: Standardizer,
                  y_scaler: Standardizer, sd_scale: float = 1.0):
         self.model = model.eval()
@@ -47,6 +61,10 @@ class DNNSurrogate3D:
 
     @torch.no_grad()
     def predict(self, X):
+        """X: a length-3 [log10(p), a, delta] point, or an (N, 3) array of
+        such points. Returns `(mean, sd)` on the natural log10(d_bar)
+        scale -- a float pair for a single point, else a pair of numpy
+        arrays."""
         X = _as_matrix(X)
         xt = self.x_scaler.transform(torch.tensor(X))
         mean_std, logvar_std = self.model(xt)
@@ -61,6 +79,10 @@ class DNNSurrogate3D:
 
 
 class GPSurrogate3D:
+    """Same `predict(X) -> (mean, sd)` contract as DNNSurrogate3D, backed
+    by a fitted scikit-learn GaussianProcessRegressor over the 3 inputs --
+    the GPS-ABC baseline this project compares against in 3-D."""
+
     def __init__(self, gpr, budget: int):
         self.gpr = gpr
         self.budget = budget  # number of training points the GP was fit on
@@ -79,6 +101,16 @@ def _spacefilling_indices(X, budget, seed=0):
     Emulates the Latin-Hypercube / space-filling design the paper used to make a
     small GP viable: keep coverage of the (log10 p, a, delta) cube rather than a
     random subsample. Standardize columns first so no axis dominates the distance.
+
+    This is the "farthest-point sampling" greedy algorithm: start from one
+    random row, then repeatedly add whichever remaining row is currently
+    *farthest* from the already-chosen set, so the chosen points spread
+    out to cover the input cube rather than clustering. `d2` tracks each
+    row's squared distance to its *nearest* already-chosen point; after
+    adding a new point, `d2` is updated with an elementwise min against
+    that new point's distances, which is an efficient way to maintain
+    "distance to the closest chosen point" without recomputing all
+    pairwise distances from scratch on every iteration.
     """
     X = np.asarray(X, dtype=float)
     n = len(X)
@@ -90,9 +122,9 @@ def _spacefilling_indices(X, budget, seed=0):
     chosen = [start]
     d2 = ((Xs - Xs[start]) ** 2).sum(1)
     for _ in range(budget - 1):
-        nxt = int(np.argmax(d2))
+        nxt = int(np.argmax(d2))  # row currently farthest from every chosen point
         chosen.append(nxt)
-        d2 = np.minimum(d2, ((Xs - Xs[nxt]) ** 2).sum(1))
+        d2 = np.minimum(d2, ((Xs - Xs[nxt]) ** 2).sum(1))  # update nearest-chosen distances
     return np.array(sorted(set(chosen)))
 
 
