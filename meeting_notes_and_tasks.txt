@@ -1,0 +1,26 @@
+
+
+Notes for improvement:
+
+ - 3D generated data is inaccurate 
+    --> parameters shd be (p1, p2, t) 
+    --> parameters that were used were (p, a, s)
+However, I think there is a misunderstanding on the 3D model. If you check the JTB paper, we used (p1,p2,\tau) as the 3D parameter rather than (p,a,\delta). This non-constant mutation model makes more sense in practice, but I guess I didn't upload the code for this 3D model. I think we need to meet a few times after the fall semester starts to make things clear.
+
+
+--Matlab coded uploaded to drive for 3D model: mut2stage_bMBP.m and runsimu.m 
+
+
+Overview: Meeting 08/28:
+ - p = mutation rate , X = mutated prob and  Z = total population
+
+ P --> Simulator --> sqrt(x / z) = d_bar
+
+ MCMC --> Propose a p* from simulator --> accept p* with some prob (metropolis hasting)
+
+Hand off 1D neural network , ship it off into a folder for professor Zhu to feed it in the simulator 
+
+- Results for 1D
+- Understand everything about everything as well
+- Send off training data and final model of 1D to professor Zhu
+- Determine what journal to do

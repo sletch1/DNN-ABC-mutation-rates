@@ -1,4 +1,36 @@
-c# 1. Set environmental variable BEFORE calling any library
+# trainNN.R
+# ---------------------------------------------------------------------------
+# THE ORIGINAL (R/keras) PROOF-OF-CONCEPT for the neural-network surrogate,
+# 1-D constant-mutation-rate case. Kept for provenance and as the reference the
+# production Python pipeline was ported from -- the version actually used for
+# the paper's results is DNN_Models/1D/network/train.py.
+#
+# THE IDEA. Inferring the mutation rate p normally means running the cell-level
+# simulator thousands of times inside an MCMC loop, which is brutally slow. A
+# SURROGATE sidesteps that: train a network once to predict the simulator's
+# summary statistic directly from p, then let the sampler query the network
+# instead of the simulator. That is the whole premise of the project.
+#
+# WHAT THIS SCRIPT DOES, end to end:
+#   1. Sweeps log10(p) over [-8, -2] and, at each p, solves for the plating
+#      time tp that yields a fixed expected number of mutants (c = 20), so
+#      every design point is comparably informative.
+#   2. Runs the fluctuation-experiment simulator (funMBP.R) nrep times per p,
+#      reducing each run to the scalar summary statistic
+#          d_bar = mean_i sqrt(X_i / Z_i)   over the J cultures.
+#   3. Trains a small multilayer perceptron mapping log10(p) -> log10(d_bar).
+#      The log scale matters: d_bar spans several orders of magnitude.
+#   4. Wraps the fit in a split-conformal prediction band (conformalCI in
+#      funMBP.R), giving calibrated uncertainty rather than a bare point
+#      estimate -- the sampler needs that uncertainty to accept/reject.
+#   5. Writes two diagnostic plots: predicted-vs-true, and the fitted curve
+#      with its conformal band over the training data.
+#
+# Toggle `use_slow` to choose the exact simulator (ground truth, slow) or the
+# fast approximate one. Timings in the source: fast ~0.08s, slow ~11500s.
+# ---------------------------------------------------------------------------
+
+# 1. Set environmental variable BEFORE calling any library
 Sys.setenv(PYTHONHASHSEED = "0")
 
 library(keras3)

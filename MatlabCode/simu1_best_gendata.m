@@ -1,3 +1,21 @@
+% simu1_best_gendata.m
+% -------------------------------------------------------------------------
+% Generates the SIMULATION-STUDY DATASETS for the constant-mutation-rate study
+% (the paper's Study 1) -- the fixed benchmark datasets that every estimator is
+% then scored against, so all methods are compared on identical data.
+%
+% It sweeps five mutation rates p = 1e-8 ... 1e-4, each paired with its own
+% plating time tp = 20, 18, 16, 14, 12. The pairing is deliberate: larger p
+% needs less growth time to produce a comparable number of mutants, so the
+% listed E[X] stays in the same few-hundred range across the sweep and no
+% design point is starved of signal.
+%
+% For each (p, tp) it runs J parallel cultures via fluc_exp1_rev and saves the
+% resulting (Z_vec, X_vec) to disk for downstream estimation.
+%
+% Professor's original code, unmodified below this header.
+% -------------------------------------------------------------------------
+
 addpath('C:/Users/xwwu/Documents/Work/ABC/Code');
 p_vec = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4];
 tp_vec = [20, 18, 16, 14, 12];

@@ -1,3 +1,19 @@
+% selsummary_fluc_exp1.m
+% -------------------------------------------------------------------------
+% Produces FIGURE 1 of the paper: the choice of summary statistic.
+%
+% ABC compares simulated data to observed data through a low-dimensional
+% SUMMARY STATISTIC, and that choice drives everything downstream -- a statistic
+% that responds weakly to p, or whose noise swamps its signal, makes the
+% mutation rate unidentifiable no matter how good the sampler is.
+%
+% This script sweeps p and plots candidate statistics against it, which is what
+% justifies the project's use of d_bar = mean_i sqrt(X_i / Z_i): it is smooth
+% and monotone in p across the whole range.
+%
+% Professor's original code, unmodified below this header.
+% -------------------------------------------------------------------------
+
 % For Figure 1, choose summary statistic for parallel cultured data with constant mutation
 addpath('C:/Users/xwwu/Documents/Work/ABC/Code');
 a = 1;

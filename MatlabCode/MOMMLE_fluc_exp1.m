@@ -1,4 +1,7 @@
 function [phat_MOM, phat_MLE] = MOMMLE_fluc_exp1(Z_vec, X_vec)
+% ROLE: the cheap baselines. Closed-form method-of-moments and maximum-
+% likelihood estimates of p, used as the naive comparison every ABC method in
+% the results tables has to beat.
 % Estimate mutation rate for fluctuation experiment with constant mutation rate
 % Z_vec: vector of total # of viable cells at t0 for J cultures
 % X_vec: vector of # of mutants at t0 for J cultures

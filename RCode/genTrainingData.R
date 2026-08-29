@@ -1,3 +1,24 @@
+# genTrainingData.R
+# ---------------------------------------------------------------------------
+# THE QUICK LOOK. A deliberately small, fast version of the training-data sweep
+# whose only job is to plot the simulator's input/output relationship so you can
+# eyeball it before committing to a real run.
+#
+# Use this to sanity-check that the simulator behaves before spending hours in
+# genSlowData_1D.R / genSlowData_3D.R, which do the same sweep at full
+# resolution, in parallel, and write a CSV.
+#
+# It sweeps the mutation rate p over log10(p) in [-8, -2] (11 points, 5
+# replicates each -- versus 101 x 10 for the real run), and at each p:
+#   - solves for the plating time tp giving a fixed expected mutant count (20),
+#   - runs a J = 100 culture fluctuation experiment via funMBP.R,
+#   - reduces it to the summary statistic d_bar = mean_i sqrt(X_i / Z_i).
+#
+# Output is a single scatter of log10(p) against d_bar. It should be smooth and
+# monotone increasing; if it is not, something is wrong upstream in funMBP.R.
+# Nothing is written to disk except that plot -- no CSV, no model.
+# ---------------------------------------------------------------------------
+
 workpath <- dirname(sub("--file=", "", grep("--file=", commandArgs(trailingOnly = FALSE), value = TRUE)))
 if (length(workpath) == 0) workpath <- "."
 source(file.path(workpath, "funMBP.R"))

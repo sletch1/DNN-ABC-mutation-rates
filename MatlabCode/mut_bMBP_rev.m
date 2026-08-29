@@ -1,4 +1,7 @@
 function [Z, X] = mut_bMBP_rev(Z0, a, delta, p, tp)
+% ROLE: the single-culture engine underneath fluc_exp1_rev.m -- grows one
+% colony from Z0 cells to time tp under a CONSTANT mutation rate and returns
+% (Z, X). Contrast DNN_Models/3D/matlab/mut2stage_bMBP.m, the two-stage model.
 % Generate (z, x) data for bMBP model with constant mutation
 % Z0: # of non-mutants at t = 0
 % a: rate parameter of exponential life time for non-mutants

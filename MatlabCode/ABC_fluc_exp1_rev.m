@@ -1,4 +1,8 @@
 function [sample_theta, accp_rate, train_time] = ABC_fluc_exp1(nMCMC, Z_vec, X_vec, theta_ini, s, range, ns, a, tp, J, nsample, sigma0, kparams0, eps, gps)
+% ROLE: the inference engine. ABC-MCMC sampler for the mutation rate. Set gps=1
+% to swap the expensive simulator inside the MCMC loop for a Gaussian-process
+% surrogate (GPS-ABC) -- that substitution is the paper's headline contribution,
+% and the neural surrogate in DNN_Models/ is this project's answer to it.
 % Estimate mutation rate for fluctuation experiment with constant mutation rate
 % Bayesian setting: prior for theta ~ unif, proposal theta_can|theta ~ TN
 % nMCMC: number of MCMC iterations
