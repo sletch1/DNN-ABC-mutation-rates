@@ -73,7 +73,13 @@ poorly by every method tested. Both surrogates also miscalibrate their credible
 intervals, in opposite directions, a limitation we diagnose as a property of the
 ABC acceptance kernel rather
 than a deficiency of the surrogate's own predictive calibration, which remains
-near-exact throughout. We discuss when a neural surrogate should be preferred
+near-exact throughout. A further controlled comparison across architecture
+families -- feedforward, convolutional, and recurrent surrogates, motivated by
+where each is known to help in the simulation-based-inference literature --
+finds that neither a convolutional nor a recurrent inductive bias improves on
+the architecture-agnostic feedforward network for this four-input problem, the
+outcome predicted by the parameters' lack of any real spatial or temporal
+structure. We discuss when a neural surrogate should be preferred
 to a Gaussian process inside ABC, and what the coverage gap implies for
 deploying conformally calibrated surrogates inside likelihood-free samplers
 more generally. Code, data, and a fully scripted reproduction pipeline are
@@ -147,10 +153,14 @@ moments, maximum likelihood, exact ABC-MCMC, and GPS-ABC -- against the neural
 surrogate on estimation accuracy, credible-interval length, coverage, and
 wall-clock cost; (iii) run a second simulation study on the
 two-stage mutation model that is the original paper's actual multi-parameter
-contribution, estimating $(p_1,p_2,\tau)$ jointly; and (iv) report, honestly and
+contribution, estimating $(p_1,p_2,\tau)$ jointly; (iv) report, honestly and
 without tuning away, that the neural surrogate's advantage does \emph{not}
 carry over to that regime, together with a measurement of the data's
-irreducible noise floor that explains why. Section~\ref{sec:background} reviews the
+irreducible noise floor that explains why; and (v) test, rather than assume,
+whether a convolutional or recurrent architecture improves on the
+architecture-agnostic feedforward surrogate in that same regime, motivated by
+where such architectures are known to help elsewhere in the simulation-based-inference
+literature, and report that neither does. Section~\ref{sec:background} reviews the
 MBP model and GPS-ABC. Section~\ref{sec:method} develops the general neural
 surrogate framework. Sections~\ref{sec:sim1D} and \ref{sec:sim3D} report the
 constant-rate and two-stage simulation studies. Section~\ref{sec:discussion}
@@ -452,6 +462,16 @@ calibration-split negative log-likelihood, weight decay $10^{-5}$, no
 dropout (early stopping and weight decay already control overfitting on this
 smooth curve; dropout's injected noise measurably hurt the fit in
 preliminary runs).
+
+\paragraph{Why convolutional and recurrent architectures are not tested here.}
+Study II (Section~\ref{sec:sim3D_arch}) reports a controlled comparison of
+feedforward, convolutional, and recurrent surrogates on the three-to-four-input
+two-stage problem. We do not repeat that comparison here because it would be
+vacuous: with a single scalar input $\theta=\log_{10}p$, a 1-D convolution has
+no neighbouring position to convolve over and a recurrent cell has no second
+time step to recur into, so both architectures collapse mathematically to the
+already-tested single-layer linear map. Building them would relabel, not
+extend, the architecture search in Table~\ref{tab:arch1D}.
 
 \subsection{Regression calibration}
 \label{sec:sim1D_calib}
@@ -944,6 +964,145 @@ What does bind is the model's intrinsic identifiability: $\tau$ carries an RMSE
 of roughly $1.7$--$1.9$ time units against a prior range of $9.8$, and $p_1$ is
 recovered no better than an order of magnitude by either method.
 
+\subsection{Does architecture matter here? A structural comparison}
+\label{sec:sim3D_arch}
+
+The heteroscedastic MLP of Section~\ref{sec:arch3D} treats its four inputs
+$(\log_{10}p_1,\log_{10}p_2,\tau,\log_{10}p_{\mathrm{eff}})$ as an unordered
+feature vector. A natural question, and one a reviewer of a paper proposing a
+neural surrogate is entitled to ask, is whether an architecture built around a
+different inductive bias -- a convolution, or a recurrence -- does better. The
+simulation-based-inference literature gives a specific, testable answer before
+any experiment is run: \citet{radev2020} state that a summary network's
+architecture ``should be aligned with the probabilistic symmetry of the
+observed data,'' recommending an LSTM or a 1-D convolutional network
+specifically when the raw input is a time series with genuine sequential
+dependence, and a permutation-invariant pooling network when it is an
+exchangeable i.i.d.\ sample -- with a plain feedforward network the implied
+default otherwise. Our four inputs are neither: $p_1$, $p_2$, $\tau$, and
+$p_{\mathrm{eff}}$ are four physically distinct quantities with no temporal
+order and no exchangeability, so this principle predicts, \emph{a priori}, that
+a convolution or a recurrence should be neutral to harmful relative to an MLP.
+This contrasts with settings where convolutional networks have been genuinely
+useful in closely related inference problems -- \citet{flagel2019} and
+\citet{akesson2021} apply CNNs to population-genetic parameter estimation,
+including mutation-rate-type quantities, but their raw input is a
+genotype-alignment \emph{matrix} or a full stochastic-trajectory time series,
+data with real spatial or temporal structure for a kernel to exploit; the
+feedforward architecture we use throughout this paper is instead the
+longer-standing default in this literature for tabular/summary-statistic input
+\citep{sheehan2016,jiang2017}. We test the prediction directly rather than
+assume it.
+
+\paragraph{Setup.} We train a 1-D CNN (two convolutional layers, kernel width
+3, over the four inputs treated as adjacent positions), a GRU, and an LSTM
+(each unrolling the four inputs as four timesteps, reading out the final
+hidden state), with the same two-headed Gaussian-NLL objective, split-conformal
+calibration, and train/validation/test split as the deployed MLP
+(Section~\ref{sec:sim3D_fit}), and comparable parameter counts (2,466--3,426).
+Full architectural detail and code are in the repository
+(\texttt{DNN\_Models/3D/network/model\_families.py}). Each is evaluated exactly
+as GPS-ABC and DNN-ABC were: a surrogate-fit comparison against the
+irreducible noise floor of Section~\ref{sec:arch3D}, and the identical full
+ABC-MCMC recovery task of Section~\ref{sec:sim3D_abc} (same three truth
+triples, $16$ replicates, $3{,}000$ iterations, $1{,}000$ burn-in), with
+GPS-ABC and DNN-ABC's numbers reused unchanged from Table~\ref{tab:abc3D}.
+
+\begin{table}[H]
+\centering
+\caption{Surrogate fit quality by architecture family, test set. The
+irreducible noise floor is $1.393\times10^{-3}$ (Section~\ref{sec:arch3D}).}
+\label{tab:archfam3D}
+\begin{tabular}{lrrrrr}
+\toprule
+Architecture & Parameters & MSE (design means) & $\times$ floor & $R^2$ & 95\% coverage \\
+\midrule
+CNN1D (2 conv layers, $k{=}3$) & 2{,}994 & $1.567\times10^{-3}$ & 1.13 & 0.99469 & 0.949 \\
+\textbf{FFN 64--32, GELU [deployed]} & \textbf{2{,}466} & $\mathbf{1.573\times10^{-3}}$ & \textbf{1.13} & \textbf{0.99467} & \textbf{0.952} \\
+RNN (GRU, hidden $32$) & 3{,}426 & $1.726\times10^{-3}$ & 1.24 & 0.99415 & 0.953 \\
+LSTM (hidden $24$) & 2{,}642 & $1.819\times10^{-3}$ & 1.31 & 0.99383 & 0.953 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CNN1D statistically ties the deployed FFN ($0.4\%$ lower MSE, both at $1.13\times$
+the floor -- inside the seed-to-seed spread already documented in
+Table~\ref{tab:capacity3D}); with a kernel wide enough to see three of the four
+positions per layer and two stacked layers giving every input access to every
+other, a convolution this shallow on an input this short is not meaningfully
+more constrained than an MLP, so this is closer to a non-event than a genuine
+convolutional advantage. RNN and LSTM are measurably worse ($+9.7\%$,
+$+15.6\%$ MSE; both gaps an order of magnitude larger than their own
+across-seed standard deviation), consistent with the structural prediction: a
+four-step recurrence must route everything relevant about $p_1$ through three
+more hidden-state updates before it can interact with $\tau$ or
+$p_{\mathrm{eff}}$, a strictly harder optimization problem than an MLP's direct
+simultaneous access to all four inputs, for no compensating benefit on a
+surface with no real temporal structure to reward it.
+
+\begin{table}[H]
+\centering
+\caption{ABC-MCMC recovery of $(p_1,p_2,\tau)$ by architecture family,
+per-parameter RMSE (log$_{10}$ scale for $p_1,p_2$; absolute time units for
+$\tau$), averaged over the three truth triples of Table~\ref{tab:abc3D}. Bold
+marks the best value in each row.}
+\label{tab:archfam3D_abc}
+\begin{tabular}{lrrrrr}
+\toprule
+Parameter & GPS-ABC & DNN-ABC (FFN) & CNN1D-ABC & RNN-ABC & LSTM-ABC \\
+\midrule
+$p_1$ RMSE & 1.390 & \textbf{1.355} & 1.438 & 1.418 & 1.397 \\
+$p_1$ coverage & 0.979 & 0.896 & 0.750 & 0.938 & 0.917 \\
+$p_2$ RMSE & \textbf{0.207} & 0.391 & 0.549 & 0.401 & 0.282 \\
+$p_2$ coverage & 1.000 & 0.792 & 0.771 & 0.875 & 0.958 \\
+$\tau$ RMSE & 1.662 & 1.901 & 1.947 & \textbf{1.548} & 1.627 \\
+$\tau$ coverage & 1.000 & 0.938 & 0.938 & 0.979 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Attaching Monte Carlo standard errors to every one of the $3\times3\times3=27$
+new-family/truth/parameter cells and comparing each new family against both
+GPS-ABC and DNN-ABC at the $2$-MCSE level ($54$ pairwise comparisons in total)
+gives a picture consistent with the fit-quality result: $46$ of $54$ ($85\%$)
+are statistical ties. Of the $8$ resolved comparisons, $7$ favour an
+established method (GPS-ABC $5\times$, DNN-ABC $2\times$) and only $1$ favours
+a new family -- RNN-ABC beats DNN-ABC on $\tau$ at truth
+$(p_1,p_2,\tau)=(10^{-4},10^{-2},7)$, a difference of $-0.429\pm0.210$. No new
+family is significantly better than GPS-ABC anywhere in this comparison.
+CNN1D-ABC is the specific source of most of the resolved losses (it accounts
+for $4$ of GPS-ABC's $5$ wins), consistent with it also posting the worst
+pooled interval coverage of any method tested, $0.819$ against a nominal
+$0.95$.
+
+One nuance qualifies, without reversing, this conclusion. The deployed FFN's
+DNN-ABC has a previously reported weakness: it under-covers (pooled $0.875$
+against nominal $0.95$; Section~\ref{sec:sim3D_coverage}). CNN1D-ABC inherits
+and worsens this. RNN-ABC ($0.931$) and especially LSTM-ABC ($0.958$) do not
+-- LSTM-ABC's pooled coverage sits closer to nominal than either GPS-ABC's mild
+over-coverage ($0.993$) or the deployed FFN's under-coverage, while its point
+accuracy remains competitive with (and on this run slightly better than) the
+FFN's. This did not resolve to statistical significance cell-by-cell in the
+comparison above, so we report it as a secondary, follow-up-worthy observation
+about interval calibration specifically, not as evidence that a recurrent
+architecture should replace the deployed surrogate: on the primary point-accuracy
+comparison the recurrent families do not beat the established baselines, and
+the calibration gap they partially close is a property of the downstream ABC
+acceptance kernel (Section~\ref{sec:sim3D_coverage}) rather than of the
+surrogate's own regression calibration, which is near-exact for every
+architecture tested.
+
+\textbf{Summary.} Neither imposing a spatial prior (CNN1D) nor a temporal one
+(RNN, LSTM) on four physically unordered parameters improves point-estimation
+accuracy over the architecture-agnostic FFN or the Gaussian-process baseline,
+and two of the three impose a real cost (RNN, LSTM on fit quality; CNN1D on
+downstream coverage) for no offsetting benefit. This is the outcome
+\citet{radev2020}'s structural principle predicts, and it is why the deployed
+3-D surrogate throughout this paper remains the plain heteroscedastic MLP of
+Section~\ref{sec:arch3D}. Full per-cell results, code, and the trained
+checkpoints for all three architecture families are included in the
+repository (Section~\ref{sec:repro}).
+
 \subsection{Scope and what remains open}
 \label{sec:sim3D_coverage}
 
@@ -1021,6 +1180,20 @@ domain, BatchNorm's per-minibatch statistics appear to be actively
 counter-productive; LayerNorm \citep{ba2016}, which normalizes per-sample,
 avoided this failure mode entirely in the deeper three-dimensional network.
 
+A third finding, from the architecture-family comparison of
+Section~\ref{sec:sim3D_arch}, is best read as a companion to this one rather
+than a separate result: BatchNorm was a case of an architectural component
+actively fighting the problem's structure, whereas CNN1D/RNN/LSTM on the
+two-stage inputs are a case of architectural components with \emph{nothing to
+find} -- there is no spatial or temporal pattern in four unordered physical
+parameters for a kernel or a recurrence to exploit, so the honest expectation,
+confirmed by \citet{radev2020}'s stated design principle and by our own
+result, is indifference-to-mild-harm rather than either a large gain or a
+BatchNorm-scale failure. The practical lesson we would draw for anyone
+designing a similar surrogate is to let the symmetry of the input, not habit or
+a desire for architectural novelty, choose the architecture family before any
+search over its hyperparameters begins.
+
 \paragraph{Scope and limitations.} This paper is a simulation study
 evaluated entirely under known ground truth; we do not apply the method to a
 real fluctuation-experiment data set, as \citet{lu2023} do for their own
@@ -1083,7 +1256,9 @@ two-stage pipeline documents the same sequence -- data generation, the two
 rounds of architecture search, training and conformal calibration, the ABC
 tables, Monte Carlo standard errors, and figure generation -- in the order the
 results are presented in this paper. Every number
-reported in Tables~\ref{tab:mse1D}--\ref{tab:abc3D} is produced by these
+reported in Tables~\ref{tab:mse1D}--\ref{tab:abc3D} and in the architecture-family
+comparison of Tables~\ref{tab:archfam3D}--\ref{tab:archfam3D_abc}
+(Section~\ref{sec:sim3D_arch}) is produced by these
 scripts directly from the committed data, with no manual post-processing;
 the Monte Carlo standard errors and $\Delta/\mathrm{SE}$ columns introduced
 in Section~\ref{sec:ademp} are computed from the same per-replicate output

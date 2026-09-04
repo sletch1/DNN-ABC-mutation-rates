@@ -15,6 +15,18 @@
 # Formally this is a two-type Markov branching process (bMBP), which is why the
 # function names carry that suffix.
 #
+# Nothing is FIT here -- this is the data-generating mechanism. Given p, it
+# draws (Z, X) per culture the way nature would if p were the true value. The
+# likelihood of (Z, X) has no closed form, which is exactly why the paper uses
+# ABC: simulating from this model is easy, writing its density is not.
+#
+# The draws themselves are standard: rexp() for cell lifetimes (division
+# events at rate `a`), rbinom() for whether each daughter mutates. The rest is
+# bookkeeping over live lineages until they pass the observation window `tp`.
+#
+# The 1-D study uses only mut_bMBP_slow, fluc_exp1_rev and conformalCI; the
+# two-stage functions at the bottom belong to the separate 3-parameter model.
+#
 # WHAT IS IN HERE, and why there is more than one simulator
 # ---------------------------------------------------------------------------
 #   mut_bMBP_slow       Constant mutation rate, EXACT. Simulates every cell
