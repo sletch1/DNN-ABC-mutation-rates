@@ -3,6 +3,12 @@
 Python port of NN_ABC/MatlabCode/MOMMLE_fluc_exp1.m, itself the paper's
 Eq. (11)-(12) for the constant-mutation-rate model. Used to fill the
 "MOM/MLE" column of Table 1 / Table 2.
+
+These are the classical, non-simulation-based baselines ABC is compared
+against; they use only the aggregates Y_bar = mean(Z-X) and Z_bar = mean(Z).
+The MLE's likelihood equation (Eq. 11) is transcendental in p, so it's solved
+numerically, started from the MOM estimate -- the equation has a second,
+spurious root that a poor starting value would converge to instead.
 """
 
 import numpy as np
@@ -34,17 +40,11 @@ def estimate_mle(Z_vec, X_vec) -> float:
     def fun(ph):
         return (1 - 2 * ph) * Y_bar - (1 - ph) * Z_bar ** (1 - 2 * ph) + ph
 
-    # Faithful to MATLAB fzero(fun, st): local root nearest the MOM start, not a
-    # wide bracket (which can latch onto the spurious root near ph=0.5).
-    # fsolve is a local (Newton-type) root-finder, so it needs a starting
-    # guess `st` rather than a bracketing interval like brentq -- using the
-    # MOM estimate as that guess is what keeps it converging to the root
-    # near the true p rather than the other, spurious one.
+    # Local root nearest the MOM start (matching MATLAB's fzero), rather than a
+    # wide bracket that can latch onto the spurious root near ph = 0.5.
     st = max(1e-10, estimate_mom(Z_vec, X_vec))
-    # fsolve can print a "did not converge" RuntimeWarning on some (Z,X)
-    # values where it still returns a usable estimate; that's caught below
-    # and the result is sanity-checked directly (finite, in (0, 0.5)), so
-    # the warning itself is silenced rather than left to clutter stdout.
+    # fsolve sometimes warns but still returns a usable estimate; the result is
+    # sanity-checked below instead, so the warning is silenced.
     with np.errstate(all="ignore"):
         import warnings
         with warnings.catch_warnings():

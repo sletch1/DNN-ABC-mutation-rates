@@ -17,6 +17,13 @@ NN_ABC/MatlabCode/ABC_fluc_exp1_rev.m. Three backends share one sampler:
 
 Prior: truncated shifted exponential on `range` with rate `lam` (paper: rate 2).
 Proposal: truncated normal, sd `s`, bounds `range` (paper: s=0.15).
+
+This is an ordinary Metropolis-Hastings sampler with one twist, which is the
+whole point of ABC: `log_like` is not log p(data | theta) -- that's
+intractable here -- but the ABC kernel, a Gaussian density scoring how close
+the model's predicted summary statistic sits to the observed one. `log_q` is
+the Hastings correction, needed because a truncated-normal proposal is
+asymmetric near the boundary.
 """
 
 from __future__ import annotations
@@ -28,10 +35,8 @@ from simulator import fluc_exp, summary_stat
 
 
 def _trunc_norm_sample(mu, s, lo, hi, rng):
-    """Draw one proposal from N(mu, s^2) truncated to [lo, hi] -- the MH
-    proposal distribution. scipy's `truncnorm` parameterizes the bounds as
-    standard-normal z-scores relative to (mu, s), hence the (a, b) rescaling
-    below, rather than accepting `lo`/`hi` directly.
+    """Draw one MH proposal from N(mu, s^2) truncated to [lo, hi]. scipy
+    wants the bounds as z-scores, hence the (a, b) rescaling.
     """
     a, b = (lo - mu) / s, (hi - mu) / s
     from scipy.stats import truncnorm
@@ -116,13 +121,9 @@ def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
     lp_cur = _log_prior(theta_init, lam, lo, hi)
     n_accept = 0
 
-    # Standard Metropolis-Hastings loop: propose theta_can from the current
-    # state, compute the log acceptance ratio (log-likelihood ratio +
-    # log-prior ratio + a Hastings term correcting for the proposal not
-    # being symmetric, since it's truncated), then accept/reject by
-    # comparing that ratio to a uniform draw on the log scale
-    # (log(rng.random()) < log_alpha is the log-scale version of
-    # "accept with probability exp(log_alpha) = min(1, alpha)").
+    # Metropolis-Hastings loop: propose, form the log acceptance ratio
+    # (likelihood + prior + Hastings terms), accept with probability
+    # min(1, alpha) -- compared on the log scale against a uniform draw.
     for i in range(1, n_mcmc):
         theta = samples[i - 1]
         theta_can = _trunc_norm_sample(theta, s, lo, hi, rng)

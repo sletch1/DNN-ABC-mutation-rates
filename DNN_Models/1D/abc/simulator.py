@@ -13,6 +13,12 @@ paper's Section 2.2 / Algorithms 2 & 4.
 R's rgeom(n, prob) counts failures before the first success (support {0,1,2,...});
 numpy.random.geometric counts trials until the first success (support {1,2,...}),
 so we use np.random.geometric(prob) - 1 to match R exactly.
+
+This is the data-generating mechanism whose intractable likelihood motivates
+ABC: drawing (Z, X) at any p is easy, writing p(Z, X | p) in closed form is
+not. `summary_stat` is the deliberate data reduction all inference here runs
+through -- the S(X) in ABC's K_epsilon(S_obs, S(theta)) -- rather than the
+full (Z_1..Z_J, X_1..X_J) vector.
 """
 
 from __future__ import annotations
@@ -49,24 +55,13 @@ def mut_bmbp_slow(Z0, a, delta, p, tp, rng: np.random.Generator):
     Returns (Z, X): total viable cells and mutant cells at time tp.
     Cost grows like exp(a*tp), so this is only practical for larger p.
 
-    Implementation note: rather than literally recursing cell-by-cell,
-    each "generation" is processed as a batch over every currently-live
-    lineage at once (the `dtvec`/`mvec` arrays), which is just a
-    vectorized way of writing the same branching process -- every cell
-    still divides independently with its own division-time and mutation
-    draws, this just avoids a slow Python-level recursive tree. One pass
-    of the `while` loop below = one generation:
-      1. every surviving lineage splits into 2 offspring (`np.repeat(..., 2)`
-         duplicates each parent's state to both children),
-      2. each child is independently a mutant (prob 1 if its parent already
-         was one -- mutation is irreversible here -- else prob p) via one
-         binomial draw per child,
-      3. each child's own division/death time is drawn from an exponential
-         with rate a (non-mutants) or a*delta (mutants, who may grow at a
-         different rate), added to its parent's arrival time,
-      4. any lineage whose arrival time has now passed `tp` "exits" the
-         simulation (it's counted into Z, and into X if it's a mutant);
-         everything else continues to the next generation.
+    One pass of the `while` loop is one generation, processed as a batch over
+    all live lineages at once (mathematically identical to recursing cell by
+    cell, just far faster): each lineage splits in two, each child is drawn
+    as a mutant with probability p (or 1 if its parent already was --
+    mutation is irreversible), each child's division time is drawn
+    exponentially and added to its parent's, and any lineage passing `tp`
+    exits and is counted into Z (and X if mutant).
     """
     Z0 = int(Z0)
     Z = 0
@@ -98,28 +93,12 @@ def mut_bmbp_slow(Z0, a, delta, p, tp, rng: np.random.Generator):
 def mut_bmbp_fast(Z0, a, delta, p, tp, rng: np.random.Generator):
     """Algorithm 4 -- fast approximate simulator (Zheng 2002 shortcuts).
 
-    Returns (Z, X). O(1)-ish per culture: draws Z from a geometric, seeds
-    round(Z*p) mutations at times sampled from the truncated arrival law, and
-    grows each mutant clone via a geometric.
-
-    This replaces `mut_bmbp_slow`'s generation-by-generation simulation
-    with closed-form distributional shortcuts for a pure Yule (birth-only)
-    process, so the whole culture is drawn in a handful of vector ops
-    instead of one exponential draw per cell per generation:
-      - a Yule process started from Z0 ancestors and run to time tp has a
-        known population-size distribution, so Z can be sampled directly
-        (as a sum of Z0 geometrics) rather than simulated division-by-division.
-      - given Z total cells, the expected mutation count is Z*p (M below);
-        each mutation's arrival time is drawn from the arrival-time law
-        implied by the same Yule process, restricted (truncated) to [0, tp]
-        -- that's what the inverse-CDF line `arrtime = log(u*(exp(a*tp)-1)+1)/a`
-        is doing, with `u` the uniform draws being inverted.
-      - each mutant clone then grows independently as its own (delta-rate)
-        Yule process for the remaining time `tp - arrtime`, so its final
-        size is again a single geometric draw.
-    This is only valid in the large-Z0/large-Z regime where the exact
-    discrete branching process is well approximated by these continuous
-    shortcuts -- see `mut_bmbp_slow`'s docstring for the exact alternative.
+    Returns (Z, X), drawn in a handful of vector ops rather than generation
+    by generation, using known results for a Yule (pure-birth) process:
+    Z is a sum of Z0 geometrics; the Z*p mutation arrival times come from the
+    Yule arrival law by inverse CDF; each mutant clone's final size is another
+    geometric over its remaining time. Valid in the large-Z regime only --
+    use `mut_bmbp_slow` when exactness matters.
     """
     Z0 = int(Z0)
     # Z = sum of Z0 geometrics with success prob exp(-a*tp); R rgeom support {0,1,...}

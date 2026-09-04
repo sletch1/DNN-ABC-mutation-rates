@@ -2,41 +2,29 @@
 
 Maps  log10(p)  ->  ( mean of log10(d_bar),  log predictive variance ).
 
-Why heteroscedastic: GPS-ABC's MCMC acceptance step (Eqs. 9-10 in Lu, Zhu &
-Wu 2023) needs a *predictive variance* at each proposed theta -- the GP
-supplies this natively. The data's noise is strongly input-dependent (the
-residual std of d_bar grows ~100x from p=1e-8 to p=1e-2), which a GP with one
-homoscedastic noise term cannot represent. A network with a second output head
-for log-variance, trained by Gaussian negative log-likelihood, learns that
-input-dependent noise directly -- a genuine improvement over the GP's fixed
-noise, and exactly the calibrated uncertainty the acceptance step relies on.
+This is nonlinear heteroscedastic regression: E[Y|X] and Var(Y|X) are fit
+jointly by maximum likelihood under a Normal working model (`gaussian_nll`
+below is the negative Normal log-likelihood), solved numerically since
+neither has a closed form. The "network" is just a composition of linear
+maps separated by a fixed nonlinearity -- closest classical analogue is a
+basis-expansion regression, except the basis functions are learned.
 
-The mean head still trains toward the same target as a plain regressor, so
-point-prediction accuracy is preserved; the variance head is what's new.
+Why the variance head matters: the ABC acceptance step (Eqs. 9-10 in Lu, Zhu
+& Wu 2023) consumes a predictive variance at each proposed theta. A GP
+supplies one natively but only a single homoscedastic value, while this
+data's noise is strongly input-dependent (residual sd of d_bar grows ~100x
+from p=1e-8 to p=1e-2). The second output head learns that shape directly.
 """
 
 import torch
 import torch.nn as nn
 
-# String -> layer-class lookup, so the activation used by the network can be
-# set from a plain config string (e.g. "silu") instead of importing and
-# passing an nn.Module subclass around.
 _ACT = {"relu": nn.ReLU, "tanh": nn.Tanh, "gelu": nn.GELU, "silu": nn.SiLU}
 
 
 class HeteroscedasticMLP(nn.Module):
-    """Fully-connected network with two output heads: a mean and a
-    log-variance, trained jointly so the model reports its own predictive
-    uncertainty rather than just a point estimate (see the module docstring
-    above for why that matters here).
-
-    Structure: a shared "trunk" of Linear -> [BatchNorm] -> activation ->
-    [Dropout] blocks, one per entry in `hidden_dims`, feeding into two
-    separate final Linear layers (the "heads"), one for the mean and one
-    for the log-variance. Subclassing `nn.Module` and calling `super().__init__()`
-    is boilerplate PyTorch expects for anything with learnable parameters;
-    it's what lets `.parameters()`, `.to(device)`, saving/loading, etc. all
-    work automatically for every layer registered as an attribute below.
+    """Stacked linear layers with a nonlinearity between them, ending in two
+    output heads: one for the mean, one for the log-variance.
     """
 
     def __init__(self, in_dim=1, hidden_dims=(128, 128, 64), dropout=0.0,
@@ -45,18 +33,14 @@ class HeteroscedasticMLP(nn.Module):
         """
         Args:
             in_dim: number of input features (1 here: log10(p)).
-            hidden_dims: width of each trunk layer, in order, e.g.
-                (128, 128, 64) builds three hidden layers of those sizes.
-            dropout: dropout probability applied after each trunk layer;
-                0.0 disables it (no layer is added at all).
+            hidden_dims: width of each hidden layer, in order.
+            dropout: dropout probability; 0.0 disables it.
             activation: one of the keys in `_ACT` above.
-            use_bn: whether to insert BatchNorm1d after each Linear layer.
-                Off by default here — see the top-level README's discussion
-                of why BatchNorm hurt this particular smooth 1-D regression.
-            min_logvar, max_logvar: soft bounds on the predicted
-                log-variance (see `forward`), to keep training numerically
-                stable — without them the network can drive the variance
-                head to +-infinity chasing a handful of outlier points.
+            use_bn: insert BatchNorm after each linear layer. Off by
+                default -- it fit this smooth 1-D curve ~11x worse (README §5).
+            min_logvar, max_logvar: soft bounds on the predicted log-variance,
+                so the variance head can't run off to +-infinity chasing
+                outliers.
         """
         super().__init__()
         act = _ACT[activation]
@@ -69,9 +53,6 @@ class HeteroscedasticMLP(nn.Module):
             trunk.append(act())
             if dropout > 0:
                 trunk.append(nn.Dropout(dropout))
-        # nn.Sequential just chains these layers so a single call runs all
-        # of them in order; it's equivalent to writing x = layer1(x);
-        # x = layer2(x); ... by hand.
         self.trunk = nn.Sequential(*trunk)
         self.mean_head = nn.Linear(dims[-1], 1)
         self.logvar_head = nn.Linear(dims[-1], 1)
@@ -79,54 +60,32 @@ class HeteroscedasticMLP(nn.Module):
         self.max_logvar = max_logvar
 
     def forward(self, x):
-        """Run the network on a batch of inputs `x` (shape: [batch, in_dim])
-        and return `(mean, logvar)`, each of shape [batch, 1].
-
-        PyTorch calls this automatically when you write `model(x)` — you
-        don't call `.forward(x)` directly elsewhere in this codebase.
-        """
+        """Predict `(mean, logvar)` for a batch of inputs `x`."""
         h = self.trunk(x)
         mean = self.mean_head(h)
         logvar = self.logvar_head(h)
-        # Soft-clamp log-variance into [min_logvar, max_logvar]. A hard
-        # clamp (torch.clamp) would have zero gradient outside the bounds,
-        # so if the network ever predicted a value past the limit it could
-        # get permanently stuck there with no training signal to pull it
-        # back. Softplus(z) = log(1 + exp(z)) is a smooth approximation to
-        # max(z, 0) that stays differentiable everywhere, so this
-        # double-softplus squeezes the value toward the bounds while still
-        # giving the optimizer a gradient to work with near the edges.
+        # Soft-clamp log-variance into [min_logvar, max_logvar]. A hard clamp
+        # would have zero gradient past the bounds, so the optimizer could get
+        # stuck there; softplus keeps it differentiable everywhere.
         logvar = self.max_logvar - torch.nn.functional.softplus(self.max_logvar - logvar)
         logvar = self.min_logvar + torch.nn.functional.softplus(logvar - self.min_logvar)
         return mean, logvar
 
 
 def gaussian_nll(mean, logvar, target):
-    """Negative log-likelihood of `target` under N(mean, exp(logvar)),
-    averaged over the batch. This is the training loss: minimizing it is
-    equivalent to maximum-likelihood estimation of both the mean and the
-    variance jointly, which is what lets the variance head learn real,
-    input-dependent uncertainty instead of just being an unused extra
-    output. Dropping the constant term (0.5*log(2*pi)) doesn't change
-    where the minimum is, so it's omitted here.
+    """Negative Normal log-likelihood, averaged over the batch -- the training
+    loss. Minimizing it is joint MLE of the mean and the variance. The constant
+    0.5*log(2*pi) is dropped since it doesn't move the minimum.
     """
     inv_var = torch.exp(-logvar)
     return 0.5 * (logvar + inv_var * (target - mean) ** 2).mean()
 
 
 class Standardizer:
-    """Z-score (subtract mean, divide by std) using statistics fit once on
-    the training split only, then reused unchanged on the calibration/test
-    splits and at inference time.
-
-    This is the usual reason to standardize before training a neural net:
-    without it, features/targets on very different numeric scales make the
-    loss surface badly conditioned for gradient descent (some weights need
-    much bigger updates than others). It's the same idea as scaling
-    predictors before ridge/lasso, just applied to a target here.
-    Deliberately *not* refit on calibration/test data — using their
-    statistics would leak information about those splits into a
-    transformation applied before the model ever sees them.
+    """Z-scores using statistics fit on the TRAINING split only, then reused
+    unchanged elsewhere (refitting on calibration/test would leak information
+    about those splits). Same reason you'd scale predictors before ridge/lasso:
+    it keeps the optimization well conditioned.
     """
 
     def __init__(self):
@@ -134,38 +93,29 @@ class Standardizer:
         self.std_ = None
 
     def fit(self, x: torch.Tensor):
-        """Compute and store the mean/std of `x`. Call this once, on the
-        training data only."""
+        """Store the mean/sd of `x`. Call once, on training data only."""
         self.mean_ = x.mean()
         self.std_ = x.std()
         return self
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
-        """Apply the stored z-score transform to `x` (e.g. raw targets ->
-        standardized targets for training)."""
+        """Raw scale -> standardized scale."""
         return (x - self.mean_) / self.std_
 
     def inverse(self, x: torch.Tensor) -> torch.Tensor:
-        """Undo `transform`: map standardized-scale values back to the
-        original units (e.g. a model prediction -> log10(d_bar) scale)."""
+        """Standardized scale -> raw scale."""
         return x * self.std_ + self.mean_
 
     def inverse_std(self, s: torch.Tensor) -> torch.Tensor:
-        """Map a standardized-scale standard deviation back to the
-        original scale. Note this multiplies by sigma only (no mean
-        shift) — a std is a spread, not a location, so re-centering
-        doesn't apply the way it does in `inverse`."""
+        """Same, for a standard deviation: scale only, no recentering."""
         return s * self.std_
 
     def state_dict(self):
-        """Package the fitted mean/std so they can be saved alongside the
-        model checkpoint (mirrors the naming of `nn.Module.state_dict`,
-        though this class doesn't inherit from nn.Module)."""
+        """The fitted mean/sd, for saving alongside the model checkpoint."""
         return {"mean": self.mean_, "std": self.std_}
 
     def load_state_dict(self, d):
-        """Restore mean/std from a dict produced by `state_dict`, e.g.
-        when loading a saved model for inference on new data."""
+        """Restore mean/sd from `state_dict` output."""
         self.mean_ = d["mean"]
         self.std_ = d["std"]
         return self

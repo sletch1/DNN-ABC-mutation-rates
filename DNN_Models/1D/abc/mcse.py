@@ -16,6 +16,13 @@ combined MCSE (the Delta/SE column reported in the paper's Table 1).
 
 Usage:
     python mcse.py
+
+This answers: "Table 1 shows DNN-ABC ahead in every cell -- real effect, or
+replicate noise?" Each cell's MSE_hat is itself a sample mean, so it carries
+an ordinary standard error. `delta_over_SE` is the GPS-minus-DNN gap over the
+standard error of that gap; below about 2 in magnitude means unresolved at
+this replicate count. It is a descriptive diagnostic, not a hypothesis test.
+Only 2 of Study I's 9 cells clear that bar.
 """
 
 import sys

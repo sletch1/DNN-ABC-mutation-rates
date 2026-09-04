@@ -6,6 +6,11 @@ shim at the top of each runnable script (see scripts in network/, abc/, figures/
 
 Self-contained inside this prototype at 1D/data/slow_data_1D.csv, mirroring the
 3-D package's layout.
+
+This file has no statistical content at all -- it is
+pure bookkeeping (where on disk does the data live, where should output files
+be written). Safe to skim past; every other script imports a few names from
+here (e.g. `DATA`, `MODEL_DIR`) instead of writing out folder paths by hand.
 """
 
 from pathlib import Path

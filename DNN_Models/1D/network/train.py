@@ -14,6 +14,17 @@ the surrogate's uncertainty trustworthy inside the ABC-MCMC acceptance step.
 
 Usage:
     python train.py --data ./data/slow_data_1D.csv --outdir ./results
+
+Terminology, if the ML vocabulary is unfamiliar:
+  - "Adam" / "gradient descent" -- iterative numerical maximization of the
+    likelihood; same role as Newton-Raphson or Fisher scoring, but using
+    first derivatives with an adaptive step size instead of the Hessian.
+  - "Epoch" -- one pass over the training data.
+  - "Early stopping" on a held-out split -- complexity control, playing the
+    role cross-validation plays for a tuning parameter.
+  - "Split-conformal calibration" -- a distribution-free finite-sample
+    correction (Lei et al. 2018) to the predictive sd, so mean +/- 1.96*sd
+    really achieves 95% coverage even if the Normal assumption is imperfect.
 """
 
 import argparse
@@ -52,12 +63,8 @@ ARCH = dict(hidden_dims=(128, 64), activation="gelu", use_bn=False, dropout=0.0)
 
 
 def load_splits(csv_path):
-    """Read the ground-truth CSV and split it into train/val/test by
-    replicate (see TRAIN_REPS/VAL_REPS/TEST_REPS above). Returns
-    `((x_train, y_train), (x_val, y_val), (x_test, y_test))`, where each
-    x/y is a 1-D numpy array of, respectively, log10(p) and log10(d_bar).
-    The assert guards against accidentally pointing this at the 3-D data
-    file, which has more than one distinct value of a/delta.
+    """Read the ground-truth CSV and split by replicate. Returns three
+    (x, y) pairs of log10(p) and log10(d_bar), for train/val/test.
     """
     df = pd.read_csv(csv_path)
     assert df["a"].nunique() == 1 and df["delta"].nunique() == 1, "expected the 1D file"
@@ -73,57 +80,21 @@ def load_splits(csv_path):
 
 
 def _t(a):
-    """1-D numpy array -> float32 torch column tensor, shape [n, 1].
-    The trailing `.unsqueeze(1)` adds that second dimension because the
-    network (and PyTorch layers generally) expect input shaped
-    [n_samples, n_features] even when n_features is 1, not a flat [n]
-    vector.
-    """
+    """1-D numpy array -> float32 torch column tensor, shape [n, 1]."""
     return torch.tensor(a, dtype=torch.float32).unsqueeze(1)
 
 
 def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
                 warmup=60, seed=0):
-    """Fit a HeteroscedasticMLP on (x_train, y_train), using x_val/y_val
-    for early stopping, and return `(model, x_scaler, y_scaler)` — the
-    trained network plus the two Standardizers needed to map raw inputs in
-    and raw predictions back out.
+    """Fit a HeteroscedasticMLP on (x_train, y_train), early-stopping on
+    (x_val, y_val). Returns the model plus the two fitted Standardizers.
 
-    Training loop, for reference (this is the standard PyTorch pattern
-    used throughout this codebase, spelled out once here):
-      - `opt.zero_grad()` clears gradients left over from the previous
-        batch (PyTorch accumulates gradients by default, so this is
-        required every iteration).
-      - `model(xb)` runs the forward pass (predictions).
-      - `loss.backward()` runs backpropagation, computing d(loss)/d(param)
-        for every learnable parameter via autograd.
-      - `opt.step()` uses those gradients to actually update the weights
-        (Adam here — a gradient-descent variant with per-parameter
-        adaptive step sizes).
-      - `model.train()` / `model.eval()` toggle layers that behave
-        differently in training vs. inference (Dropout, BatchNorm); this
-        model doesn't use either by default, but the calls are kept so the
-        function is correct if `use_bn`/`dropout` are turned on.
-      - `torch.no_grad()` during validation skips building the
-        autograd graph, since no `.backward()` call follows — pure
-        speed/memory, doesn't change the numbers.
-
-    Two training-scheme details specific to this model:
-      - **Warmup** (`epoch < warmup`): the first `warmup` epochs train the
-        mean head only, on plain MSE loss. Gaussian NLL (see
-        `gaussian_nll` in model.py) jointly fits mean and variance, and
-        early on — when the mean is still a poor fit — the variance head
-        can "cheat" by inflating predicted variance to make bad mean
-        predictions look more likely under the loss, rather than the mean
-        head actually improving. Warming up on MSE alone gives the mean a
-        head start before the variance head is allowed to interact with
-        it.
-      - **Early stopping**: track the best validation NLL seen so far
-        (`best_val`) and how many epochs it's been since it improved
-        (`since`); if that streak reaches `patience`, stop training and
-        restore the weights from the best epoch (`best_state`) rather than
-        whatever the model looks like at the final epoch, which may have
-        overfit past that point.
+    Two details specific to this model:
+      - **Warmup**: the first `warmup` epochs fit the mean head alone under
+        MSE. Under the joint NLL an ill-fit mean can be masked by simply
+        inflating the predicted variance, so the mean gets a head start.
+      - **Early stopping**: keep the weights from the best validation-NLL
+        epoch, and stop once `patience` epochs pass with no improvement.
     """
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -135,13 +106,10 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
 
     model = HeteroscedasticMLP(**ARCH)
     opt = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
-    # Halves the learning rate if validation loss hasn't improved for 15
-    # epochs -- lets training take large steps early and fine-tune later
-    # without hand-picking a decay schedule.
+    # Halve the step size when validation loss stalls: large steps early,
+    # fine-tuning later, without hand-picking a decay schedule.
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=0.5, patience=15)
-    # DataLoader/TensorDataset: wraps the training tensors so iterating
-    # over `loader` yields shuffled mini-batches of size 32 each epoch,
-    # rather than manually slicing and shuffling indices by hand.
+    # Yields shuffled mini-batches of 32 rows per epoch.
     loader = DataLoader(TensorDataset(xt_tr, yt_tr), batch_size=32, shuffle=True)
 
     best_val, best_state, since = float("inf"), None, 0
@@ -165,8 +133,7 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
 
         if epoch >= warmup and val_loss < best_val - 1e-5:
             best_val, since = val_loss, 0
-            # .clone() each tensor so this snapshot survives later training
-            # steps that mutate the model's live parameters in place.
+            # .clone() so the snapshot survives later in-place weight updates.
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
         elif epoch >= warmup:
             since += 1
@@ -198,13 +165,9 @@ def calibrate_conformal(model, x_scaler, y_scaler, x_val, y_val):
 
 
 def evaluate(surr, x, y, label):
-    """Compute and print held-out performance for one split (`label` is
-    just a name for the printout, e.g. "train"/"val"/"test"). Reports:
-    MSE and MAE on the log10(d_bar) scale the model is actually trained
-    on, MSE back on the raw d_bar scale (10**y), and empirical coverage of
-    the 95% predictive interval (should be close to 0.95 if the
-    conformal-calibrated uncertainty is trustworthy). Returns the same
-    numbers as a dict for JSON logging.
+    """Print and return fit quality for one split: MSE/MAE on the log10
+    scale, MSE back on the raw d_bar scale, and empirical coverage of the
+    95% predictive interval (should land near 0.95 if calibration worked).
     """
     mean, sd = surr.predict(x)
     mse_log = float(np.mean((mean - y) ** 2))
@@ -219,11 +182,8 @@ def evaluate(surr, x, y, label):
 
 
 def make_plots(surr, splits, outdir):
-    """Save two diagnostic figures to `outdir`: (1) the fitted mean curve
-    and calibrated 95% band over the full log10(p) range, with the raw
-    train/val/test points overlaid, and (2) a predicted-vs-true parity
-    plot on the test split (points should sit on the y=x line if the
-    surrogate is accurate)."""
+    """Two diagnostic figures: the fitted curve with its calibrated 95% band
+    over the data, and a test-set predicted-vs-true parity plot."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -256,13 +216,9 @@ def make_plots(surr, splits, outdir):
 
 
 def run(csv_path=None, outdir=None, seed=0):
-    """End-to-end entry point: load data -> train -> conformally calibrate
-    -> evaluate on all three splits -> save plots, model checkpoint, and a
-    metrics JSON. This is what `python train.py` (see `__main__` below)
-    ultimately calls; `load_surrogate` is the matching function that reads
-    the checkpoint this writes, for use elsewhere (e.g. inside the ABC
-    sampler) without retraining. Model checkpoint + metrics land in
-    results/model/; diagnostic plots land in results/figures/.
+    """Load -> train -> conformally calibrate -> evaluate -> save. Writes the
+    checkpoint and metrics to results/model/ and plots to results/figures/.
+    `load_surrogate` below reads that checkpoint back without retraining.
     """
     csv_path = csv_path or str(DATA)
     (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = load_splits(csv_path)
@@ -295,16 +251,10 @@ def run(csv_path=None, outdir=None, seed=0):
 
 
 def load_surrogate(ckpt_path):
-    """Rebuild a DNNSurrogate from a checkpoint saved by `run` above —
-    reconstructs the network with the same architecture settings, loads
-    its trained weights, restores the two Standardizers, and wraps
-    everything in a DNNSurrogate with the saved conformal `sd_scale`. This
-    is the function other scripts (e.g. the ABC sampler) should call to
-    get a ready-to-use surrogate without retraining.
-    `weights_only=False` is needed because the checkpoint bundles plain
-    Python objects (the Standardizer state dicts, config values) alongside
-    the tensor weights; PyTorch's stricter `weights_only=True` loading
-    mode only accepts tensors.
+    """Rebuild a ready-to-use DNNSurrogate from a saved checkpoint (weights,
+    both Standardizers, and the conformal sd_scale) without retraining --
+    this is what the ABC scripts call. `weights_only=False` because the
+    checkpoint bundles config values alongside the tensors.
     """
     ckpt = torch.load(ckpt_path, weights_only=False)
     model = HeteroscedasticMLP(hidden_dims=tuple(ckpt["hidden_dims"]),

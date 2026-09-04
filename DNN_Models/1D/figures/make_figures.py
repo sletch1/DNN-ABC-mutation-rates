@@ -13,6 +13,12 @@ meaningful load. Produces:
 
 Run after run_experiments.py (needs results/surrogate_1d.pt, raw_replicates.csv,
 table1_mse.csv, table3_timing.csv).
+
+Purely visualization, no new statistical content --
+every number plotted here was already computed by train.py / run_experiments.py
+/ mcse.py. Safe to skim; useful mainly to see what "the DNN's predictive sd
+tracks the true input-dependent noise while the GP's doesn't" (fig_uncertainty)
+or "the three ABC posteriors agree" (fig_posterior) actually look like.
 """
 
 import sys

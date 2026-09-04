@@ -20,6 +20,13 @@ only thing that changes across the ABC columns is how the summary statistic
 
 Usage (defaults are a feasible local scale; crank up for the paper's scale):
     python run_experiments.py --reps 8 --nmcmc 600 --burnin 250 --ns 8
+
+This is the Monte Carlo simulation study itself: many independent data sets
+generated from a KNOWN true p, every estimator applied to each, errors
+aggregated per cell. See mcse.py for the Monte Carlo standard errors that
+say how much of each table entry is signal rather than replicate noise.
+`Pool` below is plumbing only -- replicates run in parallel across cores,
+each seeded from its own (p, J, rep), so results don't depend on core count.
 """
 
 import argparse
@@ -53,23 +60,14 @@ from paths import DATA, RESULTS, TABLE_DIR, FIG_DIR, MODEL_DIR, LOG_DIR
 # the surrogates are still trained on the full [-8,-2] and only queried in-range.
 PRIOR_RANGE = (-5.0, -2.0)
 
-# Worker globals, populated once per process by _init_worker (see below).
-# This is the standard pattern for sharing read-only, expensive-to-build
-# state (here: the fitted DNN and GP surrogates) across parallel workers in
-# Python's multiprocessing: each worker process gets its own copy of this
-# module and its own _G dict, set up once when the process starts, rather
-# than re-loading/re-fitting the surrogates for every single task.
+# Per-worker cache for the fitted surrogates, populated by _init_worker.
 _G = {}
 
 
 def _init_worker(ckpt_path, data_path, cfg):
-    """Runs once per worker process when the Pool below is created (passed
-    as `initializer`/`initargs`, not called directly). Loads the trained
-    DNN and fits the GP baseline once per process, storing them in the
-    module-level `_G` dict so `_one_replicate` can find them without
-    re-loading/re-fitting on every task -- both are expensive enough
-    (especially the GP, which is cubic-cost to fit) that doing this per
-    task instead of per worker would dominate the runtime.
+    """Runs once per worker process: load the trained DNN and fit the GP
+    baseline, so `_one_replicate` doesn't redo it per task (the GP's fit is
+    cubic in design size and would otherwise dominate the runtime).
     """
     import warnings
     warnings.filterwarnings("ignore")
@@ -83,23 +81,17 @@ def _init_worker(ckpt_path, data_path, cfg):
 
 
 def _clamp_init(p_hat):
-    """Turn a point estimate p_hat (e.g. from MOM) into a valid MCMC
-    starting value on the theta=log10(p) scale, falling back to the
-    midpoint of the prior range if p_hat is missing/non-positive, and
-    nudging away from the exact boundary so the chain doesn't start
-    outside the (open) prior support."""
+    """Turn a point estimate into a valid MCMC starting value on the
+    theta = log10(p) scale, kept just inside the prior bounds (falls back to
+    the prior midpoint if p_hat is missing or non-positive)."""
     lo, hi = PRIOR_RANGE
     th = np.log10(max(p_hat, 1e-8)) if (p_hat is not None and np.isfinite(p_hat) and p_hat > 0) else 0.5 * (lo + hi)
     return float(min(max(th, lo + 1e-6), hi - 1e-6))
 
 
 def _one_replicate(task):
-    """Run all five estimators (MOM, MLE, ABC-MCMC, GPS-ABC, DNN-ABC) on
-    one simulated dataset and return a single results row. `task` is a
-    `(p_true, J, rep)` tuple -- this is the function each parallel worker
-    actually calls, once per task, via `pool.imap_unordered` in
-    `run_accuracy` below. Reads the pre-built DNN/GP surrogates from `_G`
-    (set up once per worker by `_init_worker`) rather than rebuilding them.
+    """Simulate one data set at `task = (p_true, J, rep)`, run all five
+    estimators on it, and return one results row.
     """
     p_true, J, rep = task
     cfg = _G["cfg"]
@@ -137,11 +129,9 @@ def _one_replicate(task):
 
 
 def run_accuracy(cfg, ckpt_path):
-    """Build the full (p, J, replicate) task grid and run `_one_replicate`
-    on each task in parallel across `cfg["workers"]` processes, returning
-    one DataFrame with a row per task. This is the "many independent
-    simulated datasets" step that Table 1/2's MSE and interval-length
-    numbers get aggregated from (by `aggregate_tables` below).
+    """Run `_one_replicate` over the whole (p, J, replicate) grid in
+    parallel; one DataFrame row per replicate, which Tables 1 and 2 are
+    then aggregated from.
     """
     tasks = [(p, J, r) for p in cfg["p_grid"] for J in cfg["J_grid"]
              for r in range(cfg["reps"])]
@@ -163,10 +153,8 @@ def run_accuracy(cfg, ckpt_path):
 
 
 def aggregate_tables(df, cfg):
-    """Collapse the per-replicate results from `run_accuracy` into the two
-    summary tables: for every (p, J) cell, MSE (and normalized RMSE) of
-    each method's point estimate across replicates (-> Table 1), and mean
-    95% credible-interval length across replicates (-> Table 2)."""
+    """Collapse per-replicate results into Table 1 (MSE and normalized RMSE
+    per (p, J) cell) and Table 2 (mean 95% credible-interval length)."""
     methods = ["MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC"]
     t1, t2 = [], []
     for p in cfg["p_grid"]:
@@ -273,10 +261,8 @@ def timing_plot(t3, outpath):
 
 
 def main():
-    """CLI entry point (see module docstring for the `python run_experiments.py`
-    usage example). Order of operations: (re)train the DNN surrogate if
-    needed -> Phase A accuracy sweep -> Phase B timing sweep -> write CSVs
-    and a combined TABLES.md with all three tables formatted as markdown.
+    """CLI entry point: (re)train the surrogate if needed -> Phase A accuracy
+    sweep -> Phase B timing sweep -> write the CSVs and TABLES.md.
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--reps", type=int, default=8)

@@ -17,6 +17,13 @@ Two backends:
 - GPSurrogate  : sklearn GaussianProcessRegressor, deliberately trained on a
   *small* design (default 51 points, matching the paper's GP budget) to
   faithfully reproduce the GPS-ABC column and its O(n^3) training ceiling.
+
+Both answer the same question -- "what is d_bar at this untried theta, and
+how uncertain are you?" -- from different model families. The GP gets its
+predictive sd from its posterior by construction; the DNN's needs the
+split-conformal correction applied in train.py first. The shared interface
+is what lets the sampler swap one for the other blindly, which is precisely
+what this project compares.
 """
 
 from __future__ import annotations
@@ -28,11 +35,8 @@ from model import HeteroscedasticMLP, Standardizer
 
 
 class DNNSurrogate:
-    """Wraps a trained HeteroscedasticMLP (model.py) to satisfy the
-    `predict(theta) -> (mean, sd)` contract described in the module
-    docstring above -- the piece of glue that lets the ABC sampler treat
-    the DNN exactly like it treats a GP, without knowing anything about
-    tensors, standardization, or PyTorch internals.
+    """Wraps a trained HeteroscedasticMLP behind `predict(theta) -> (mean, sd)`,
+    so the sampler can treat it exactly like the GP.
     """
 
     def __init__(self, model: HeteroscedasticMLP, x_scaler: Standardizer,
@@ -44,23 +48,15 @@ class DNNSurrogate:
 
     @torch.no_grad()  # no training happens here, so skip building the autograd graph
     def predict(self, theta):
-        """theta: a scalar or array of log10(p) values (already on the
-        natural/unstandardized scale). Returns `(mean, sd)` on that same
-        scale -- a Python float pair if `theta` was scalar, else a pair of
-        numpy arrays -- by running the network on the standardized input,
-        then undoing the standardization on both outputs (mean and sd) so
-        callers never have to think about the internal scaling.
+        """theta: scalar or array of log10(p) on the raw scale. Returns
+        `(mean, sd)` on that same scale, standardization undone internally.
         """
         theta = np.atleast_1d(np.asarray(theta, dtype=np.float32))
         xt = self.x_scaler.transform(torch.tensor(theta).unsqueeze(1))
         mean_std, logvar_std = self.model(xt)
         mean = self.y_scaler.inverse(mean_std).squeeze(1).numpy()
-        # std on standardized target -> original log scale via the y-scaler sigma.
-        # exp(0.5*logvar) = exp(logvar)**0.5 = variance**0.5 = std; the model
-        # predicts log-variance (see model.py) rather than std/variance
-        # directly because it's numerically friendlier to train (always
-        # positive automatically, no risk of the network trying to predict
-        # a negative variance).
+        # exp(0.5*logvar) = sd. The model predicts log-variance rather than sd
+        # so it's automatically positive and easier to train.
         sd_std = torch.exp(0.5 * logvar_std).squeeze(1)
         sd = self.y_scaler.inverse_std(sd_std).numpy() * self.sd_scale
         if mean.size == 1:
@@ -71,10 +67,8 @@ class DNNSurrogate:
 
 
 class GPSurrogate:
-    """Same `predict(theta) -> (mean, sd)` contract as DNNSurrogate, but
-    backed by a fitted scikit-learn GaussianProcessRegressor -- this is
-    the GPS-ABC baseline the DNN is being compared against, wrapped so the
-    sampler doesn't need separate code paths for the two methods."""
+    """The GPS-ABC baseline: same `predict(theta) -> (mean, sd)` contract,
+    backed by a fitted scikit-learn GaussianProcessRegressor."""
 
     def __init__(self, gpr, budget: int):
         self.gpr = gpr
@@ -82,10 +76,8 @@ class GPSurrogate:
 
     def predict(self, theta):
         theta = np.atleast_1d(np.asarray(theta, dtype=float)).reshape(-1, 1)
-        # return_std=True: sklearn's GP regressor can report the posterior
-        # predictive standard deviation directly (the analytic GP
-        # uncertainty), not just the mean -- this is the GP's built-in
-        # equivalent of the DNN's learned variance head.
+        # return_std gives the analytic GP posterior sd -- its equivalent of
+        # the DNN's learned variance head.
         mean, sd = self.gpr.predict(theta, return_std=True)
         if mean.size == 1:
             return float(mean[0]), float(sd[0])
@@ -93,18 +85,13 @@ class GPSurrogate:
 
 
 def fit_gp_surrogate(x_train, y_train, budget=None, seed: int = 0):
-    """Fit the GPS-ABC baseline GP on the *raw replicate* training data.
+    """Fit the GPS-ABC baseline GP on the raw (unaveraged) replicate data, as
+    the paper does, so the WhiteKernel learns the real replicate noise --
+    averaging first would leave the GP overconfident and break MCMC mixing.
 
-    Faithful to the paper, which fits its GP on the replicate-level (x, z)
-    samples (not averaged) so the WhiteKernel learns the true replicate noise --
-    this is what supplies GPS-ABC's predictive variance in the acceptance step.
-    (Averaging first collapses the noise and makes the GP overconfident, which
-    breaks MCMC mixing.)
-
-    budget=None uses all supplied points (fair head-to-head with the DNN, which
-    sees the same training split). Passing an int subsamples to that many evenly
-    spaced grid locations -- keeping all replicates there -- to emulate a smaller
-    GP budget and its O(n^3) fitting/prediction ceiling for an ablation.
+    budget=None uses every supplied point (a fair head-to-head with the DNN,
+    which sees the same split); an int subsamples evenly spaced grid locations
+    to emulate a smaller GP design and its O(n^3) fitting ceiling.
     """
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import ConstantKernel, RBF, WhiteKernel
@@ -120,14 +107,10 @@ def fit_gp_surrogate(x_train, y_train, budget=None, seed: int = 0):
 
     n_used = len(x_train)
     xs = x_train.reshape(-1, 1)
-    # Standard signal + noise GP kernel: ConstantKernel * RBF is the usual
-    # squared-exponential covariance (amplitude x smoothness), and adding
-    # a WhiteKernel gives the GP a separate, learnable homoscedastic noise
-    # term -- this is exactly the "one fixed noise level everywhere" the
-    # DNN's heteroscedastic variance head is designed to improve on (see
-    # model.py's module docstring). The (lo, hi) pairs after each
-    # hyperparameter are bounds the optimizer searches within during
-    # fitting, not fixed values.
+    # Signal + noise kernel: ConstantKernel * RBF is the squared-exponential
+    # covariance, and WhiteKernel adds one learnable homoscedastic noise term
+    # -- the single noise level the DNN's variance head improves on. The
+    # (lo, hi) pairs are search bounds for the fit, not fixed values.
     kernel = (ConstantKernel(1.0, (1e-3, 1e3))
               * RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
               + WhiteKernel(noise_level=1e-2, noise_level_bounds=(1e-6, 1e1)))
