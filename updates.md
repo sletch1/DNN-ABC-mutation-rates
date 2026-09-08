@@ -48,7 +48,8 @@ The motivation is experimental: mutagenesis of *E. coli* under sub-inhibitory an
 
 ### 2.3 The code was never uploaded
 
-Exhaustive search of `MatlabCode/`, `RCode/`, and `DNN_Prototypes/`: **no occurrence of `p1`, `p2`, or `tau` anywhere.** Every simulator is single-$p$ — `mut_bMBP_rev.m`, `funMBP.R`, `simulator.py` all share the signature `(Z0, a, delta, p, tp)`.
+Exhaustive search of the MATLAB sources (then in `MatlabCode/`, since split into
+`DNN_Models/1D/matlab/` and `DNN_Models/3D/matlab/`), `RCode/`, and `DNN_Prototypes/`: **no occurrence of `p1`, `p2`, or `tau` anywhere.** Every simulator is single-$p$ — `mut_bMBP_rev.m`, `funMBP.R`, `simulator.py` all share the signature `(Z0, a, delta, p, tp)`.
 
 Algorithm 3 has no implementation. Algorithm 4 as uploaded is single-$p$; the paper's footnote 5 says it "can be easily extended," but the extension is not in the code. This confirms the professor's recollection.
 

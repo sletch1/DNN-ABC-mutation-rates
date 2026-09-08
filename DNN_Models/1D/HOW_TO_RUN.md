@@ -119,6 +119,13 @@ read directly with no Python environment at all.
 ├── data/            ground-truth data from the exact simulator (included)
 ├── network/         the neural network: architecture + training
 ├── abc/             the simulator, the classical estimators, and the ABC-MCMC sampler
+├── matlab/          the professor's original MATLAB for the constant-rate model,
+│                    byte-identical: the simulator (mut_bMBP_rev.m, fluc_exp1*.m),
+│                    the MOM/MLE baselines (MOMMLE_fluc_exp1.m), the ABC / GPS-ABC
+│                    sampler (ABC_fluc_exp1*.m, trainGPS*.m) and the paper's Fig. 1
+│                    summary-statistic selection (selsummary_fluc_exp1.m).
+│                    Everything in abc/ and network/ is a port of these.
+│                    (Two-stage MATLAB lives in ../3D/matlab/.)
 ├── figures/         figure generation
 └── results/         all outputs (already populated)
 ```

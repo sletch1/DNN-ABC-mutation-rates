@@ -4,7 +4,7 @@ A hand-rolled SVG rather than a plotting library: the diagram is a fixed set of
 labelled boxes and arrows, so emitting the markup directly keeps it crisp at any
 zoom, theme-neutral, and free of a rendering dependency.
 
-The diagram is generated FROM the live config in train.py (ARCH, USE_DERIVED),
+The diagram is generated FROM the live config in train.py (ARCH),
 so it cannot drift out of sync with the model that is actually trained.
 
 Usage:
@@ -19,8 +19,8 @@ for _d in (_ROOT, _ROOT / "network"):
     if str(_d) not in sys.path:
         sys.path.insert(0, str(_d))
 
-from train import ARCH, USE_DERIVED
-from model import FEATURES_ALL, FEATURES_RAW
+from train import ARCH
+from model import FEATURES_RAW
 from paths import FIG_DIR
 
 W, H = 980, 300
@@ -46,7 +46,7 @@ def arrow(x1, y, x2):
 
 
 def main():
-    feats = FEATURES_ALL if USE_DERIVED else FEATURES_RAW
+    feats = FEATURES_RAW
     hidden = list(ARCH.get("hidden", ()))
     act = ARCH.get("activation", "gelu").upper()
 
@@ -61,11 +61,7 @@ def main():
     y = 110
     x = 24
     parts.append(box(x, y, BOX_W, BOX_H, FILL_IN, "inputs",
-                     f"{len(feats)}: p1, p2, tau" + (" + p_eff" if USE_DERIVED else "")))
-    if USE_DERIVED:
-        parts.append(f'<text x="{x+BOX_W/2}" y="{y+BOX_H+22}" text-anchor="middle" '
-                     f'font-family="Helvetica,Arial,sans-serif" font-size="10" fill="#5f6368">'
-                     f'derived: time-average rate</text>')
+                     f"{len(feats)}: p1, p2, tau"))
     x += BOX_W
     for h in hidden:
         parts.append(arrow(x, y + BOX_H / 2, x + GAP))

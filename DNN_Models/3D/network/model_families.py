@@ -1,39 +1,39 @@
 """Three additional surrogate architecture families for the 3-D two-stage model,
 benchmarked against the deployed FFN (`HeteroscedasticMLP` in `model.py`).
 
-MAPS  (log10 p1, log10 p2, tau, [log10 p_eff])  ->  ( mean of log10(d_bar), log
-predictive variance ), same contract as `model.py`. Every class here reuses
-`gaussian_nll`, `Standardizer` and `add_derived` from `model.py` rather than
+MAPS  (log10 p1, log10 p2, tau)  ->  ( mean of log10(d_bar), log predictive
+variance ), same contract as `model.py`. Every class here reuses
+`gaussian_nll` and `Standardizer` from `model.py` rather than
 duplicating them, and copies `HeteroscedasticMLP.forward`'s exact soft-clamped
 logvar pattern (softplus toward each bound, not a hard clamp) into its own
 forward method.
 
 THE HONEST FRAMING THIS FILE IS BUILT AROUND
 ----------------------------------------------
-The deployed FFN treats its four inputs as an unordered feature vector, which is
-what they actually are: `log10 p1`, `log10 p2`, `tau` and the derived
-`log10 p_eff` are four independent physical scalars with no spatial or temporal
-relationship to one another. Swapping the order of the first two columns does
+The deployed FFN treats its three inputs as an unordered feature vector, which is
+what they actually are: `log10 p1`, `log10 p2` and `tau` are three independent
+physical scalars with no spatial or temporal relationship to one another.
+Swapping the order of the first two columns does
 not change the physics; a plain MLP's dot products don't care what order the
 inputs arrive in either, so that's a fine match.
 
 The three architectures below do not have that property.
 
   - A 1-D convolution learns kernels that look at LOCAL, ORDERED neighbourhoods
-    of positions (position 1 is adjacent to position 2, not to position 4). That
+    of positions (position 1 is adjacent to position 2, not to position 3). That
     is exactly right for a time series or an image row, where nearby positions
     really are physically related. Here it is not: there is no sense in which
     `log10 p2` is "next to" `tau`, or in which sliding the same 3-tap filter
-    across (p1, p2, tau, p_eff) is discovering anything the physics put there.
+    across (p1, p2, tau) is discovering anything the physics put there.
     We chose a fixed input order (the tuple order used throughout this repo);
     the convolution's inductive bias is a bias toward a structure that is an
     artifact of that arbitrary ordering, not a property of the data.
 
   - An RNN/LSTM reads its input as a SEQUENCE and carries a hidden state forward
     step by step, which is the right inductive bias when step t genuinely
-    depends on step t-1 (a time series, a sentence). Treating four unordered
-    physical constants as "four timesteps" imposes a fake temporal dependency:
-    the recurrence will happily learn SOME function of the 4-tuple (RNNs are
+    depends on step t-1 (a time series, a sentence). Treating three unordered
+    physical constants as "three timesteps" imposes a fake temporal dependency:
+    the recurrence will happily learn SOME function of the 3-tuple (RNNs are
     universal function approximators given enough width/depth, same as an MLP),
     but the sequential/recurrent MACHINERY it uses to get there is solving a
     problem that isn't in the data. `tau` does not causally follow `log10 p2`
@@ -66,7 +66,7 @@ a 1-D signal wants any normalisation at all, LayerNorm is used instead
 import torch
 import torch.nn as nn
 
-from model import gaussian_nll, Standardizer, add_derived, FEATURES_ALL  # noqa: F401 (re-exported for callers)
+from model import gaussian_nll, Standardizer, FEATURES_RAW  # noqa: F401 (re-exported for callers)
 
 _ACT = {"relu": nn.ReLU, "tanh": nn.Tanh, "gelu": nn.GELU, "silu": nn.SiLU}
 
@@ -90,24 +90,24 @@ class HeteroscedasticCNN1D(nn.Module):
 
     Shape convention: (batch, in_dim) -> (batch, 1, in_dim) -> Conv1d stack
     (kernel_size=3, padding=1, so length is preserved at every layer despite
-    there being only 4 positions) -> flatten -> a linear projection -> the same
+    there being only 3 positions) -> flatten -> a linear projection -> the same
     two heteroscedastic heads as the MLP.
 
     WHY THIS IS THE HONEST TEST, NOT A NATURAL FIT. See the module docstring:
-    there is no real spatial structure across (log10 p1, log10 p2, tau,
-    log10 p_eff) for a convolution to exploit -- a 3-tap kernel centered on
+    there is no real spatial structure across (log10 p1, log10 p2, tau) for a
+    convolution to exploit -- a 3-tap kernel centered on
     position 2 mixes `log10 p2` with its two arbitrary neighbours `log10 p1` and
     `tau` only because of the order we happened to store the columns in. Padding
-    keeps the length at 4 throughout so two conv layers can still be stacked on
-    an input this short; at length 4 that is already most of the "receptive
-    field" the architecture has to offer.
+    keeps the length at 3 throughout so two conv layers can still be stacked on
+    an input this short; at length 3 a single 3-tap kernel already spans every
+    position, so the architecture has essentially no locality left to exploit.
 
     Kept deliberately small (kernel_size=3, two conv layers, narrow channel
     counts) to land in the ~2,000-10,000 parameter range used across this
     comparison -- see the module docstring on why capacity is not the point.
     """
 
-    def __init__(self, in_dim=4, channels=(16, 16), kernel_size=3, hidden=32,
+    def __init__(self, in_dim=3, channels=(16, 16), kernel_size=3, hidden=32,
                  activation="gelu", min_logvar=-12.0, max_logvar=4.0):
         super().__init__()
         act = _ACT[activation]
@@ -133,33 +133,33 @@ class HeteroscedasticCNN1D(nn.Module):
 
 
 class HeteroscedasticRNN(nn.Module):
-    """Treats the 4 features as 4 timesteps of a length-1-per-step sequence.
+    """Treats the 3 features as 3 timesteps of a length-1-per-step sequence.
 
     Shape convention: (batch, in_dim) -> (batch, in_dim, 1) -> a small
-    recurrent layer, unrolled across the 4 "timesteps" -> the final hidden
+    recurrent layer, unrolled across the 3 "timesteps" -> the final hidden
     state -> the same two heteroscedastic heads.
 
     cell="gru" (default) rather than a vanilla `nn.RNN`: a GRU's gating gives it
     better-conditioned gradients across a recurrence (the vanishing/exploding
-    gradient sensitivity of a plain tanh RNN, even over just 4 steps, is a well
+    gradient sensitivity of a plain tanh RNN, even over just 3 steps, is a well
     documented failure mode -- Cho et al. 2014 introduced the gate for exactly
     this reason), so it is a strictly safer default at essentially the same
     parameter cost. Pass cell="rnn" to use `nn.RNN` instead if a plain
     Elman-RNN comparison point is wanted.
 
     WHY THIS IS THE HONEST TEST, NOT A NATURAL FIT. See the module docstring:
-    treating (log10 p1, log10 p2, tau, log10 p_eff) as "timestep 1, 2, 3, 4"
-    invents a causal/sequential dependency that these four physical scalars do
+    treating (log10 p1, log10 p2, tau) as "timestep 1, 2, 3"
+    invents a causal/sequential dependency that these three physical scalars do
     not have -- there is no sense in which the value of `tau` is influenced by
     "what came before" in the way a time series or a sentence is. The GRU can
-    still, in principle, learn any function of the 4-tuple (a big enough
+    still, in principle, learn any function of the 3-tuple (a big enough
     recurrent net is also a universal approximator), but it has to do so by
     routing information through a hidden state one arbitrary "timestep" at a
-    time, rather than seeing all four inputs at once the way the MLP and the
+    time, rather than seeing all three inputs at once the way the MLP and the
     CNN's flatten step both do.
     """
 
-    def __init__(self, in_dim=4, hidden_size=32, cell="gru", num_layers=1,
+    def __init__(self, in_dim=3, hidden_size=32, cell="gru", num_layers=1,
                  min_logvar=-12.0, max_logvar=4.0):
         super().__init__()
         rnn_cls = {"gru": nn.GRU, "rnn": nn.RNN, "lstm": nn.LSTM}[cell]
@@ -171,7 +171,7 @@ class HeteroscedasticRNN(nn.Module):
         self.min_logvar, self.max_logvar = min_logvar, max_logvar
 
     def forward(self, x):
-        seq = x.unsqueeze(-1)              # (batch, in_dim, 1) -- 4 timesteps of width 1
+        seq = x.unsqueeze(-1)              # (batch, in_dim, 1) -- one timestep per input
         out, state = self.rnn(seq)
         h_last = state[0] if isinstance(state, tuple) else state   # LSTM returns (h, c)
         h = h_last[-1]                     # final layer's final hidden state: (batch, hidden)
@@ -199,7 +199,7 @@ class HeteroscedasticLSTM(HeteroscedasticRNN):
     reason to expect it to help over the GRU (or the MLP) here.
     """
 
-    def __init__(self, in_dim=4, hidden_size=32, num_layers=1,
+    def __init__(self, in_dim=3, hidden_size=32, num_layers=1,
                  min_logvar=-12.0, max_logvar=4.0):
         super().__init__(in_dim=in_dim, hidden_size=hidden_size, cell="lstm",
                          num_layers=num_layers, min_logvar=min_logvar, max_logvar=max_logvar)

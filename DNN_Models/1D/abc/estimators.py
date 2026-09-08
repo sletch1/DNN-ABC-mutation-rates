@@ -1,6 +1,6 @@
 """Classical (non-ABC) mutation-rate estimators: MOM and MLE.
 
-Python port of NN_ABC/MatlabCode/MOMMLE_fluc_exp1.m, itself the paper's
+Python port of ../matlab/MOMMLE_fluc_exp1.m, itself the paper's
 Eq. (11)-(12) for the constant-mutation-rate model. Used to fill the
 "MOM/MLE" column of Table 1 / Table 2.
 

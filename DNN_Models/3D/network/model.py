@@ -28,38 +28,11 @@ architecture_search/benchmark_arch.py for the runs behind each claim)
    interactions reaches 0.965. So real curvature and interaction exist, but the
    function is smooth -- this wants a modest network, not a deep one.
 
-THE DERIVED FEATURE (the main design decision here)
----------------------------------------------------
-A mutation arising at time t founds a clone that grows to roughly e^(a(tp-t)) by
-the plating time, while the number of division events available to mutate near
-time t grows like e^(a*t). Those two exponentials cancel, so every unit of time
-contributes equally to the final mutant count and the physically correct
-aggregate of a time-varying mutation rate is its TIME AVERAGE:
-
-    p_eff = ( p1 * tau + p2 * (tp - tau) ) / tp
-
-Empirically log10(p_eff) alone explains R^2 = 0.874 of the design-mean variation
--- more than the full three-input linear model -- and regressing the target on it
-gives a slope of 0.59 against the value 0.5 predicted by d_bar ~ sqrt(X/Z). (A
-Yule-arrival-CDF weighting, which looks plausible but ignores the cancellation
-above, reaches only 0.824.)
-
-So the network is fed FOUR inputs: the three raw parameters plus log10(p_eff).
-The raw inputs are kept because p_eff alone caps out around R^2 = 0.88 -- it
-compresses a 3-D surface onto one coordinate and cannot express the residual
-tau- and p1-dependent shape.
-
-HONEST SIZING OF THE GAIN. The R^2 = 0.874 above is for a LINEAR model, where
-supplying the right coordinate matters a great deal. A neural network can learn
-that structure from the raw inputs by itself, and the measured ablation
-(results/logs/benchmark_arch.md, identical specs with and without the column)
-shows only a 1.01x-1.03x improvement in held-out mse_mean. The feature is
-therefore kept for reasons other than accuracy: it encodes a derivation that is
-checkable (the fitted slope of 0.59 against a predicted 0.5), it is the quantity
-the constant-rate MOM/MLE baselines actually estimate -- so the same coordinate
-makes those baselines interpretable -- and it costs four floating-point
-operations. It is NOT what makes the surrogate accurate. `use_derived=False`
-disables it.
+INPUTS
+------
+The network takes exactly the three model parameters, (log10 p1, log10 p2,
+tau), and outputs (mean of log10 d_bar, log predictive variance). No derived
+features: the surrogate is a direct function of the parameters being inferred.
 
 ARCHITECTURE NOTES
 ------------------
@@ -73,51 +46,74 @@ ARCHITECTURE NOTES
   the gradient at the bounds (softplus rather than a hard clamp).
 """
 
-import numpy as np
 import torch
 import torch.nn as nn
 
-_ACT = {"relu": nn.ReLU, "tanh": nn.Tanh, "gelu": nn.GELU, "silu": nn.SiLU}
-
-# Fixed experimental constants of the ground-truth design; needed to build the
-# derived feature. These match RCode/genSlowData_3D.R.
-TP_DEFAULT = 10.0
+# Activation registry. Grouped by the property that actually matters for this
+# surface: whether the function is smooth (the target E[log10 d_bar | theta] is
+# a smooth function of the parameters, and a smooth surrogate stays
+# differentiable in its inputs if the sampler is later made gradient-based),
+# and whether it keeps a live negative region (inputs are standardized, so
+# roughly half of all pre-activations are negative).
+_ACT = {
+    # piecewise-linear, dead or half-dead negative region
+    "relu": nn.ReLU,               # zeroes all negatives; units can die permanently
+    "leakyrelu": nn.LeakyReLU,     # small fixed negative slope, no dead units
+    "prelu": nn.PReLU,             # same, but the slope is learned
+    # smooth and saturating
+    "tanh": nn.Tanh,               # bounded, C^inf, classic for smooth regression
+    "elu": nn.ELU,                 # exponential negative arm, mean activation ~0
+    "selu": nn.SELU,               # ELU scaled for self-normalisation
+    # smooth and unbounded
+    "softplus": nn.Softplus,       # C^inf approximation to ReLU
+    "gelu": nn.GELU,               # smooth, self-gating (incumbent)
+    "silu": nn.SiLU,               # Swish: smooth, self-gated, non-monotone
+    "mish": nn.Mish,               # smoother self-gated variant of SiLU
+}
 
 FEATURES_RAW = ["log10p1", "log10p2", "tau"]
-FEATURES_ALL = FEATURES_RAW + ["log10p_eff"]
 
 
-def add_derived(X, tp: float = TP_DEFAULT):
-    """Append log10(p_eff) to an (N, 3) array of [log10 p1, log10 p2, tau].
+def _act_per_layer(activation, n_layers):
+    """Normalise `activation` to one name per hidden layer.
 
-    p_eff is the time-average of the two-stage mutation rate over [0, tp]; see
-    the module docstring for the derivation. Returns an (N, 4) array.
+    Accepts a single name applied to every layer ("gelu"), or a sequence giving
+    one name per layer (("gelu", "tanh")), which is what the mixed-activation
+    comparison in architecture_search/benchmark_activation_pairs.py needs.
     """
-    X = np.atleast_2d(np.asarray(X, dtype=np.float64))
-    p1, p2, tau = 10.0 ** X[:, 0], 10.0 ** X[:, 1], np.clip(X[:, 2], 0.0, tp)
-    p_eff = (p1 * tau + p2 * (tp - tau)) / tp
-    return np.c_[X, np.log10(np.maximum(p_eff, 1e-300))].astype(np.float32)
+    if isinstance(activation, str):
+        names = [activation] * n_layers
+    else:
+        names = list(activation)
+        if len(names) != n_layers:
+            raise ValueError(
+                f"got {len(names)} activations for {n_layers} hidden layers")
+    unknown = [a for a in names if a not in _ACT]
+    if unknown:
+        raise KeyError(f"unknown activation(s) {unknown}; choose from {sorted(_ACT)}")
+    return names
 
 
 class HeteroscedasticMLP(nn.Module):
     """Plain funnel MLP with mean and log-variance heads.
 
     Args:
-        in_dim: number of inputs (4 with the derived feature, 3 without).
+        in_dim: number of inputs (3: log10 p1, log10 p2, tau).
         hidden: widths of the hidden layers, e.g. (128, 64).
-        activation/dropout/use_ln: layer internals.
+        activation: one name for every layer, or a sequence with one per layer.
+        dropout/use_ln: layer internals.
     """
 
-    def __init__(self, in_dim=4, hidden=(128, 64), activation="gelu",
+    def __init__(self, in_dim=3, hidden=(128, 64), activation="gelu",
                  dropout=0.0, use_ln=False, min_logvar=-12.0, max_logvar=4.0):
         super().__init__()
-        act = _ACT[activation]
+        acts = _act_per_layer(activation, len(hidden))
         layers, prev = [], in_dim
-        for h in hidden:
+        for h, a in zip(hidden, acts):
             layers.append(nn.Linear(prev, h))
             if use_ln:
                 layers.append(nn.LayerNorm(h))
-            layers.append(act())
+            layers.append(_ACT[a]())
             if dropout > 0:
                 layers.append(nn.Dropout(dropout))
             prev = h
@@ -164,7 +160,7 @@ class _ResBlock(nn.Module):
 class HeteroscedasticResMLP(nn.Module):
     """Residual variant, for when extra depth is wanted on the interaction surface."""
 
-    def __init__(self, in_dim=4, width=128, n_blocks=3, activation="silu",
+    def __init__(self, in_dim=3, width=128, n_blocks=3, activation="silu",
                  use_ln=True, dropout=0.0, min_logvar=-12.0, max_logvar=4.0):
         super().__init__()
         act = _ACT[activation]

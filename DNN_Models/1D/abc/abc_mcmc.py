@@ -1,7 +1,7 @@
 """ABC-MCMC for the constant-mutation-rate fluctuation model.
 
 Metropolis-Hastings sampler over theta = log10(p), ported from
-NN_ABC/MatlabCode/ABC_fluc_exp1_rev.m. Three backends share one sampler:
+../matlab/ABC_fluc_exp1_rev.m. Three backends share one sampler:
 
 - backend="sim" : ABC-MCMC. At each iteration, run the (slow) simulator at
   theta and theta_can, form the summary statistic, and score it against the

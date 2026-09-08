@@ -62,11 +62,14 @@ In a second simulation study we turn to the two-stage
 (piecewise-constant) mutation model, in which the mutation probability jumps
 from $p_1$ to $p_2$ at an unknown time $\tau$ and all three parameters are
 estimated jointly. Here we report a deliberately negative result. The neural
-surrogate fits the response surface to within $1.12\times$ its irreducible
+surrogate fits the response surface to within $1.05\times$ its irreducible
 noise floor, but so do networks spanning three orders of magnitude in size, and
 downstream the neural and Gaussian-process surrogates are statistically tied in
-eight of nine parameter-by-truth comparisons at the two-Monte-Carlo-standard-error
-level. We argue this is the expected outcome whenever surrogate error ceases to
+seven of nine parameter-by-truth comparisons at the two-Monte-Carlo-standard-error
+level, with the other two favouring the Gaussian process. That verdict proved
+robust to three separate corrections of the pipeline -- the mutation-time
+convention, the summary statistic, and the activation selected under it -- each
+of which measurably improved the surrogate without changing the conclusion. We argue this is the expected outcome whenever surrogate error ceases to
 be the binding constraint, and that what binds instead is the model's intrinsic
 identifiability: $p_2$ is well determined while $p_1$ and $\tau$ are recovered
 poorly by every method tested. Both surrogates also miscalibrate their credible
@@ -77,7 +80,7 @@ near-exact throughout. A further controlled comparison across architecture
 families -- feedforward, convolutional, and recurrent surrogates, motivated by
 where each is known to help in the simulation-based-inference literature --
 finds that neither a convolutional nor a recurrent inductive bias improves on
-the architecture-agnostic feedforward network for this four-input problem, the
+the architecture-agnostic feedforward network for this three-input problem, the
 outcome predicted by the parameters' lack of any real spatial or temporal
 structure. We discuss when a neural surrogate should be preferred
 to a Gaussian process inside ABC, and what the coverage gap implies for
@@ -283,9 +286,10 @@ We refer to this procedure as \textbf{DNN-ABC}.
 \label{sec:hetero}
 
 $f_\phi$ has two output heads, $\mu_\phi(x)$ and $\log\sigma^2_\phi(x)$, where
-$x$ is $\theta=\log_{10}p$ alone (Section~\ref{sec:sim1D}) or the vector
-$(\log_{10}p_1, \log_{10}p_2, \tau)$ augmented with the derived feature
-$\log_{10}p_{\mathrm{eff}}$ (Section~\ref{sec:sim3D}). Both heads are trained
+$x$ is $\theta=\log_{10}p$ alone (Section~\ref{sec:sim1D}) or the parameter
+vector $(\log_{10}p_1, \log_{10}p_2, \tau)$ (Section~\ref{sec:sim3D}); in
+both studies the surrogate is a direct function of the parameters being
+inferred, with no derived features. Both heads are trained
 jointly by minimizing the Gaussian negative log-likelihood
 \begin{equation}
 \label{eq:nll}
@@ -353,14 +357,16 @@ and \ref{sec:sim3D} report the resulting agreement for each study).
 
 We report both simulation studies following the structure recommended by
 \citet{morris2019}: \emph{aims} -- compare five estimators (MOM, MLE, exact
-ABC-MCMC, GPS-ABC, DNN-ABC) on point accuracy, interval precision and
-coverage, and computational cost, under known ground truth; \emph{data-generating
+ABC-MCMC, GPS-ABC, DNN-ABC) in Study I, and the two surrogate methods
+(GPS-ABC, DNN-ABC) in Study II, where the constant-rate MOM and MLE
+estimators do not apply, on point accuracy, interval precision and coverage,
+and computational cost, under known ground truth; \emph{data-generating
 mechanisms} -- the validated MBP simulator of Section~\ref{sec:validation}, at
 the parameter grids specified in Sections~\ref{sec:sim1D_results} and
 \ref{sec:sim3D_abc}; \emph{estimands} -- the mutation probability $p$ (via
 $\theta=\log_{10}p$) in Study I, and the two-stage parameters
 $(p_1,p_2,\tau)$ jointly in Study II;
-\emph{methods} -- the five estimators of Section~\ref{sec:abcmcmc} and
+\emph{methods} -- the estimators of Section~\ref{sec:abcmcmc} and
 \ref{sec:method}, all evaluated on identical simulated data sets within a
 cell; and \emph{performance measures} -- MSE and normalized RMSE of $\hat p$,
 mean 95\% credible-interval length, empirical coverage, and wall-clock time
@@ -465,7 +471,7 @@ preliminary runs).
 
 \paragraph{Why convolutional and recurrent architectures are not tested here.}
 Study II (Section~\ref{sec:sim3D_arch}) reports a controlled comparison of
-feedforward, convolutional, and recurrent surrogates on the three-to-four-input
+feedforward, convolutional, and recurrent surrogates on the three-input
 two-stage problem. We do not repeat that comparison here because it would be
 vacuous: with a single scalar input $\theta=\log_{10}p$, a 1-D convolution has
 no neighbouring position to convolve over and a recurrent cell has no second
@@ -674,25 +680,6 @@ mutation regimes. Study II therefore estimates $(p_1, p_2, \tau)$ jointly. The
 division rate $a$ is fixed at $1$ throughout, as it is in every figure, study
 and data analysis of \citeauthor{lu2023}.
 
-\paragraph{A correction to an earlier version of this study.}
-An earlier draft of this work reported a three-parameter study over
-$(p, a, \delta)$ under a \emph{constant} mutation rate. That was the wrong
-target, for two independent reasons, and its results have been withdrawn
-rather than revised. First, $(p,a,\delta)$ is a different model from
-Eq.~\eqref{eq:twostage}, not a reparameterisation of it. Second, and
-independently fatal, the $a$ axis of that design carried no information:
-solving the plating time from $Z_0(e^{at}-e^{at(1-2p)}) = c$ makes the product
-$a\,t_p$ a function of $p$ alone, and every downstream quantity depends on $a$
-only through $a t_p$ and $a(t_p - t_m)$. The joint law of $(Z,X)$, and hence
-$\dbar$, is therefore \emph{exactly} invariant to $a$; the ``three-dimensional''
-surrogate was a two-dimensional $(p,\delta)$ surface with a dummy third input.
-This was confirmed empirically on that study's own ground truth: the variance of
-$\dbar$ across the ten $a$ values at fixed $(p,\delta)$, divided by pure
-replicate noise, was $1.05$, and the correlation between $a$ and the residual
-after removing $(p,\delta)$ was $0.005$. We report the episode because the
-failure mode -- adding a parameter that the experimental design renders
-unidentifiable -- is easy to reproduce and invisible in aggregate fit metrics.
-
 \subsection{Ground-truth data}
 \label{sec:groundtruth3D}
 
@@ -704,7 +691,40 @@ Latin hypercube replaces Study I's factorial grid because a factorial design
 wastes points badly in three dimensions. Ranges are
 $\log_{10}p_1, \log_{10}p_2 \in [-5,-1.3]$ and $\tau \in [0.1, 9.9]$.
 
-Two design choices deserve statement. First, $t_p$ is \emph{fixed} at $10$
+\paragraph{The summary statistic is the fourth root.} \citeauthor{lu2023} use
+$\sqrt{X/Z}$ for the constant-rate study of Section~\ref{sec:sim1D} -- their
+Figure~1 selects it against $\hat p_{\mathrm{MOM}}$ and
+$\overline{\log(Y/Z)}$ -- but switch to $\sqrt[4]{X/Z}$ for the two-stage
+model, stating that the statistic must be adjusted "to make the response curve
+smooth and non-flat" once the mutation rate is piecewise constant; their
+Algorithm~1 uses the fourth root throughout. Study II therefore takes
+\[
+  S \;=\; \frac{1}{J}\sum_{i=1}^{J} \left(X_i/Z_i\right)^{1/4},
+\]
+and every surrogate, every baseline and the sampler all consume $\log_{10}S$.
+Because the ground truth records each culture's $d_i = \sqrt{X_i/Z_i}$ as well
+as their mean, $S$ is recoverable exactly as $\overline{\sqrt{d_i}}$ without
+re-simulating anything. The choice is consequential rather than cosmetic: it
+lowers the surrogate's held-out error from $1.19\times$ its irreducible floor to
+$1.11\times$, and it changes which activation the selection of
+Section~\ref{sec:sim3D_act} returns.
+
+\paragraph{This is not \citeauthor{lu2023}'s parameter regime.} It should be
+stated plainly, because the difference is large and easy to miss. Their Study II
+places $\log_{10}p_1, \log_{10}p_2 \in [-11,-7]$ with $\tau \in [0.1,19.9]$,
+$t_p = 20$ and a fourth free parameter $\delta \in [0.5,2]$; ours are
+$[-5,-1.3]$, $\tau \in [0.1,9.9]$, $t_p = 10$ and $\delta \equiv 1$. The
+mutation-rate ranges \emph{do not overlap at all}. The cause is the choice of an
+exact simulator: their regime is reachable only with the fast approximate
+sampler of their Algorithm~4, and at $t_p = 10$ any rate below $\approx 10^{-5}$
+leaves almost every culture mutant-free. A further consequence is that the
+constant expected-mutant-count design of Study~I -- $t_p$ solved so that
+$E[X] = 20$ at every design point -- is abandoned here: with $t_p$ fixed, the
+expected count ranges from $0.22$ to $\approx 1{,}100$ across the design. What
+follows is therefore a study of the same \emph{model} in a different regime, not
+a numerical reproduction of their Table~4, and no such comparison is claimed.
+
+Two further design choices deserve statement. First, $t_p$ is \emph{fixed} at $10$
 rather than solved per parameter as in Study I. The exact simulator costs
 $O(e^{a t_p})$: at $t_p = 10$ a culture holds $\approx 2.2\times10^{4}$ cells,
 while at \citeauthor{lu2023}'s Study II value of $t_p = 20$ it holds
@@ -733,7 +753,7 @@ scalar summary $\dbar$ can possibly say about each parameter:
 \toprule
  & $p_2$ & $p_1$ & $\tau$ \\
 \midrule
-$\mathrm{corr}\!\left(\log_{10}\dbar,\ \cdot\right)$ & $0.742$ & $0.404$ & $0.135$ \\
+$\mathrm{corr}\!\left(\log_{10}S,\ \cdot\right)$ & $0.778$ & $0.337$ & $0.160$ \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -749,35 +769,6 @@ error measured on the $\log_{10}$ scale: for a weakly identified parameter the
 posterior mean sits wherever the prior places its mass, so a normalised
 natural-scale RMSE diverges without conveying anything.
 
-\subsection{A derived feature from the branching dynamics}
-\label{sec:sim3D_feature}
-
-A mutation arising at time $t$ founds a clone that grows to approximately
-$e^{a(t_p-t)}$ by the plating time, while the number of division events
-available to mutate near $t$ grows like $e^{at}$. The two exponentials cancel,
-so each unit of time contributes equally to the expected mutant count and the
-correct scalar aggregate of a time-varying mutation rate is its \emph{time
-average}:
-
-\begin{equation}
-p_{\mathrm{eff}} \;=\; \frac{p_1\tau + p_2\,(t_p-\tau)}{t_p}.
-\label{eq:peff}
-\end{equation}
-
-This is a testable claim, and it holds. Regressing $\log_{10}\dbar$ on
-$\log_{10}p_{\mathrm{eff}}$ across design-point means gives $R^2 = 0.874$ from a
-single feature -- more than the full three-input linear model achieves
-($R^2 = 0.752$) -- with a fitted slope of $0.59$ against the value $0.5$ implied
-by $\dbar \sim \sqrt{X/Z}$. A weighting by the Yule arrival CDF, which looks
-plausible but ignores the cancellation, reaches only $R^2 = 0.824$. We supply
-$\log_{10}p_{\mathrm{eff}}$ to the network as a fourth input alongside the three
-raw parameters; the raw inputs are retained because $p_{\mathrm{eff}}$ collapses
-a three-dimensional surface onto one coordinate and cannot express the residual
-shape. Equation~\eqref{eq:peff} also identifies what the constant-rate MOM and
-MLE estimators are actually estimating on this model, and they are scored
-against it below rather than against $p_1$ or $p_2$, neither of which they
-attempt to recover.
-
 \subsection{The surrogate, and why it is small}
 \label{sec:arch3D}
 
@@ -785,58 +776,218 @@ The decisive measurement for this study is not a comparison between
 architectures but the \emph{irreducible noise floor} of the data. Because the
 held-out target is itself a two-replicate mean, it carries $\mathbb{E}[\sigma^2]/2$
 of sampling noise that no model can predict away. On these data
-$\mathbb{E}[\sigma^2] = 2.79\times10^{-3}$, so that floor is
-$\mathrm{MSE} = 1.39\times10^{-3}$, corresponding to a maximum achievable
-$R^2$ of $0.99528$. Table~\ref{tab:capacity3D} reports the architecture ladder
-against it.
+$\mathbb{E}[\sigma^2] = 6.90\times10^{-4}$, so that floor is
+$\mathrm{MSE} = 3.45\times10^{-4}$. Table~\ref{tab:capacity3D} reports the
+architecture ladder against it.
 
 \begin{table}[H]
 \centering
 \caption{Study II: accuracy against the irreducible noise floor. MSE is measured
-on held-out design-point means of $\log_{10}\dbar$; the floor is
-$1.39\times10^{-3}$. Two seeds per row.}
+on held-out design-point means of $\log_{10}S$; the floor is
+$3.45\times10^{-4}$. Three seeds per row.}
 \label{tab:capacity3D}
 \begin{tabular}{lrrrr}
 \toprule
 Hidden layers & Parameters & $\times$ floor & $R^2$ & \textmu s/query \\
 \midrule
-256--128--64 & 42{,}562 & 1.08 & 0.99491 & 56 \\
-128--64 & 9{,}026 & 1.12 & 0.99472 & 43 \\
-\textbf{64--32} (used) & \textbf{2{,}466} & \textbf{1.13} & \textbf{0.99467} & \textbf{41} \\
-32--16 & 722 & 1.14 & 0.99460 & 40 \\
-8--4 & 86 & 1.23 & 0.99419 & 39 \\
-Linear (control) & 10 & 24.77 & 0.88300 & 29 \\
+256--128--64 & 42{,}306 & 1.01 & 0.99681 & 56 \\
+128--64 & 8{,}898 & 1.04 & 0.99671 & 42 \\
+\textbf{64--32} (used) & \textbf{2{,}402} & \textbf{1.09} & \textbf{0.99656} & \textbf{40} \\
+32--16 & 690 & 1.17 & 0.99628 & 37 \\
+16--8 & 218 & 1.41 & 0.99553 & 38 \\
+8--4 & 78 & 1.81 & 0.99426 & 37 \\
+Linear (control) & 8 & 140.88 & 0.55319 & 29 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Two conclusions follow, and the second is the more useful one. A network is
-genuinely required: the linear control sits at $25\times$ the floor. But
-capacity is not the binding constraint anywhere above roughly $700$ parameters
--- a $722$-parameter network matches a $42{,}562$-parameter one to within $6\%$,
-and every network tried lands within $25\%$ of a perfect model. Activation
-choice (GELU, SiLU, ReLU, tanh), LayerNorm, and residual depth were likewise
-statistically indistinguishable. This contrasts sharply with Study I, where
-removing BatchNorm changed accuracy by an order of magnitude, and it is worth
-stating plainly: on this surface, architecture search buys nothing, and a study
-that reported a ranking among these variants would be reporting seed noise.
+genuinely required, and emphatically so: the linear control sits at
+$141\times$ the floor with $R^2 = 0.55$. (Under the square-root target of the
+earlier draft it sat at $24.8\times$; the fourth root makes the surface harder
+for a linear model by nearly a factor of six, so the paper's own choice of
+statistic strengthens rather than weakens the case for a network.) But capacity
+is not the binding constraint anywhere above roughly $700$ parameters -- a
+$690$-parameter network matches a $42{,}306$-parameter one to within $17\%$,
+and a $2{,}402$-parameter one to within $8\%$. LayerNorm and
+residual depth were likewise statistically indistinguishable, as was the choice
+among the activations in common use for smooth regression
+(Section~\ref{sec:sim3D_act}) -- though that section also shows the qualifier
+matters, since several otherwise-reasonable activations outside that group are
+measurably worse. This contrasts sharply with Study I, where removing BatchNorm
+changed accuracy by an order of magnitude. On this surface, capacity and
+depth buy nothing, and a study that reported a ranking among these variants
+would be reporting seed noise.
 
 We therefore select the architecture for parsimony rather than accuracy: a
-two-layer $64\to32$ funnel with GELU activations, two output heads, and no
-BatchNorm. We note explicitly that this is \emph{not} justified by speed. Query
+two-layer $64\to32$ funnel with GELU/tanh activations
+(Section~\ref{sec:sim3D_act}), two output heads, and no BatchNorm. We note explicitly that this is \emph{not} justified by speed. Query
 latency at this scale is dominated by interpreter and framework call overhead
 rather than arithmetic, so a $59\times$ reduction in parameter count buys only
 about $29\%$ less latency (Table~\ref{tab:capacity3D}).
 
 \paragraph{Heteroscedasticity.} The second output head is not optional here. The
 within-design-point replicate standard deviation of $\log_{10}\dbar$ varies by a
-factor of $292$ across the design and correlates $-0.74$ with the target itself:
+factor of $184$ across the design and correlates $-0.82$ with the target itself:
 where few mutants arise, $\dbar$ is small \emph{and} its relative scatter is
 large. A single homoscedastic noise term -- which is what a Gaussian process
 supplies -- cannot represent this, whereas the variance head learns the shape
 directly. Since the ABC acceptance step consumes that predictive variance
 directly, an uncalibrated variance corrupts the posterior even when the mean is
 exact.
+
+\subsection{Choosing the activation function}
+\label{sec:sim3D_act}
+
+The architecture ladder of Section~\ref{sec:arch3D} fixes width and depth; the
+activation is a separate choice, and one a reviewer is entitled to see tested
+rather than asserted. There is no activation designed for this application, so
+the candidate set is dictated by the surface being fitted. Three of its
+properties matter. The target is smooth, so a piecewise-linear activation
+approximates it with kinks and leaves the surrogate non-differentiable in its
+inputs -- a concrete cost if the sampler is later made gradient-based. The
+inputs are standardised, so roughly half of all pre-activations are negative and
+an activation with a dead negative region discards that half, which is costlier
+in a $2{,}402$-parameter network than in a wide one. And the two heads are
+trained jointly under Gaussian negative log-likelihood, so an activation that
+destabilises optimisation surfaces as a miscalibrated $\sigma$ -- consumed
+directly by the ABC acceptance step -- rather than merely as a worse mean.
+
+We therefore compare ten activations spanning the three families that behave
+differently under those constraints: piecewise-linear (ReLU, LeakyReLU, PReLU),
+smooth saturating (tanh, ELU, SELU), and smooth unbounded (softplus, GELU,
+SiLU, Mish). Everything else is held fixed -- the deployed $64\to32$ network,
+the objective, the data splits, the optimiser and schedule, and the conformal
+calibration -- and each configuration is fit over five random seeds, with the
+across-seed standard deviation reported so that differences can be judged
+against the noise that produced them. Comparisons are made as
+$t = \Delta / \mathrm{SE}(\Delta)$, with $|t| < 2$ read as a tie.
+
+\begin{table}[H]
+\centering
+\caption{Study II: activation comparison on the deployed $64\to32$ network,
+five seeds each. MSE is against held-out design-point means of
+$\log_{10}S$; the irreducible floor is $3.451\times10^{-4}$. The final
+column compares each row to the best, in units of the standard error of the
+difference. Standard deviations are across seeds (sample, $n-1$).}
+\label{tab:act3D}
+\begin{tabular}{llrrr}
+\toprule
+Activation & Family & $\times$ floor & $\pm$ sd (seeds) & $t$ vs.\ best \\
+\midrule
+\textbf{GELU} & smooth unbounded & \textbf{1.072} & $9.5\times10^{-6}$ & --- \\
+tanh & smooth saturating & 1.078 & $6.0\times10^{-6}$ & 0.42 \\
+LeakyReLU & piecewise-linear & 1.080 & $6.4\times10^{-6}$ & 0.50 \\
+ReLU & piecewise-linear & 1.082 & $9.5\times10^{-6}$ & 0.54 \\
+Mish & smooth unbounded & 1.094 & $7.2\times10^{-6}$ & 1.38 \\
+SiLU & smooth unbounded & 1.130 & $1.2\times10^{-5}$ & 3.00 \\
+PReLU & piecewise-linear & 1.135 & $1.3\times10^{-5}$ & 3.04 \\
+ELU & smooth saturating & 1.166 & $2.3\times10^{-5}$ & 2.95 \\
+SELU & smooth saturating & 1.265 & $3.3\times10^{-5}$ & 4.35 \\
+softplus & smooth unbounded & 1.383 & $8.7\times10^{-5}$ & 2.74 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two results follow, and they pull in opposite directions. First, the choice
+\emph{can} matter: the best-to-worst spread is $29\%$ of the best row's MSE at
+$t = 2.7$, outside seed noise, so it is not the case that any reasonable
+activation will do. The clearest failure is softplus, which is strictly
+positive and therefore cannot produce centred activations, leaving every
+downstream layer to undo an accumulated offset. Second, and against that, the
+five leading candidates -- GELU, tanh, LeakyReLU, ReLU and Mish -- are mutually
+indistinguishable, every pairwise $|t|$ among them falling below $2$. The
+ranking within that group is not a finding.
+
+This refines, rather than contradicts, the conclusion of
+Section~\ref{sec:arch3D}. Capacity is not the binding constraint on this
+surface and neither is the choice among the activations in common use for
+smooth regression; but several otherwise-reasonable alternatives are measurably
+worse, and a study restricted to the usual four would not have seen that.
+
+One caveat belongs with SELU's placement. It is designed for self-normalising
+networks and presupposes LeCun-normal initialisation with AlphaDropout; used as
+a drop-in under this project's standard initialisation, it is stripped of the
+mechanism that motivates it. Its position here is evidence about this
+configuration, not a general verdict.
+
+\paragraph{Mixed activations across layers.}
+Because the two hidden layers need not share an activation, we also compared all
+$10 \times 10 = 100$ ordered assignments. Two disciplines matter here and are
+easy to get wrong.
+
+The first is that selecting the best of $100$ noisy measurements estimates which
+candidate drew the most favourable seeds rather than which is best, so selection
+and evaluation must never share a seed. All $100$ pairs are screened, and the ten
+leading candidates are then re-fit on fifteen \emph{fresh} seeds that played no
+part in selection.
+
+The second is that neither stage may touch the test split. An earlier version of
+this comparison scored candidates on test, which is wrong twice over: it spends
+on selection the data reserved for reporting, and it makes the quoted test figure
+optimistic for whichever candidate wins. It was not a harmless error -- under the
+square-root target it selected a different activation than the validation split
+would have. Selection is therefore carried out entirely on validation, with test
+scored exactly once, for the winner alone. Table~\ref{tab:actsel3D} reports it.
+
+The selection optimism is worth stating because it quantifies how much of any
+such ranking is noise: the finalists perform on average $1.03\times10^{-5}$
+\emph{worse} on the fresh seeds than on the seeds that chose them, which is
+$45\%$ of the entire spread of the confirmation table ($2.25\times10^{-5}$) and
+comparable to the across-seed standard deviation itself ($1.29\times10^{-5}$).
+The pair that screened best, SiLU into tanh, finished third on confirmation. A
+single-stage search would have reported that movement as a result.
+
+\begin{table}[H]
+\centering
+\caption{Study II: activation selection with no test-set leakage. All $100$
+ordered pairs were screened on validation; the ten finalists were re-fit on
+fifteen fresh validation seeds. Selection is on validation MSE; the test column
+is shown for reference and played no part in the choice. Test $\times$ floor is
+against the irreducible test floor $3.451\times10^{-4}$.}
+\label{tab:actsel3D}
+\begin{tabular}{llrrrr}
+\toprule
+Layer 1 (64) & Layer 2 (32) & Val MSE & $\pm$ sd & $t$ vs.\ best & Test $\times$ floor \\
+\midrule
+\textbf{GELU} & \textbf{tanh} & $\mathbf{2.980\times10^{-4}}$ & $1.3\times10^{-5}$ & --- & 1.062 \\
+Mish & tanh & $3.006\times10^{-4}$ & $1.4\times10^{-5}$ & 0.54 & 1.076 \\
+SiLU & tanh & $3.021\times10^{-4}$ & $1.4\times10^{-5}$ & 0.86 & 1.086 \\
+LeakyReLU & LeakyReLU & $3.059\times10^{-4}$ & $8.4\times10^{-6}$ & 2.00 & 1.075 \\
+PReLU & ReLU & $3.071\times10^{-4}$ & $1.2\times10^{-5}$ & 2.05 & 1.077 \\
+Mish & Mish & $3.120\times10^{-4}$ & $1.1\times10^{-5}$ & 3.19 & 1.080 \\
+ELU & GELU & $3.137\times10^{-4}$ & $8.5\times10^{-6}$ & 3.99 & 1.093 \\
+SiLU & Mish & $3.164\times10^{-4}$ & $1.4\times10^{-5}$ & 3.84 & 1.097 \\
+GELU & Mish & $3.172\times10^{-4}$ & $1.7\times10^{-5}$ & 3.51 & 1.086 \\
+Mish & SiLU & $3.205\times10^{-4}$ & $1.8\times10^{-5}$ & 3.94 & 1.101 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The leakage was not harmless. On test the best finalist is ReLU throughout,
+which ranks sixth on validation; selecting on test would therefore have chosen
+a different activation \emph{and} reported an optimistic number for it. This is
+the mechanism the two-stage design was meant to guard against, operating one
+level up: separating screening seeds from confirmation seeds does nothing if
+both are scored on the split reserved for reporting.
+
+\paragraph{The deployed activation.} GELU into tanh is the best point estimate
+on the selection split, and that is what we deploy. Its held-out test MSE is
+$1.06\times$ the irreducible floor. Two things are worth stating. First, the
+comparison is partially resolved: three of the ten finalists lie within $2$
+standard errors of the winner, so the top of the field is narrow but no longer
+undifferentiated -- and the bottom is clearly separated, consistent with
+Table~\ref{tab:act3D}, where softplus fails while the leaders are mutually tied.
+Second, and unlike the earlier draft of this study, the leaderboard and the
+structural criteria fixed in advance now agree. Both GELU and tanh are smooth in
+their inputs and free of the dead-unit failure mode, so the deployed network is
+everywhere differentiable in its inputs. Under the square-root target the best
+point estimate had been Mish into ReLU, which satisfied neither criterion in its
+second layer and had to be adopted over that objection; adopting the paper's
+fourth-root statistic removed the conflict rather than trading it away. No
+conclusion in this paper turns on the choice in any case: the downstream
+comparison of Section~\ref{sec:sim3D_abc} is unchanged in kind under any of the
+leading pairs.
 
 \subsection{Surrogate fit and calibration}
 \label{sec:sim3D_fit}
@@ -852,39 +1003,62 @@ point, each is scored against \emph{its own} floor
 \centering
 \caption{Study II: surrogate fit. Each split is compared to its own irreducible
 floor. Coverage is of the nominal-95\% predictive interval after a
-split-conformal scale factor of $1.018$.}
+split-conformal scale factor of $1.019$.}
 \label{tab:fit3D}
 \begin{tabular}{lrrrr}
 \toprule
 Split & $n$ & MSE (design means) & $\times$ its own floor & 95\% coverage \\
 \midrule
-Train (reps 1--5) & 10{,}000 & $5.96\times10^{-4}$ & 1.07 & 0.954 \\
-Validation (6--8) & 6{,}000 & $1.11\times10^{-3}$ & 1.20 & 0.950 \\
-\textbf{Test (9--10)} & \textbf{4{,}000} & $\mathbf{1.56\times10^{-3}}$ & \textbf{1.12} & \textbf{0.956} \\
+Train (reps 1--5) & 10{,}000 & $1.60\times10^{-4}$ & 1.16 & 0.951 \\
+Validation (6--8) & 6{,}000 & $2.95\times10^{-4}$ & 1.28 & 0.950 \\
+\textbf{Test (9--10)} & \textbf{4{,}000} & $\mathbf{3.63\times10^{-4}}$ & \textbf{1.05} & \textbf{0.955} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The surrogate sits at its noise floor on all three splits, and the train and
-test ratios ($1.07$ and $1.12$) are close enough that overfitting is not
-detectable: with $2{,}466$ parameters against $10{,}000$ training rows, and
-early stopping on a held-out split, there is little room for it. Held-out $R^2$
-is $0.9947$ against a maximum achievable $0.99528$. The conformal scale factor
-of $1.018$ is a further diagnostic in its own right: the variance head was
-already almost calibrated before the correction was applied.
+test ratios ($1.16$ and $1.05$) are close enough that overfitting is not
+detectable: with $2{,}402$ parameters against $10{,}000$ training rows, and
+early stopping on a held-out split, there is little room for it. The conformal
+scale factor of $1.019$ is a further diagnostic in its own right: the variance
+head was already almost calibrated before the correction was applied.
 
 \subsection{ABC inference}
 \label{sec:sim3D_abc}
 
+\begin{sloppypar}
 Inference is a random-walk Metropolis--Hastings sampler over the full vector
 $\theta = (\log_{10}p_1, \log_{10}p_2, \tau)$, with component-wise truncated
 proposals and Hastings corrections for the truncation. This is a genuine joint
 three-parameter posterior, not a scalar inference with covariates.
+\end{sloppypar}
 
 ABC-MCMC, GPS-ABC and DNN-ABC share the sampler and differ only in how the
 summary statistic and its uncertainty are obtained at each proposal, exactly as
-in Study I. MOM and MLE are reported against $p_{\mathrm{eff}}$
-(Eq.~\ref{eq:peff}) since they cannot identify the individual parameters.
+in Study I. The constant-rate MOM and MLE estimators of Study I have no
+counterpart here: they assume a single mutation rate and cannot identify
+$p_1$, $p_2$ or $\tau$ individually, so Study II compares the two surrogates
+against each other.
+
+\paragraph{Two Gaussian-process baselines, and why both are reported.} Our GP
+baseline is stronger than the one \citeauthor{lu2023} actually use, and reporting
+only ours would overstate what the published method achieves. Theirs, in the
+reference implementation for this study, fits an \emph{isotropic} squared
+exponential to the untransformed rates $(p_1,p_2,\tau)$ predicting the
+untransformed statistic, with a single noise term. Ours uses an anisotropic
+kernel with one length scale per input, log-scaled inputs, and a learned
+white-noise term.
+
+The gap those choices make is large. On raw-scale surrogate fit the reference
+configuration reaches $R^2 \approx 0.71$, while an otherwise identical
+anisotropic kernel on the same $300$ design points reaches $\approx 0.99$: a
+single shared length scale cannot serve inputs whose ranges differ by a factor
+of roughly $200$ ($p_1, p_2$ span $\approx 0.05$, $\tau$ spans $\approx 9.8$).
+We therefore report both, fit from the same rows under the same budget so that
+the comparison isolates the model rather than the data. Note that the reference
+performs ABC on the untransformed statistic, as its own sampler does, whereas
+our pipeline works in $\log_{10}$ throughout; the observation is placed on
+whichever scale the surrogate reports.
 
 Table~\ref{tab:abc3D} reports parameter recovery over three truth triples with
 sixteen replicates each, $3{,}000$ MCMC iterations and $1{,}000$ burn-in.
@@ -895,35 +1069,40 @@ units for $\tau$, for the reason given in Section~\ref{sec:sim3D_identifiability
 \centering
 \caption{Study II: joint recovery of $(p_1,p_2,\tau)$, averaged over three truth
 triples, $J=100$, 16 replicates per cell. Errors are $\log_{10}$-scale RMSE for
-$p_1,p_2$ (so $1.0$ means an order of magnitude) and absolute for $\tau$. MOM
-and MLE are scored against $p_{\mathrm{eff}}$, which is what they estimate.}
+$p_1,p_2$ (so $1.0$ means an order of magnitude) and absolute for $\tau$. Two
+Gaussian-process baselines are reported: the strengthened one used throughout,
+and one built to match the reference implementation of \citeauthor{lu2023}
+(isotropic kernel, untransformed inputs and target).}
 \label{tab:abc3D}
 \begin{tabular}{llrrrr}
 \toprule
 Method & Parameter & RMSE & Mean 95\% CI width & Coverage & Accept.\ rate \\
 \midrule
-GPS-ABC & $p_1$   & 1.390 & 3.4e-2 & 0.979 & 0.352 \\
-        & $p_2$   & \textbf{0.207} & 3.0e-2 & 1.000 & \\
-        & $\tau$  & \textbf{1.662} & 9.07 & 1.000 & \\
+GPS-ABC & $p_1$   & 1.391 & 3.46e-2 & 1.000 & 0.371 \\
+(strengthened) & $p_2$   & \textbf{0.156} & 3.22e-2 & 1.000 & \\
+        & $\tau$  & \textbf{1.422} & 9.07 & 1.000 & \\
 \midrule
-DNN-ABC & $p_1$   & \textbf{1.355} & 3.2e-2 & 0.896 & 0.132 \\
-        & $p_2$   & 0.391 & 2.5e-2 & 0.792 & \\
-        & $\tau$  & 1.901 & 8.54 & 0.938 & \\
+GPS-ABC & $p_1$   & \textbf{1.309} & 3.47e-2 & 1.000 & 0.810 \\
+(reference) & $p_2$   & 0.241 & 3.05e-2 & 1.000 & \\
+        & $\tau$  & 1.799 & 9.01 & 1.000 & \\
 \midrule
-MOM     & $p_{\mathrm{eff}}$ & 0.018 & -- & -- & -- \\
-MLE     & $p_{\mathrm{eff}}$ & 0.027 & -- & -- & -- \\
+DNN-ABC & $p_1$   & 1.407 & 3.43e-2 & 0.938 & 0.143 \\
+        & $p_2$   & 0.258 & 3.07e-2 & 0.979 & \\
+        & $\tau$  & 1.753 & 8.64 & 1.000 & \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Three things in this table matter, and only one of them favours the neural
-surrogate.
+Two things in this table matter, and neither favours the neural surrogate.
 
 \emph{The two surrogates are statistically tied.} Attaching Monte Carlo standard
-errors to every cell and comparing method pairs at the $2$-MCSE level, eight of
-the nine parameter-by-truth comparisons are ties and the ninth favours GPS-ABC
-($\tau$ at $(p_1,p_2,\tau) = (2\times10^{-3}, 8\times10^{-3}, 5)$, difference
-$-0.497 \pm 0.165$). We state this plainly because Study I found a consistent
+errors to every cell and comparing DNN-ABC against the strengthened GPS-ABC at
+the $2$-MCSE level, seven of the nine parameter-by-truth comparisons are ties
+and the remaining two favour GPS-ABC; none favours the network. The two are
+$p_2$ at $(1\times10^{-4}, 1\times10^{-2}, 3)$, difference
+$+0.050 \pm 0.039$, and $\tau$ at
+$(2\times10^{-3}, 8\times10^{-3}, 5)$, $+0.411 \pm 0.409$ -- both marginal.
+We state this plainly because Study I found a consistent
 DNN advantage and it would be easy to assume it carries over: it does not. The
 reason is visible in Section~\ref{sec:arch3D} -- when both surrogates fit the
 response surface essentially perfectly relative to its noise, the surrogate is
@@ -931,30 +1110,33 @@ no longer the bottleneck, and downstream accuracy is set by the identifiability
 of the model rather than by the quality of the emulator. A surrogate can only
 help where surrogate error is what limits the answer.
 
-\emph{DNN-ABC under-covers and GPS-ABC over-covers.} Coverage of the nominal
-$95\%$ credible interval is $0.792$--$0.938$ for DNN-ABC and $0.979$--$1.000$
-for GPS-ABC. Neither is correct, and they fail in opposite directions: the GP's
-homoscedastic noise term is too wide almost everywhere, inflating intervals
-until they trivially contain the truth, while the DNN's sharper predictive
-variance produces intervals that are too narrow once the sampler's own
-approximation error is added. Note that this is \emph{not} a failure of the
-surrogate's predictive calibration, which is near-exact on held-out data
-(Table~\ref{tab:fit3D}, coverage $0.956$); it is a property of the ABC
-acceptance kernel built on top of it. We also record a diagnostic that
-qualifies the comparison: DNN-ABC's acceptance rate is $0.132$ against
-GPS-ABC's $0.352$, well below the conventional $0.2$--$0.4$ band, so its chains
-mix less well at the shared proposal scale and some of its disadvantage may be
-tuning rather than method. Per-method proposal tuning is the obvious next step
-and is not attempted here.
+\emph{Every method over-covers, and the differences between them are not
+resolvable at this replicate count.} Coverage of the nominal $95\%$ credible
+interval is $0.938$--$1.000$ for DNN-ABC and $1.000$ throughout for both
+Gaussian processes. With sixteen replicates per cell, coverage moves in steps of
+$1/16 = 0.0625$, so DNN-ABC's $0.938$ for $p_1$ is fifteen replicates out of
+sixteen against the GP's sixteen -- a difference of one, well inside the
+per-cell Monte Carlo standard error (coverage MCSE $\pm 0.08$ at this replicate
+count). We therefore do not claim a calibration difference between the methods. Mean interval widths are likewise close
+($p_1$: $3.43\times10^{-2}$ for DNN-ABC against $3.46\times10^{-2}$ for
+GPS-ABC).
 
-\emph{The classical baselines quietly validate Eq.~\eqref{eq:peff}.} MOM and MLE
-recover $p_{\mathrm{eff}}$ with $\log_{10}$-scale RMSE of $0.018$ and $0.027$ --
-within about $4\%$ and $6\%$ respectively. A constant-rate estimator applied to
-two-stage data lands almost exactly on the time-average rate, which is an
-independent confirmation of the cancellation argument in
-Section~\ref{sec:sim3D_feature} and, incidentally, makes MOM an excellent and
-essentially free estimator of $p_{\mathrm{eff}}$ -- though it says nothing about
-$p_1$, $p_2$ or $\tau$ separately.
+What the coverage column does show is that all three methods over-cover on
+$\tau$, at $1.000$ across the board. That is what a nearly unidentified
+parameter looks like rather than a defect of any surrogate: the credible
+interval spans most of the prior box, so it contains the truth essentially by
+construction. Note also that this is not a failure of the surrogate's own
+predictive calibration, which is near-exact on held-out data
+(Table~\ref{tab:fit3D}, coverage $0.955$); it is a property of the ABC
+acceptance kernel built on top of it.
+
+We record one diagnostic that qualifies the comparison: DNN-ABC's acceptance
+rate is $0.143$ against the strengthened GP's $0.371$ and the reference GP's
+$0.810$, so the three chains mix very differently at the shared proposal scale
+and some of the DNN's disadvantage may be tuning rather than method. The
+reference GP's high acceptance is itself informative -- a flatter, less
+discriminating surrogate accepts more freely. Per-method proposal tuning is the
+obvious next step and is not attempted here.
 
 Taken together, Study II is best read as a negative-to-neutral result on the
 surrogate question and a positive one on the modelling question. The neural
@@ -967,9 +1149,8 @@ recovered no better than an order of magnitude by either method.
 \subsection{Does architecture matter here? A structural comparison}
 \label{sec:sim3D_arch}
 
-The heteroscedastic MLP of Section~\ref{sec:arch3D} treats its four inputs
-$(\log_{10}p_1,\log_{10}p_2,\tau,\log_{10}p_{\mathrm{eff}})$ as an unordered
-feature vector. A natural question, and one a reviewer of a paper proposing a
+The heteroscedastic MLP of Section~\ref{sec:arch3D} treats its three inputs
+$(\log_{10}p_1,\log_{10}p_2,\tau)$ as an unordered feature vector. A natural question, and one a reviewer of a paper proposing a
 neural surrogate is entitled to ask, is whether an architecture built around a
 different inductive bias -- a convolution, or a recurrence -- does better. The
 simulation-based-inference literature gives a specific, testable answer before
@@ -979,9 +1160,9 @@ observed data,'' recommending an LSTM or a 1-D convolutional network
 specifically when the raw input is a time series with genuine sequential
 dependence, and a permutation-invariant pooling network when it is an
 exchangeable i.i.d.\ sample -- with a plain feedforward network the implied
-default otherwise. Our four inputs are neither: $p_1$, $p_2$, $\tau$, and
-$p_{\mathrm{eff}}$ are four physically distinct quantities with no temporal
-order and no exchangeability, so this principle predicts, \emph{a priori}, that
+default otherwise. Our three inputs are neither: $p_1$, $p_2$ and $\tau$ are
+three physically distinct quantities with no temporal order and no
+exchangeability, so this principle predicts, \emph{a priori}, that
 a convolution or a recurrence should be neutral to harmful relative to an MLP.
 This contrasts with settings where convolutional networks have been genuinely
 useful in closely related inference problems -- \citet{flagel2019} and
@@ -995,8 +1176,8 @@ longer-standing default in this literature for tabular/summary-statistic input
 assume it.
 
 \paragraph{Setup.} We train a 1-D CNN (two convolutional layers, kernel width
-3, over the four inputs treated as adjacent positions), a GRU, and an LSTM
-(each unrolling the four inputs as four timesteps, reading out the final
+3, over the three inputs treated as adjacent positions), a GRU, and an LSTM
+(each unrolling the three inputs as three timesteps, reading out the final
 hidden state), with the same two-headed Gaussian-NLL objective, split-conformal
 calibration, and train/validation/test split as the deployed MLP
 (Section~\ref{sec:sim3D_fit}), and comparable parameter counts (2,466--3,426).
@@ -1011,34 +1192,38 @@ GPS-ABC and DNN-ABC's numbers reused unchanged from Table~\ref{tab:abc3D}.
 \begin{table}[H]
 \centering
 \caption{Surrogate fit quality by architecture family, test set. The
-irreducible noise floor is $1.393\times10^{-3}$ (Section~\ref{sec:arch3D}).}
+irreducible noise floor is $3.451\times10^{-4}$ (Section~\ref{sec:arch3D}). The
+deployed FFN's row is read from the capacity study rather than restated, so it
+necessarily describes the same target as the rows beside it.}
 \label{tab:archfam3D}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 Architecture & Parameters & MSE (design means) & $\times$ floor & $R^2$ & 95\% coverage \\
 \midrule
-CNN1D (2 conv layers, $k{=}3$) & 2{,}994 & $1.567\times10^{-3}$ & 1.13 & 0.99469 & 0.949 \\
-\textbf{FFN 64--32, GELU [deployed]} & \textbf{2{,}466} & $\mathbf{1.573\times10^{-3}}$ & \textbf{1.13} & \textbf{0.99467} & \textbf{0.952} \\
-RNN (GRU, hidden $32$) & 3{,}426 & $1.726\times10^{-3}$ & 1.24 & 0.99415 & 0.953 \\
-LSTM (hidden $24$) & 2{,}642 & $1.819\times10^{-3}$ & 1.31 & 0.99383 & 0.953 \\
+CNN1D (2 conv layers, $k{=}3$) & 2{,}482 & $3.589\times10^{-4}$ & 1.04 & 0.99670 & 0.949 \\
+\textbf{FFN 64--32 [deployed]} & \textbf{2{,}402} & $\mathbf{3.749\times10^{-4}}$ & \textbf{1.09} & \textbf{0.99656} & \textbf{0.952} \\
+LSTM (hidden $24$) & 2{,}642 & $4.221\times10^{-4}$ & 1.22 & 0.99612 & 0.950 \\
+RNN (GRU, hidden $32$) & 3{,}426 & $4.520\times10^{-4}$ & 1.31 & 0.99585 & 0.949 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
-CNN1D statistically ties the deployed FFN ($0.4\%$ lower MSE, both at $1.13\times$
-the floor -- inside the seed-to-seed spread already documented in
-Table~\ref{tab:capacity3D}); with a kernel wide enough to see three of the four
-positions per layer and two stacked layers giving every input access to every
-other, a convolution this shallow on an input this short is not meaningfully
-more constrained than an MLP, so this is closer to a non-event than a genuine
-convolutional advantage. RNN and LSTM are measurably worse ($+9.7\%$,
-$+15.6\%$ MSE; both gaps an order of magnitude larger than their own
-across-seed standard deviation), consistent with the structural prediction: a
-four-step recurrence must route everything relevant about $p_1$ through three
-more hidden-state updates before it can interact with $\tau$ or
-$p_{\mathrm{eff}}$, a strictly harder optimization problem than an MLP's direct
-simultaneous access to all four inputs, for no compensating benefit on a
-surface with no real temporal structure to reward it.
+CNN1D statistically ties the deployed FFN ($4.3\%$ lower MSE, $1.04\times$ against
+$1.09\times$ the floor -- inside the seed-to-seed spread already documented in
+Table~\ref{tab:capacity3D}); with a kernel spanning all three positions in a
+single layer, a convolution on an input this short is not meaningfully more
+constrained than an MLP, so this is closer to a non-event than a genuine
+convolutional advantage. It also costs $143$\,\textmu s per query against the
+FFN's $40$, which is the wrong trade for a tie. LSTM and RNN are measurably
+worse ($+12.6\%$, $+20.6\%$ MSE; both gaps an order of magnitude larger than
+their own across-seed standard deviation), consistent with the structural
+prediction: a
+three-step recurrence must route everything relevant about $p_1$ through two
+more hidden-state updates before it can interact with $\tau$, a strictly harder
+optimization problem than an MLP's direct simultaneous access to all three
+inputs, for no compensating benefit on a surface with no real temporal
+structure to reward it.
 
 \begin{table}[H]
 \centering
@@ -1051,52 +1236,44 @@ marks the best value in each row.}
 \toprule
 Parameter & GPS-ABC & DNN-ABC (FFN) & CNN1D-ABC & RNN-ABC & LSTM-ABC \\
 \midrule
-$p_1$ RMSE & 1.390 & \textbf{1.355} & 1.438 & 1.418 & 1.397 \\
-$p_1$ coverage & 0.979 & 0.896 & 0.750 & 0.938 & 0.917 \\
-$p_2$ RMSE & \textbf{0.207} & 0.391 & 0.549 & 0.401 & 0.282 \\
-$p_2$ coverage & 1.000 & 0.792 & 0.771 & 0.875 & 0.958 \\
-$\tau$ RMSE & 1.662 & 1.901 & 1.947 & \textbf{1.548} & 1.627 \\
-$\tau$ coverage & 1.000 & 0.938 & 0.938 & 0.979 & 1.000 \\
+$p_1$ RMSE & 1.391 & 1.407 & \textbf{1.373} & 1.378 & 1.389 \\
+$p_1$ coverage & 1.000 & 0.938 & 0.958 & 0.917 & 0.979 \\
+$p_2$ RMSE & \textbf{0.156} & 0.258 & 0.203 & 0.312 & 0.209 \\
+$p_2$ coverage & 1.000 & 0.979 & 0.979 & 0.938 & 0.958 \\
+$\tau$ RMSE & \textbf{1.422} & 1.753 & 1.688 & 1.700 & 1.631 \\
+$\tau$ coverage & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Attaching Monte Carlo standard errors to every one of the $3\times3\times3=27$
-new-family/truth/parameter cells and comparing each new family against both
-GPS-ABC and DNN-ABC at the $2$-MCSE level ($54$ pairwise comparisons in total)
-gives a picture consistent with the fit-quality result: $46$ of $54$ ($85\%$)
-are statistical ties. Of the $8$ resolved comparisons, $7$ favour an
-established method (GPS-ABC $5\times$, DNN-ABC $2\times$) and only $1$ favours
-a new family -- RNN-ABC beats DNN-ABC on $\tau$ at truth
-$(p_1,p_2,\tau)=(10^{-4},10^{-2},7)$, a difference of $-0.429\pm0.210$. No new
-family is significantly better than GPS-ABC anywhere in this comparison.
-CNN1D-ABC is the specific source of most of the resolved losses (it accounts
-for $4$ of GPS-ABC's $5$ wins), consistent with it also posting the worst
-pooled interval coverage of any method tested, $0.819$ against a nominal
-$0.95$.
+Attaching Monte Carlo standard errors to every one of the
+$3\times3\times3=27$ new-family, truth and parameter cells, and comparing each
+new family against both GPS-ABC and DNN-ABC at the $2$-MCSE level ($54$
+pairwise comparisons in total),
+gives a picture consistent with the fit-quality result, and a slightly starker
+one: $49$ of $54$ ($91\%$) are statistical ties. All $5$ resolved comparisons
+favour GPS-ABC, and \emph{none} favours a new family anywhere. Three of the five
+are CNN1D-ABC and two RNN-ABC; LSTM-ABC is tied in every one of its eighteen
+comparisons. Swapping the feed-forward surrogate for a convolutional or
+recurrent one therefore changes nothing that survives its own Monte Carlo error.
 
-One nuance qualifies, without reversing, this conclusion. The deployed FFN's
-DNN-ABC has a previously reported weakness: it under-covers (pooled $0.875$
-against nominal $0.95$; Section~\ref{sec:sim3D_coverage}). CNN1D-ABC inherits
-and worsens this. RNN-ABC ($0.931$) and especially LSTM-ABC ($0.958$) do not
--- LSTM-ABC's pooled coverage sits closer to nominal than either GPS-ABC's mild
-over-coverage ($0.993$) or the deployed FFN's under-coverage, while its point
-accuracy remains competitive with (and on this run slightly better than) the
-FFN's. This did not resolve to statistical significance cell-by-cell in the
-comparison above, so we report it as a secondary, follow-up-worthy observation
-about interval calibration specifically, not as evidence that a recurrent
-architecture should replace the deployed surrogate: on the primary point-accuracy
-comparison the recurrent families do not beat the established baselines, and
-the calibration gap they partially close is a property of the downstream ABC
-acceptance kernel (Section~\ref{sec:sim3D_coverage}) rather than of the
-surrogate's own regression calibration, which is near-exact for every
-architecture tested.
+Interval calibration adds nothing to the picture either way. Pooled coverage is
+$0.951$--$0.979$ for the four neural families and $1.000$ for both Gaussian
+processes, against a nominal $0.95$. An earlier version of this section read a
+narrative into that column -- the FFN under-covering, CNN1D inheriting and
+worsening it, LSTM correcting it -- which the corrected numbers do not support:
+the spread across all four neural families is under three percentage points,
+which at sixteen replicates is at most one cell per parameter. Every method
+over-covers on $\tau$ at exactly $1.000$, which reflects that parameter's weak
+identifiability rather than any property of an architecture. We therefore draw
+no calibration conclusion from this comparison.
 
 \textbf{Summary.} Neither imposing a spatial prior (CNN1D) nor a temporal one
-(RNN, LSTM) on four physically unordered parameters improves point-estimation
+(RNN, LSTM) on three physically unordered parameters improves point-estimation
 accuracy over the architecture-agnostic FFN or the Gaussian-process baseline,
-and two of the three impose a real cost (RNN, LSTM on fit quality; CNN1D on
-downstream coverage) for no offsetting benefit. This is the outcome
+and two of the three impose a real cost on fit quality (LSTM $+12.6\%$, RNN
+$+20.6\%$ MSE) for no offsetting benefit, while the third (CNN1D) ties the FFN
+at $3.6\times$ its query cost. This is the outcome
 \citet{radev2020}'s structural principle predicts, and it is why the deployed
 3-D surrogate throughout this paper remains the plain heteroscedastic MLP of
 Section~\ref{sec:arch3D}. Full per-cell results, code, and the trained
@@ -1106,7 +1283,7 @@ repository (Section~\ref{sec:repro}).
 \subsection{Scope and what remains open}
 \label{sec:sim3D_coverage}
 
-Three limitations should be read alongside the results above.
+Four limitations should be read alongside the results above.
 
 \emph{The plating time is not the paper's.} $t_p = 10$ here against
 \citeauthor{lu2023}'s $t_p = 20$, forced by the exponential cost of exact
@@ -1115,21 +1292,48 @@ implemented but not yet validated against the exact simulator at that scale, so
 we do not report results in that regime and no direct numerical comparison with
 their Table~4 is claimed.
 
+\emph{The parameter regime is not the paper's either, and the gap is wider than
+the plating time alone.} \citeauthor{lu2023}'s Study II places
+$\log_{10}p_1, \log_{10}p_2 \in [-11,-7]$; ours span $[-5,-1.3]$. The two ranges
+do not overlap. The cause is the same choice of an exact simulator: at
+$t_p = 10$ a rate below $\approx 10^{-5}$ leaves almost every culture
+mutant-free. A consequence is that Study I's design rule -- $t_p$ solved so that
+$E[X] = 20$ at every design point, which we do follow in Section~\ref{sec:sim1D}
+-- cannot be maintained here, and the expected mutant count instead ranges from
+$0.22$ to roughly $1{,}100$ across the design. What we report is the same model
+studied in a different and easier regime.
+
 \emph{The model has no $\delta$.} The reference two-stage implementation carries
 no differential mutant growth rate, making this a genuine three-parameter study;
 \citeauthor{lu2023}'s full specification is four-dimensional. Our simulator
 threads $\delta$ through so the extension does not require a rewrite.
 
-\emph{One convention in the reference implementation is ambiguous.} A cell born
-at its parent's division time divides at its own later time, and the reference
-code contains two versions of which of those two times indexes the step function
-in Eq.~\eqref{eq:twostage} -- one active, one commented out. They differ by
-$3$--$10\%$ in $\dbar$. Our ground truth was generated with the active version;
-the analysis defaults to the alternative, which is the model as written above,
-is the only convention the fast simulator can implement, and is the only one
-that composes with a mutant growth rate. This ambiguity is flagged rather than
-silently resolved, and the data-generation code can produce a paired comparison
-on identical design points and seeds.
+\emph{One convention in the reference implementation is ambiguous, and we had it
+wrong.} A cell born at its parent's division time divides at its own later time,
+and the reference code contains two versions of which of those two times indexes
+the step function in Eq.~\eqref{eq:twostage} -- one active, one commented out.
+An earlier version of this study generated its ground truth under the active
+convention while drawing every observed dataset under the other, so the
+surrogates were trained on one model and scored against data from a second. The
+two differ by up to $10.1\%$ in the summary statistic, and by $2.9$--$7.4\%$ at
+the three truth triples of Table~\ref{tab:abc3D}.
+
+Because the generated data records no provenance, the convention was recovered
+by measurement: simulating at the design points of the ground truth itself under
+both conventions, all sixty of the most discriminating points lie closer to the
+active convention (mean absolute error $0.0054$ against $0.0400$ in $\log_{10}$
+units; paired $t = +11.3$). That is also the convention of the paper's
+Algorithm~3, which indexes $p(t)$ by the offspring's own accumulated lifetime.
+The analysis now uses it throughout, and the check is part of the test suite.
+
+The correction is worth reporting even though it changed no conclusion. Its
+effect on the reported quantities was below the Monte Carlo error of the
+experiment -- a bias of $0.013$--$0.031$ in $\log_{10}$ units entering
+posteriors whose RMSE is $0.5$--$2.7$ -- because the same weak identifiability
+that limits this study also absorbs the misspecification. Which convention the
+reference \emph{intends} remains a question for its authors; the analysis is now
+self-consistent under either answer, and the data-generation code can produce a
+paired comparison on identical design points and seeds.
 
 \section{Discussion}
 \label{sec:discussion}
@@ -1253,9 +1457,21 @@ both studies trains on CPU in seconds to minutes.
 retrained, its ABC tables reproduced, and its figures regenerated with three
 scripted commands documented in the repository's README; the
 two-stage pipeline documents the same sequence -- data generation, the two
-rounds of architecture search, training and conformal calibration, the ABC
-tables, Monte Carlo standard errors, and figure generation -- in the order the
-results are presented in this paper. Every number
+rounds of architecture search, the activation selection, training and conformal
+calibration, the ABC tables, Monte Carlo standard errors, and figure generation
+-- in the order the results are presented in this paper.
+
+The two-stage package also ships a validation script that re-derives, rather
+than asserts, three facts the analysis depends on: that the two-stage simulator
+reduces to the constant-rate one in both degenerate limits (checked against an
+independently ported constant-rate implementation, and exact on a shared seed);
+the size of the mutation-time convention gap reported in
+Section~\ref{sec:sim3D_coverage}; and which convention the committed ground
+truth was generated under, since the data file itself records no provenance.
+The summary statistic is likewise recomputed from the per-culture values stored
+in that file rather than from a cached aggregate, so the choice of root in
+Section~\ref{sec:groundtruth3D} is a single switch and cannot drift between the
+surrogate, the baselines and the sampler. Every number
 reported in Tables~\ref{tab:mse1D}--\ref{tab:abc3D} and in the architecture-family
 comparison of Tables~\ref{tab:archfam3D}--\ref{tab:archfam3D_abc}
 (Section~\ref{sec:sim3D_arch}) is produced by these
