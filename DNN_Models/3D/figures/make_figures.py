@@ -140,7 +140,8 @@ def fig_posterior():
         print("skip fig_posterior: run abc/run_experiments.py first")
         return
     d = pd.read_csv(f)
-    methods = [m for m in ("ABC-MCMC", "GPS-ABC", "DNN-ABC") if f"{m}_p2" in d.columns]
+    methods = [m for m in ("ABC-MCMC", "GPS-ABC", "GPS-ABC-ref", "DNN-ABC")
+               if f"{m}_p2" in d.columns]
     params = ["p1", "p2", "tau"]
     fig, axes = plt.subplots(1, 3, figsize=(13, 3.8))
     for ax, p in zip(axes, params):

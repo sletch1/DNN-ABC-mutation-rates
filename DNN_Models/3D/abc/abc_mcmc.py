@@ -27,11 +27,20 @@ uncertainty are obtained differs:
   so the surrogate's calibrated uncertainty widens the likelihood exactly where
   it is unsure, with no Monte-Carlo noise.
 
-PRIORS. Independent truncated normals on each component, matching the paper's
-Study 2 setup: theta1, theta2 ~ TN(centre, sd, [lo, hi]) on the log10 scale, and
-tau ~ TN(tp/2, sd, [tau_lo, tau_hi]). Passing `prior="uniform"` switches to a
-flat prior on the same box, which is the honest default when no MOM-style
-pilot estimate is available to centre on.
+PRIORS. Independent per coordinate, and selectable per coordinate: "uniform",
+"normal" (truncated normal) or "expon" (truncated exponential, rate `lam`).
+The paper does not use one family throughout, so neither does this:
+
+  - Study 2, the two-stage model THIS module samples, uses truncated normals --
+    theta1, theta2 ~ TN(log10 p_hat_MOM, 20, [-11, -7]) and tau ~ TN(10, 20,
+    [0.1, 19.9]). An sd of 20 over a box of width 4 is very nearly flat, so
+    `prior="uniform"` stays the faithful default and is what the tables use.
+  - Study 1, the constant-rate 1-D model, instead uses a truncated exponential
+    of rate 2 on theta = log10(p) (ABC_fluc_exp1_rev.m). "expon" implements it.
+    It is meaningful only on the log10-rate coordinates; putting it on tau would
+    invent a prior the paper never states, which is why kinds are per coordinate.
+
+See _log_prior for the exact densities.
 
 PROPOSAL. Component-wise random walk with per-component step sizes, since the
 three coordinates have very different natural scales (log10 units vs. absolute
@@ -62,21 +71,54 @@ def _tn_logZ(mu, s, lo, hi):
     return np.log(max(norm.cdf((hi - mu) / s) - norm.cdf((lo - mu) / s), 1e-300))
 
 
-def _log_prior(theta, box, kind, centres, sds):
-    """Independent truncated-normal (or uniform) log prior on the box."""
+def _log_prior(theta, box, kind, centres, sds, lam=2.0):
+    """Independent log prior on the box, per coordinate.
+
+    `kind` is either one name applied to all three coordinates, or a sequence of
+    three names -- which is what the paper actually needs, since it does not use
+    the same family for the rates and for the transition time.
+
+      "uniform" : flat on [lo, hi].
+      "normal"  : truncated normal, centred on `centres` with sd `sds`.
+      "expon"   : truncated exponential with rate `lam`, DECREASING away from the
+                  lower bound, i.e. favouring small values. This is the prior of
+                  ABC_fluc_exp1_rev.m and of the paper's simulation study 1
+                  ("a truncated exponential ... with rate 2"), where the parameter
+                  is theta = log10(p) and small mutation rates are a priori more
+                  plausible.
+
+    WHICH PRIOR THE PAPER USES WHERE -- worth stating, because the two studies
+    differ and it is easy to carry the wrong one across. Study 1 (constant rate,
+    1-D) uses the truncated exponential above. Study 2 (two-stage, the model THIS
+    module samples) does not: it uses independent truncated normals,
+    theta_1, theta_2 ~ TN(log10(p_hat_MOM), 20, [-11, -7]) and
+    theta_3 ~ TN(10, 20, [0.1, 19.9]). With sd = 20 over a box of width 4, those
+    are nearly flat, which is why "uniform" remains a faithful default here.
+    Applying "expon" to tau would be a fabrication -- it is meaningful only on the
+    log10-rate coordinates -- hence the per-coordinate form.
+    """
+    kinds = [kind] * len(box) if isinstance(kind, str) else list(kind)
     lp = 0.0
-    for v, (lo, hi), c, s in zip(theta, box, centres, sds):
+    for v, (lo, hi), c, s, k in zip(theta, box, centres, sds, kinds):
         if not (lo <= v <= hi):
             return -np.inf
-        if kind == "normal":
+        if k == "normal":
             lp += norm.logpdf(v, loc=c, scale=s) - _tn_logZ(c, s, lo, hi)
+        elif k == "expon":
+            # log of  lam * exp(-lam (v - lo)) / (1 - exp(-lam (hi - lo))).
+            # The reference drops the leading `lam` since it cancels in the
+            # acceptance ratio; it is kept here so the value is a real log-density.
+            lp += (np.log(lam) - lam * (v - lo)
+                   - np.log1p(-np.exp(-lam * (hi - lo))))
+        elif k != "uniform":
+            raise ValueError(f"unknown prior kind {k!r}")
     return lp
 
 
 def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS,
                  box=DEFAULT_BOX, rng=None, eps=0.005,
                  prior="uniform", prior_centres=None, prior_sds=(2.0, 2.0, 4.0),
-                 sim_kwargs=None, ns=1, surrogate=None):
+                 prior_lambda=2.0, sim_kwargs=None, ns=1, surrogate=None):
     """Return (samples, accept_rate). `samples` is (n_mcmc, 3) in theta coordinates.
 
     theta = (log10 p1, log10 p2, tau). `obs` is the observed d_bar on the RAW
@@ -113,9 +155,18 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
             var = float(np.var(v, ddof=1)) if ns > 1 else 0.0
             return norm.logpdf(obs_log, loc=m, scale=np.sqrt(eps ** 2 + var))
     elif backend in ("dnn", "gp"):
+        # Surrogates declare the scale they report on, and the observation is put on
+        # that same scale here. Ours (DNN, strengthened GP) work in log10. The
+        # faithful reference GP works on the RAW statistic, exactly as
+        # ABC_fluc_exp1.m does -- there `obs = mean(sqrt(X./Z))` and the tolerance
+        # eps are both raw. Scoring a raw-scale surrogate against obs_log would be a
+        # category error that silently produces a wrong posterior, so the target
+        # follows the surrogate rather than being assumed.
+        target = obs_log if getattr(surrogate, "scale", "log10") == "log10" else float(obs)
+
         def log_like(th):
             mean, sd = surrogate.predict([th[0], th[1], th[2]])
-            return norm.logpdf(obs_log, loc=mean, scale=np.sqrt(eps ** 2 + sd ** 2))
+            return norm.logpdf(target, loc=mean, scale=np.sqrt(eps ** 2 + sd ** 2))
     else:
         raise ValueError(f"unknown backend {backend!r}")
 
@@ -127,7 +178,7 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
     samples = np.empty((n_mcmc, 3))
     samples[0] = theta_init
     ll = log_like(theta_init)
-    lp = _log_prior(theta_init, box, prior, centres, prior_sds)
+    lp = _log_prior(theta_init, box, prior, centres, prior_sds, prior_lambda)
     n_accept = 0
 
     for i in range(1, n_mcmc):
@@ -142,7 +193,7 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
             can[k] = _tn_sample(cur[k], steps[k], lo, hi, rng)
             log_q += _tn_logZ(cur[k], steps[k], lo, hi) - _tn_logZ(can[k], steps[k], lo, hi)
         ll_can = log_like(can)
-        lp_can = _log_prior(can, box, prior, centres, prior_sds)
+        lp_can = _log_prior(can, box, prior, centres, prior_sds, prior_lambda)
         if np.log(rng.random()) < min(0.0, (ll_can - ll) + (lp_can - lp) + log_q):
             samples[i] = can
             ll, lp = ll_can, lp_can

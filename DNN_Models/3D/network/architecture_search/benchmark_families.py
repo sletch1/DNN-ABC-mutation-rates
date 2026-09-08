@@ -78,24 +78,43 @@ from benchmark_arch import load_splits, predict, evaluate, Z_975, TEST_REPS
 from benchmark_round2 import query_latency
 from model import Standardizer, gaussian_nll
 from model_families import build_family
-from train import calibrate_conformal
+from train import calibrate_conformal, summary_from_cultures
 from surrogates import DNNSurrogate3D
-from paths import DATA
+from paths import DATA, LOG_DIR
 
 ARCH_FAMILIES_DIR = _ROOT / "results" / "arch_families"
 CKPT_DIR = ARCH_FAMILIES_DIR / "checkpoints"
 for _d in (ARCH_FAMILIES_DIR, CKPT_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
-# Already-reported reference row: the deployed FFN, NOT retrained here.
-# Source: results/logs/benchmark_round2.md (the "64-32" row) and
-# results/model/surrogate_metrics.json (arch). Copied as literal numbers, not
-# re-derived, so this table can never silently drift from what the manuscript
-# already cites.
-FFN_REFERENCE = dict(
-    name="FFN 64-32 gelu  [DEPLOYED]", params=2466,
-    mse_mean=1.573e-03, ratio=1.13, r2=0.99467, cover95=0.952, us=41.0,
-)
+def _ffn_reference():
+    """The deployed FFN's row, READ from benchmark_round2.csv rather than retyped.
+
+    This was previously a literal dict, on the reasoning that hardcoding stops the
+    table drifting from what the manuscript cites. It does the opposite. When the
+    summary statistic changed from sqrt(X/Z) to the paper's fourth root, every row
+    computed here moved and the frozen row did not -- leaving a table that compared
+    root-4 families against a root-2 baseline and reported the difference as a
+    77% improvement. Reading the row keeps it honest by construction: it always
+    describes the same target as the rows beside it, or it fails loudly.
+    """
+    import pandas as _pd
+    csv = LOG_DIR / "benchmark_round2.csv"
+    if not csv.exists():
+        raise FileNotFoundError(
+            f"{csv} not found -- run benchmark_round2.py first; this table's "
+            "reference row is read from it so the two cannot disagree.")
+    df = _pd.read_csv(csv)
+    row = df[df.name == "64-32"]
+    if len(row) != 1:
+        raise ValueError(f"expected exactly one '64-32' row in {csv}, got {len(row)}")
+    r = row.iloc[0]
+    return dict(name="FFN 64-32  [DEPLOYED]", params=int(r["params"]),
+                mse_mean=float(r["mse_mean"]), ratio=float(r["ratio"]),
+                r2=float(r["r2"]), cover95=float(r["cover95"]), us=float(r["us"]))
+
+
+FFN_REFERENCE = _ffn_reference()
 
 
 def _t(a, col=False):
@@ -157,7 +176,7 @@ def main():
     args = ap.parse_args()
 
     df = pd.read_csv(DATA)
-    y = np.log10(df["d_bar"])
+    y = np.log10(summary_from_cultures(df))
     n_te = df[df["rep"].isin(TEST_REPS)].groupby("design").size().mean()
     var_within = df.assign(y=y).groupby("design")["y"].var(ddof=1).mean()
     FLOOR = var_within / n_te
@@ -165,7 +184,7 @@ def main():
     print(f"irreducible floor on mse_mean = {FLOOR:.3e}  "
           f"(established value: 1.393e-03; max achievable R^2 = {1 - FLOOR / SIGNAL:.5f})\n")
 
-    tr, va, te = load_splits(DATA, use_derived=True)
+    tr, va, te = load_splits(DATA)
     print(f"train n={len(tr[1])}  val n={len(va[1])}  test n={len(te[1])}\n")
 
     # (family key, display name, kwargs, whether to clip gradients)
@@ -209,13 +228,12 @@ def main():
         # ready for abc/run_experiments_families.py.
         best_seed = min(seed_results, key=lambda r: r[4]["mse_mean"])
         s_idx, model, xs, ys, m, _ = best_seed
-        surr = DNNSurrogate3D(model, xs, ys, sd_scale=1.0, use_derived=True, raw_inputs=False)
+        surr = DNNSurrogate3D(model, xs, ys, sd_scale=1.0, raw_inputs=False)
         sd_scale = calibrate_conformal(surr, va[0], va[1])
         ckpt_path = CKPT_DIR / f"{kind}_best.pt"
         torch.save({"model_state": model.state_dict(), "x_scaler": xs.state_dict(),
                    "y_scaler": ys.state_dict(), "sd_scale": sd_scale,
                    "kind": kind, "spec": spec, "seed": s_idx,
-                   "use_derived": True,
                    "input": "[log10(p1), log10(p2), tau]", "output": "log10(d_bar)",
                    "heteroscedastic": True, "source_csv": str(DATA)}, ckpt_path)
         best_ckpts[kind] = str(ckpt_path)

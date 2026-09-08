@@ -11,8 +11,6 @@ WHAT IS COMPARED, each averaged over `--seeds` random seeds:
   - capacity:      hidden-layer widths and depths, plain MLP vs residual MLP
   - activation:    gelu / silu / relu / tanh
   - normalisation: none vs LayerNorm  (BatchNorm is not offered -- see model.py)
-  - THE DERIVED FEATURE: with vs without log10(p_eff). This is the ablation the
-    module docstring of model.py rests on.
 
 SPLIT. By replicate, so every design point appears in every split and no
 parameter combination leaks between them:
@@ -47,23 +45,23 @@ for _d in (_ROOT, _ROOT / "network", _ROOT / "abc"):
         sys.path.insert(0, str(_d))
 
 import numpy as np
+
+from train import summary_from_cultures
 import pandas as pd
 import torch
 
-from model import build, gaussian_nll, Standardizer, add_derived
+from model import build, gaussian_nll, Standardizer
 from paths import DATA, LOG_DIR
 
 Z_975 = 1.959964
 TRAIN_REPS, VAL_REPS, TEST_REPS = {1, 2, 3, 4, 5}, {6, 7, 8}, {9, 10}
 
 
-def load_splits(csv_path, use_derived=True):
-    """Return (X, y, design_id) per split. X is (n,3) or (n,4) with the derived feature."""
+def load_splits(csv_path):
+    """Return (X, y, design_id) per split. X is (n,3): log10 p1, log10 p2, tau."""
     df = pd.read_csv(csv_path)
     X = np.column_stack([np.log10(df["p1"]), np.log10(df["p2"]), df["tau"]]).astype(np.float32)
-    if use_derived:
-        X = add_derived(X, tp=float(df["tp"].iloc[0]))
-    y = np.log10(df["d_bar"].to_numpy()).astype(np.float32)
+    y = np.log10(summary_from_cultures(df)).astype(np.float32)
     rep, design = df["rep"].to_numpy(), df["design"].to_numpy()
     sub = lambda r: (X[np.isin(rep, list(r))], y[np.isin(rep, list(r))], design[np.isin(rep, list(r))])
     return sub(TRAIN_REPS), sub(VAL_REPS), sub(TEST_REPS)
@@ -148,29 +146,26 @@ def main():
     args = ap.parse_args()
 
     variants = [
-        # name                                spec                                                   derived
-        ("mlp 128-64 gelu            [1-D shape]", dict(kind="mlp", hidden=(128, 64), activation="gelu"), True),
-        ("mlp 256-128-64 gelu",                    dict(kind="mlp", hidden=(256, 128, 64), activation="gelu"), True),
-        ("mlp 128-128-64 silu",                    dict(kind="mlp", hidden=(128, 128, 64), activation="silu"), True),
-        ("mlp 64-32 gelu             [small]",     dict(kind="mlp", hidden=(64, 32), activation="gelu"), True),
-        ("mlp 256-128-64 relu",                    dict(kind="mlp", hidden=(256, 128, 64), activation="relu"), True),
-        ("mlp 256-128-64 tanh",                    dict(kind="mlp", hidden=(256, 128, 64), activation="tanh"), True),
-        ("mlp 256-128-64 gelu +LayerNorm",         dict(kind="mlp", hidden=(256, 128, 64), activation="gelu", use_ln=True), True),
-        ("resmlp w128 x3 silu        [old 3-D]",   dict(kind="resmlp", width=128, n_blocks=3, activation="silu"), True),
-        ("resmlp w128 x2 silu",                    dict(kind="resmlp", width=128, n_blocks=2, activation="silu"), True),
-        # the derived-feature ablation: identical specs, raw 3 inputs only
-        ("mlp 256-128-64 gelu   NO derived feat",  dict(kind="mlp", hidden=(256, 128, 64), activation="gelu"), False),
-        ("resmlp w128 x3 silu   NO derived feat",  dict(kind="resmlp", width=128, n_blocks=3, activation="silu"), False),
+        # name                                    spec
+        ("mlp 128-64 gelu            [1-D shape]", dict(kind="mlp", hidden=(128, 64), activation="gelu")),
+        ("mlp 256-128-64 gelu",                    dict(kind="mlp", hidden=(256, 128, 64), activation="gelu")),
+        ("mlp 128-128-64 silu",                    dict(kind="mlp", hidden=(128, 128, 64), activation="silu")),
+        ("mlp 64-32 gelu             [small]",     dict(kind="mlp", hidden=(64, 32), activation="gelu")),
+        ("mlp 256-128-64 relu",                    dict(kind="mlp", hidden=(256, 128, 64), activation="relu")),
+        ("mlp 256-128-64 tanh",                    dict(kind="mlp", hidden=(256, 128, 64), activation="tanh")),
+        ("mlp 256-128-64 gelu +LayerNorm",         dict(kind="mlp", hidden=(256, 128, 64), activation="gelu", use_ln=True)),
+        ("resmlp w128 x3 silu",                    dict(kind="resmlp", width=128, n_blocks=3, activation="silu")),
+        ("resmlp w128 x2 silu",                    dict(kind="resmlp", width=128, n_blocks=2, activation="silu")),
     ]
     if args.quick:
-        variants = variants[:3] + variants[-2:]
+        variants = variants[:3]
 
     # Irreducible floor: the test target is itself a 2-replicate mean, so it
     # carries sampling noise E[sigma^2]/n_test_reps that NO model can predict
     # away. Every mse_mean below must be read against this number -- if the best
     # architecture sits at ~1x the floor, the comparison is saturated and the
     # differences between rows are noise, not skill.
-    _df = pd.read_csv(DATA); _y = np.log10(_df["d_bar"])
+    _df = pd.read_csv(DATA); _y = np.log10(summary_from_cultures(_df))
     _vw = _df.assign(y=_y).groupby("design")["y"].var(ddof=1).mean()
     _nte = _df[_df["rep"].isin(TEST_REPS)].groupby("design").size().mean()
     FLOOR = _vw / _nte
@@ -178,20 +173,18 @@ def main():
     print(f"irreducible floor on mse_mean = {FLOOR:.3e}  "
           f"(max achievable R^2 = {1 - FLOOR/SIGNAL:.5f})\n")
 
-    cache = {True: load_splits(DATA, True), False: load_splits(DATA, False)}
-    print(f"train n={len(cache[True][0][1])}  val n={len(cache[True][1][1])}  "
-          f"test n={len(cache[True][2][1])}\n")
+    tr, va, te = load_splits(DATA)
+    print(f"train n={len(tr[1])}  val n={len(va[1])}  test n={len(te[1])}\n")
 
     rows = []
-    for name, spec, derived in variants:
-        tr, va, te = cache[derived]
+    for name, spec in variants:
         accs, t0 = [], time.time()
         for s in range(args.seeds):
             model, xs, ys, ran = train_one(spec, tr, va, seed=s)
             accs.append(evaluate(model, xs, ys, te))
         agg = {k: float(np.mean([a[k] for a in accs])) for k in accs[0]}
         agg["sd_mse_mean"] = float(np.std([a["mse_mean"] for a in accs]))
-        agg.update(name=name, derived=derived, secs=(time.time() - t0) / args.seeds,
+        agg.update(name=name, secs=(time.time() - t0) / args.seeds,
                    params=sum(p.numel() for p in build(in_dim=tr[0].shape[1], **spec).parameters()))
         rows.append(agg)
         print(f"{name:44s} mse_mean={agg['mse_mean']:.3e}  nll={agg['nll']:+.3f}  "
@@ -206,10 +199,10 @@ def main():
              "`mse_mean` is the MSE of the predicted mean against the held-out "
              "**design-point mean** of log10(d_bar) -- the fitted surface, with replicate "
              "noise averaged out. `cover95` should sit near 0.95.\n",
-             "| architecture | derived feat | params | mse_mean | ±sd | mse_obs | NLL | cover95 | s/fit |",
-             "|---|---|---|---|---|---|---|---|---|"]
+             "| architecture | params | mse_mean | ±sd | mse_obs | NLL | cover95 | s/fit |",
+             "|---|---|---|---|---|---|---|---|"]
     for _, r in df.iterrows():
-        lines.append(f"| {r['name']} | {'yes' if r['derived'] else 'NO'} | {int(r['params'])} | "
+        lines.append(f"| {r['name']} | {int(r['params'])} | "
                      f"{r['mse_mean']:.3e} | {r['sd_mse_mean']:.1e} | {r['mse_obs']:.3e} | "
                      f"{r['nll']:+.3f} | {r['cover95']:.3f} | {r['secs']:.0f} |")
     lines.append(f"\n**Irreducible floor on `mse_mean` = {FLOOR:.3e}** "
@@ -227,16 +220,6 @@ def main():
                  f"question is therefore how SMALL a model still reaches the floor "
                  f"(see benchmark_round2.py), because the surrogate's value is query speed "
                  f"inside the MCMC loop.\n")
-
-    # the ablation, stated explicitly
-    for base in ("mlp 256-128-64 gelu", "resmlp w128 x3 silu        [old 3-D]"):
-        w = df[df.name == base]
-        wo = df[df.name.str.startswith(base.split()[0] + " " + base.split()[1]) & (~df.derived)]
-        if len(w) and len(wo):
-            lines.append(f"- Derived feature on `{base.split('[')[0].strip()}`: "
-                         f"mse_mean {float(wo.mse_mean.iloc[0]):.3e} (without) -> "
-                         f"{float(w.mse_mean.iloc[0]):.3e} (with), "
-                         f"a {float(wo.mse_mean.iloc[0]) / float(w.mse_mean.iloc[0]):.2f}x change.")
 
     (LOG_DIR / "benchmark_arch.md").write_text("\n".join(lines) + "\n")
     df.to_csv(LOG_DIR / "benchmark_arch.csv", index=False)

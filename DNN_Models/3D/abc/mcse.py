@@ -61,7 +61,8 @@ def annotate(raw_path=None, out_path=None):
         print(f"no raw replicates at {raw_path}; run abc/run_experiments.py first")
         return None
     raw = pd.read_csv(raw_path)
-    methods = [m for m in ("ABC-MCMC", "GPS-ABC", "DNN-ABC") if f"{m}_p2" in raw.columns]
+    methods = [m for m in ("ABC-MCMC", "GPS-ABC", "GPS-ABC-ref", "DNN-ABC")
+               if f"{m}_p2" in raw.columns]
 
     rows = []
     for (p1, p2, tau, J), sub in raw.groupby(["p1_true", "p2_true", "tau_true", "J"]):

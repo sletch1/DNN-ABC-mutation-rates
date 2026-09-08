@@ -30,6 +30,8 @@ for _d in (_ROOT, _ROOT / "network", _ROOT / "abc"):
         sys.path.insert(0, str(_d))
 
 import numpy as np
+
+from train import summary_from_cultures
 import pandas as pd
 import torch
 
@@ -54,13 +56,13 @@ def main():
     args = ap.parse_args()
 
     df = pd.read_csv(DATA)
-    y = np.log10(df["d_bar"])
+    y = np.log10(summary_from_cultures(df))
     floor = df.assign(y=y).groupby("design")["y"].var(ddof=1).mean() / \
         df[df["rep"].isin(TEST_REPS)].groupby("design").size().mean()
     signal = df.assign(y=y).groupby("design")["y"].mean().var(ddof=1)
     print(f"irreducible floor = {floor:.3e}   max R^2 = {1 - floor/signal:.5f}\n")
 
-    tr, va, te = load_splits(DATA, use_derived=True)
+    tr, va, te = load_splits(DATA)
 
     ladder = [
         ("256-128-64", dict(kind="mlp", hidden=(256, 128, 64), activation="gelu")),
@@ -99,7 +101,7 @@ def main():
     lines = ["# 3-D two-stage surrogate: capacity floor (round 2)\n",
              f"Irreducible floor on `mse_mean` = **{floor:.3e}** (max achievable "
              f"R^2 = {1 - floor/signal:.5f}). Each row is the mean of {args.seeds} seeds, "
-             "all with the derived `log10(p_eff)` feature.\n",
+             "all on the three raw parameters (no derived feature).\n",
              "| hidden | params | mse_mean | x floor | R^2 | cover95 | us/query |",
              "|---|---|---|---|---|---|---|"]
     for _, r in d.iterrows():

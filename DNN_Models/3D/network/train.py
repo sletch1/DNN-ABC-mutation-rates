@@ -1,6 +1,6 @@
 """Train the heteroscedastic surrogate for the 3-D two-stage model.
 
-    (log10 p1, log10 p2, tau)  ->  ( mean log10(d_bar), predictive sd )
+    (log10 p1, log10 p2, tau)  ->  ( mean log10(summary stat), predictive sd )
 
 Ground truth: data/slow_data_3D.csv -- the exact cell-by-cell two-stage
 simulator over a 2000-point Latin hypercube in (log10 p1, log10 p2, tau) with 10
@@ -64,7 +64,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from model import build, gaussian_nll, Standardizer, add_derived, FEATURES_ALL
+from simulator import SUMMARY_ROOT
+from model import build, gaussian_nll, Standardizer, FEATURES_RAW
 from paths import DATA, MODEL_DIR, FIG_DIR, LOG_DIR
 
 ALPHA = 0.05
@@ -74,17 +75,63 @@ TRAIN_REPS, VAL_REPS, TEST_REPS = {1, 2, 3, 4, 5}, {6, 7, 8}, {9, 10}
 # Selected by architecture_search/benchmark_round2.py: the smallest hidden shape
 # still at the noise floor. Widen only if the design or the parameter ranges
 # change enough to make the surface harder.
-ARCH = dict(kind="mlp", hidden=(64, 32), activation="gelu")
-USE_DERIVED = True   # append log10(p_eff); see model.py for the derivation
+# Activation chosen by architecture_search/benchmark_activation_select.py
+# (write-up: results/logs/benchmark_activation_select.md, and the manuscript's
+# activation subsection). All 100 ordered pairs were screened, then ten
+# finalists refit on fifteen FRESH seeds, with selection made on the VALIDATION
+# split -- test is scored once, for the winner only, so the number the paper
+# quotes is not the number the activation was chosen on. (The two earlier
+# scripts, benchmark_activations.py and benchmark_activation_pairs.py, both
+# scored candidates on test; they are kept as the record of that earlier pass
+# but are superseded by this one for the deployment decision.)
+#
+# gelu -> tanh is the best point estimate on the validation split (val MSE
+# 2.980e-04; test 3.666e-04 = 1.062x the irreducible floor), and only three of
+# the ten finalists lie within 2 SE of it -- so under the paper's fourth-root
+# statistic the comparison resolves rather more than it did before.
+#
+# It also removes a tension worth recording. Under the earlier sqrt(X/Z) target
+# the best point estimate was mish -> relu, which sat AGAINST the structural
+# criteria fixed in advance: ReLU in the narrow second layer is neither smooth in
+# the inputs nor free of the dead-unit failure mode. The manuscript had to note
+# that and pick anyway. With SUMMARY_ROOT = 4 the leaderboard and the structural
+# argument agree -- gelu and tanh are both smooth and both dead-unit-free -- so
+# the choice no longer needs a caveat.
+ARCH = dict(kind="mlp", hidden=(64, 32), activation=["gelu", "tanh"])
+
+def summary_from_cultures(df, root=None):
+    """The summary statistic at `root`, recomputed EXACTLY from the stored d_i.
+
+    The ground-truth CSV stores every per-culture d_i = sqrt(X_i / Z_i) alongside
+    the aggregate d_bar, which makes the paper's other root recoverable without
+    re-simulating anything:
+
+        (X_i / Z_i)^(1/root) = d_i^(2/root)
+
+    so root=2 reproduces the stored d_bar exactly (verified in tests), and root=4
+    -- the statistic the paper actually uses for the two-stage model -- is just
+    mean_i sqrt(d_i). The data/ CSVs are read-only here and are never rewritten;
+    switching roots costs one pass over columns that are already on disk.
+
+    Safe at both ends of the range: d_i = 0 (a culture with no mutants, 10.9% of
+    3-D cultures) and d_i = 1 (an all-mutant culture, 262 of them) both map to
+    themselves under any root, unlike log-based alternatives which are undefined
+    at d_i = 1.
+    """
+    if root is None:
+        root = SUMMARY_ROOT
+    cols = [c for c in df.columns if c.startswith("d_") and c != "d_bar"]
+    if not cols:
+        raise ValueError("CSV has no per-culture d_i columns; cannot re-root")
+    D = df[cols].to_numpy(dtype=float)
+    return np.mean(D ** (2.0 / root), axis=1)
 
 
-def load_splits(csv_path, use_derived=USE_DERIVED):
+def load_splits(csv_path):
     """Read the ground truth and split by replicate. Returns (X, y, design) per split."""
     df = pd.read_csv(csv_path)
     X = np.column_stack([np.log10(df["p1"]), np.log10(df["p2"]), df["tau"]]).astype(np.float32)
-    if use_derived:
-        X = add_derived(X, tp=float(df["tp"].iloc[0]))
-    y = np.log10(df["d_bar"].to_numpy()).astype(np.float32)
+    y = np.log10(summary_from_cultures(df)).astype(np.float32)
     rep, design = df["rep"].to_numpy(), df["design"].to_numpy()
     sub = lambda r: (X[np.isin(rep, list(r))], y[np.isin(rep, list(r))], design[np.isin(rep, list(r))])
     return sub(TRAIN_REPS), sub(VAL_REPS), sub(TEST_REPS)
@@ -213,12 +260,10 @@ def make_plots(surr, splits, csv_path, outdir):
     for j, tau in enumerate(taus):
         ax = axes[j]
         near = df[np.abs(df.tau - tau) < 0.75]
-        ax.scatter(np.log10(near.p2), np.log10(near.d_bar), s=5, alpha=0.15,
+        ax.scatter(np.log10(near.p2), np.log10(summary_from_cultures(near)), s=5, alpha=0.15,
                    color="tab:gray", label=f"data (|tau-{tau:.0f}|<0.75)")
         for p1 in p1s:
             Xg = np.column_stack([np.full_like(grid, np.log10(p1)), grid, np.full_like(grid, tau)])
-            if USE_DERIVED:
-                Xg = add_derived(Xg, tp=tp)
             mg, sg = surr.predict(Xg)
             ax.plot(grid, mg, lw=2, label=f"p1={p1:.0e}")
             ax.fill_between(grid, mg - Z_975 * sg, mg + Z_975 * sg, alpha=0.15)
@@ -238,21 +283,29 @@ def run(csv_path=None, seed=0, arch=None):
     arch = arch or ARCH
     (Xtr, ytr, dtr), (Xva, yva, dva), (Xte, yte, dte) = load_splits(csv_path)
     print(f"train n={len(ytr)}  val n={len(yva)}  test n={len(yte)}  "
-          f"features={FEATURES_ALL if USE_DERIVED else FEATURES_ALL[:3]}")
+          f"features={FEATURES_RAW}")
 
-    df = pd.read_csv(csv_path); yy = np.log10(df["d_bar"])
+    # The irreducible floor must be computed on the SAME statistic the model is
+    # trained on, or the reported "x floor" is against the wrong baseline.
+    df = pd.read_csv(csv_path); yy = np.log10(summary_from_cultures(df))
     var_within = float(df.assign(y=yy).groupby("design")["y"].var(ddof=1).mean())
     n_te = df[df["rep"].isin(TEST_REPS)].groupby("design").size().mean()
     print(f"E[within-design variance] = {var_within:.3e}  ->  irreducible floor on the "
           f"{n_te:.0f}-replicate test target = {var_within/n_te:.3e}\n")
 
     model, xs, ys = train_model(Xtr, ytr, Xva, yva, arch=arch, seed=seed)
-    surr = DNNSurrogate3D(model, xs, ys, sd_scale=1.0, use_derived=USE_DERIVED, raw_inputs=False)
+    surr = DNNSurrogate3D(model, xs, ys, sd_scale=1.0, raw_inputs=False)
     sd_scale = calibrate_conformal(surr, Xva, yva)
     surr.sd_scale = sd_scale
     print(f"conformal sd_scale = {sd_scale:.4f}")
 
+    # sd_scale and summary_root live in the checkpoint and in simulator.py, but the
+    # README and manuscript quote both, so mirror them here: the metrics file should
+    # be readable on its own without unpickling a .pt to find out which statistic
+    # and which calibration these numbers belong to.
     metrics = {"var_within": var_within,
+               "summary_root": SUMMARY_ROOT,
+               "sd_scale": float(sd_scale),
                "arch": {k: list(v) if isinstance(v, tuple) else v for k, v in arch.items()}}
     for lbl, (X, y, d) in [("train", (Xtr, ytr, dtr)), ("val", (Xva, yva, dva)),
                            ("test", (Xte, yte, dte))]:
@@ -262,8 +315,9 @@ def run(csv_path=None, seed=0, arch=None):
 
     torch.save({"model_state": model.state_dict(), "x_scaler": xs.state_dict(),
                 "y_scaler": ys.state_dict(), "sd_scale": sd_scale, "arch": arch,
-                "use_derived": USE_DERIVED,
-                "input": "[log10(p1), log10(p2), tau]", "output": "log10(d_bar)",
+                "input": "[log10(p1), log10(p2), tau]",
+                "output": f"log10(mean_i (X_i/Z_i)^(1/{SUMMARY_ROOT}))",
+                "summary_root": SUMMARY_ROOT,
                 "heteroscedastic": True, "source_csv": str(csv_path)},
                MODEL_DIR / "surrogate_3d.pt")
     (MODEL_DIR / "surrogate_metrics.json").write_text(json.dumps(metrics, indent=2))
@@ -277,14 +331,12 @@ def load_surrogate(ckpt_path):
     from surrogates import DNNSurrogate3D
     ckpt = torch.load(ckpt_path, weights_only=False)
     arch = dict(ckpt["arch"])
-    in_dim = 4 if ckpt.get("use_derived", True) else 3
-    model = build(in_dim=in_dim, **arch)
+    model = build(in_dim=3, **arch)
     model.load_state_dict(ckpt["model_state"]); model.eval()
     return DNNSurrogate3D(model,
                           Standardizer().load_state_dict(ckpt["x_scaler"]),
                           Standardizer().load_state_dict(ckpt["y_scaler"]),
                           sd_scale=ckpt["sd_scale"],
-                          use_derived=ckpt.get("use_derived", True),
                           raw_inputs=True)
 
 

@@ -21,8 +21,12 @@ no benefit and risks a spurious drift from the numbers already cited elsewhere.
 
 WHAT IS IDENTICAL TO `run_experiments.py`. The exact config in
 `results/logs/experiment_config.json` is loaded and used verbatim: the 3 truth
-triples, `reps=16`, `nmcmc=3000`, `burnin=1000`, `eps=0.005`, `J=100`,
-`mut_time="parent"`. Each replicate's observed dataset is generated with the
+triples, `reps=16`, `nmcmc=3000`, `burnin=1000`, `eps=0.005`, `J=100`, and the
+mutation-time convention (now `"offspring"` -- see abc/simulator.py). Reading it
+from the config file rather than restating it here is deliberate: this table's
+GPS-ABC and DNN-ABC rows are reused verbatim from `table1_recovery.csv`, so if
+the two scripts could disagree about the convention the table would silently mix
+results from two different models. Each replicate's observed dataset is generated with the
 IDENTICAL per-task seed formula `hash((round(p1,12), round(p2,12), round(tau,3),
 J, rep))` used in `run_experiments.py: _one_replicate` -- so every architecture
 family, GPS-ABC and DNN-ABC(MLP) alike, is scored against the SAME simulated
@@ -82,13 +86,12 @@ def load_family_surrogate(ckpt_path):
     `benchmark_families.py`) instead of `model.build`.
     """
     ckpt = torch.load(ckpt_path, weights_only=False)
-    model = build_family(ckpt["kind"], in_dim=4, **ckpt["spec"])
+    model = build_family(ckpt["kind"], in_dim=3, **ckpt["spec"])
     model.load_state_dict(ckpt["model_state"]); model.eval()
     return DNNSurrogate3D(model,
                           Standardizer().load_state_dict(ckpt["x_scaler"]),
                           Standardizer().load_state_dict(ckpt["y_scaler"]),
                           sd_scale=ckpt["sd_scale"],
-                          use_derived=ckpt.get("use_derived", True),
                           raw_inputs=True)
 
 
@@ -206,7 +209,7 @@ def main():
     lines = ["# 3-D two-stage model: parameter recovery -- new architecture families\n",
              f"Config (identical to `results/logs/experiment_config.json`): "
              f"`{json.dumps(cfg)}`, truths=`{truths}`, J={J}.\n",
-             "GPS-ABC / DNN-ABC(MLP) / MOM / MLE rows are copied verbatim from "
+             "GPS-ABC / DNN-ABC(MLP) rows are copied verbatim from "
              "`results/tables/table1_recovery.csv` (NOT rerun). CNN1D-ABC / RNN-ABC / "
              "LSTM-ABC rows are computed here, through the identical sampler "
              "(`abc_mcmc.run_abc_mcmc`, `backend=\"dnn\"`) with each family's best "

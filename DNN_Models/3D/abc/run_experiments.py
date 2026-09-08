@@ -4,10 +4,11 @@ DESIGN. For each true parameter triple (p1, p2, tau) and each replicate:
   1. simulate an observed fluctuation experiment with the exact two-stage
      simulator (J cultures) and reduce it to obs = mean_i sqrt(X_i / Z_i);
   2. estimate the parameters with each method:
-       MOM / MLE  - constant-rate baselines. They cannot identify (p1, p2, tau)
-                    individually; they are scored against p_eff, the time-average
-                    rate they actually estimate (see estimators.py).
        ABC-MCMC   - exact simulator inside the MCMC loop (the expensive truth).
+
+     The constant-rate MOM/MLE baselines of the 1-D study have no counterpart
+     here: they assume a single mutation rate and cannot identify (p1, p2, tau)
+     individually, so this study compares the surrogate methods only.
        GPS-ABC    - GP surrogate capped at a small space-filling budget.
        DNN-ABC    - this project's heteroscedastic MLP, trained on all rows.
   3. aggregate over replicates.
@@ -44,10 +45,10 @@ import numpy as np
 import pandas as pd
 
 from simulator import fluc_exp_2stage, summary_stat
-from estimators import estimate_mom, estimate_mle, p_eff
 from abc_mcmc import run_abc_mcmc, summarize, ess, DEFAULT_BOX, DEFAULT_STEPS
-from surrogates import fit_gp_surrogate_3d
-from train import load_surrogate, run as train_run, TEST_REPS
+from surrogates import fit_gp_surrogate_3d, fit_gp_surrogate_3d_reference
+from train import (load_surrogate, run as train_run, TEST_REPS,
+                   summary_from_cultures)
 from paths import DATA, RESULTS, TABLE_DIR, MODEL_DIR, LOG_DIR
 
 # Truth triples: a low/high p2 pair crossed with an early/late switch, chosen
@@ -65,12 +66,28 @@ _G = {}
 def _init_worker(ckpt, data_path, cfg):
     import warnings
     warnings.filterwarnings("ignore")
+    # One torch thread per worker. The parallelism here is across replicates
+    # (one process per task), so letting each process also spin up a full
+    # thread pool oversubscribes the machine badly -- on a 32-core node that
+    # would be ~30 processes x 32 threads competing for 32 cores. Matches what
+    # run_experiments_families.py already does.
+    import torch
+    torch.set_num_threads(1)
     dnn = load_surrogate(ckpt)
     df = pd.read_csv(data_path)
     tr = df[~df["rep"].isin(TEST_REPS)]
     X = np.column_stack([np.log10(tr.p1), np.log10(tr.p2), tr.tau])
-    gp = fit_gp_surrogate_3d(X, np.log10(tr.d_bar.to_numpy()), budget=cfg["gp_budget"])
-    _G.update(dnn=dnn, gp=gp, cfg=cfg)
+    # Every surrogate must see the SAME summary statistic the DNN is trained on --
+    # recomputed from the stored per-culture d_i, so switching SUMMARY_ROOT moves
+    # all three backends together and never silently compares different targets.
+    S = summary_from_cultures(tr)
+    gp = fit_gp_surrogate_3d(X, np.log10(S), budget=cfg["gp_budget"])
+    # The faithful reference baseline (../matlab/demoGPS_fluc_exp2.m): raw rates
+    # in, raw statistic out, isotropic kernel. Fit from the same rows and the same
+    # budget as `gp`, so the two differ only in the model, not the data they saw.
+    gp_ref = fit_gp_surrogate_3d_reference(tr.p1, tr.p2, tr.tau, S,
+                                           budget=cfg["gp_budget"])
+    _G.update(dnn=dnn, gp=gp, gp_ref=gp_ref, cfg=cfg)
 
 
 def _one_replicate(task):
@@ -82,14 +99,14 @@ def _one_replicate(task):
     Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True,
                              mut_time=cfg["mut_time"])
     obs = summary_stat(Zv, Xv)
-    truth = dict(p1=p1, p2=p2, tau=tau, p_eff=float(p_eff(p1, p2, tau, TP)))
+    truth = dict(p1=p1, p2=p2, tau=tau)
 
     out = {"p1_true": p1, "p2_true": p2, "tau_true": tau, "J": J, "rep": rep,
-           "obs": obs, "p_eff_true": truth["p_eff"],
-           "MOM": estimate_mom(Zv, Xv), "MLE": estimate_mle(Zv, Xv)}
+           "obs": obs}
 
     sim_kwargs = dict(Z0=Z0, a=A, tp=TP, J=J, use_slow=True, mut_time=cfg["mut_time"])
     backends = [("GPS-ABC", dict(backend="gp", surrogate=_G["gp"])),
+                ("GPS-ABC-ref", dict(backend="gp", surrogate=_G["gp_ref"])),
                 ("DNN-ABC", dict(backend="dnn", surrogate=_G["dnn"]))]
     if cfg["with_sim"]:
         backends.insert(0, ("ABC-MCMC", dict(backend="sim", sim_kwargs=sim_kwargs,
@@ -114,7 +131,7 @@ def _one_replicate(task):
 
 def aggregate(df, cfg):
     """Per-parameter nRMSE, mean CI width and empirical coverage, per method."""
-    methods = (["ABC-MCMC"] if cfg["with_sim"] else []) + ["GPS-ABC", "DNN-ABC"]
+    methods = (["ABC-MCMC"] if cfg["with_sim"] else []) + ["GPS-ABC", "GPS-ABC-ref", "DNN-ABC"]
     rows = []
     for (p1, p2, tau) in cfg["truths"]:
         for J in cfg["J_grid"]:
@@ -143,15 +160,6 @@ def aggregate(df, cfg):
                                  "coverage": float(sub[f"{m}_{k}_cov"].mean()),
                                  "secs": float(sub[f"{m}_secs"].mean()),
                                  "acc": float(sub[f"{m}_acc"].mean())})
-            # constant-rate baselines, scored against what they actually estimate
-            for m in ("MOM", "MLE"):
-                est = sub[m].to_numpy(float); est = est[np.isfinite(est)]
-                tv = float(sub.p_eff_true.iloc[0])
-                rows.append({**base, "method": m, "param": "p_eff",
-                             "rmse_log": float(np.sqrt(np.mean(
-                                 (np.log10(np.maximum(est, 1e-300)) - np.log10(tv)) ** 2))) if len(est) else np.nan,
-                             "nrmse": float(np.sqrt(np.mean((est - tv) ** 2)) / tv) if len(est) else np.nan,
-                             "ci_len": np.nan, "coverage": np.nan, "secs": np.nan, "acc": np.nan})
     return pd.DataFrame(rows)
 
 
@@ -164,7 +172,7 @@ def main():
     ap.add_argument("--eps", type=float, default=0.005)
     ap.add_argument("--gp-budget", type=int, default=GP_BUDGET)
     ap.add_argument("--J-grid", type=int, nargs="+", default=[100])
-    ap.add_argument("--mut-time", default="parent", choices=["parent", "offspring"])
+    ap.add_argument("--mut-time", default="offspring", choices=["parent", "offspring"])
     ap.add_argument("--workers", type=int,
                     default=max(1, (__import__("os").cpu_count() or 2) - 2))
     ap.add_argument("--no-sim", action="store_true",
@@ -209,9 +217,7 @@ def main():
              "magnitude on average) and in absolute time units for tau. **Prefer it to "
              "`nrmse`**: where a parameter is weakly identified the posterior mean sits "
              "wherever the prior puts its mass, and natural-scale nRMSE then explodes "
-             "without conveying anything. MOM/MLE are constant-rate baselines scored "
-             "against `p_eff`, the time-average rate they actually estimate -- they cannot "
-             "identify p1, p2 or tau individually.\n",
+             "without conveying anything.\n",
              "| truth (p1, p2, tau) | J | method | param | rmse_log | nRMSE | mean 95% CI width | coverage |",
              "|---|---|---|---|---|---|---|---|"]
     for _, r in tab.iterrows():

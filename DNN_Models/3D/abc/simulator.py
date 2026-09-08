@@ -2,7 +2,7 @@
 
 This is the model the JTB paper (Lu, Zhu & Wu 2023, Section 3.2 / Study 2)
 actually uses for its multi-parameter study, and the model the professor's
-MATLAB reference `MatlabCode/mut2stage_bMBP.m` implements. The mutation
+MATLAB reference `../matlab/mut2stage_bMBP.m` implements. The mutation
 probability is a step function of time:
 
     p(t) = p1  for 0 < t <= tau
@@ -47,12 +47,26 @@ time `t_div`. Which of the two times indexes the step function p(t)?
 - mut_time="offspring": p is evaluated at `t_div`, the daughter's own future
   division time. This is what the *live* lines 25-26 of mut2stage_bMBP.m do.
 
-We default to "parent" because it is the paper's model, it is what the fast
-simulator implements, and it is required for any delta != 1. "offspring"
-reproduces the professor's uploaded file bit-for-bit and is kept so the two can
-be compared directly -- `tests/validate_simulator.py` quantifies the gap. This
-is question Q7 in ../../updates.md; if the professor confirms "offspring" is
-intended, flip DEFAULT_MUT_TIME below and regenerate.
+We default to "offspring", and that default is now settled by evidence rather
+than argument. The shipped ground truth data/slow_data_3D.csv carries no record
+of how it was generated, so the convention was recovered empirically: simulating
+at the CSV's own design points under both conventions, all 60 of the most
+discriminating points sit closer to "offspring" (mean |error| 0.0054 vs 0.0400
+in log10 units, paired t = +11.3). That agrees with the live lines 25-26 of
+mut2stage_bMBP.m, with the R generator's own default, and with Algorithm 3 of
+the paper, which indexes p(t) by the offspring's accumulated lifetime T.
+`tests/validate_simulator.py` reruns that check and measures the gap: 10.1% in
+d_bar at the most discriminating design points, 2.9-7.4% at the three truths the
+ABC tables use.
+
+This previously defaulted to "parent" while the ground truth was generated under
+"offspring" -- surrogates trained on one model, observations drawn from another.
+Do not change it back without regenerating the data to match.
+
+"parent" is retained because it is the only convention the fast simulator can
+implement and the only one that composes with delta != 1 (with delta != 1 a
+cell's lifetime depends on its mutation status, so that status must be drawn
+before the lifetime, which "offspring" cannot do).
 
 R's rgeom(n, prob) counts failures before the first success (support {0,1,...});
 numpy.random.geometric counts trials until the first success (support {1,2,...}),
@@ -63,11 +77,11 @@ from __future__ import annotations
 
 import numpy as np
 
-DEFAULT_MUT_TIME = "parent"
+DEFAULT_MUT_TIME = "offspring"
 
 
 # ---------------------------------------------------------------------------
-# Exact simulator -- port of MatlabCode/mut2stage_bMBP.m
+# Exact simulator -- port of ../matlab/mut2stage_bMBP.m
 # ---------------------------------------------------------------------------
 def mut2stage_slow(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
                    delta: float = 1.0, mut_time: str = DEFAULT_MUT_TIME):
@@ -243,12 +257,27 @@ def fluc_exp_2stage(Z0, a, p1, p2, tau, tp, J, rng: np.random.Generator,
     return Z_vec, X_vec
 
 
-def summary_stat(Z_vec, X_vec, root: int = 2) -> float:
+# The paper uses DIFFERENT summary statistics for its two studies, and this is the
+# single place that records which one this pipeline is running.
+#
+#   root=2  sqrt(X/Z)      -- the constant-rate (1-D) statistic, chosen in Fig. 1
+#                             of Lu, Zhu & Wu (2023) over p_hat_MOM and
+#                             mean log(Y/Z).
+#   root=4  (X/Z)^(1/4)    -- what the paper switches to for the TWO-STAGE model
+#                             (Sec. 2.2: "For this setup, we use the fourth root
+#                             of X/Z as the summary statistic"), to keep the
+#                             response curve "smooth and non-flat" once the
+#                             mutation rate is piecewise constant. Algorithm 1
+#                             uses the fourth root throughout.
+#
+# This module models the two-stage process, so the paper's choice here is root=4.
+SUMMARY_ROOT = 4
+
+
+def summary_stat(Z_vec, X_vec, root: int = SUMMARY_ROOT) -> float:
     """d_bar = mean_i (X_i / Z_i)^(1/root); extinct cultures (Z_i=0) contribute 0.
 
-    root=2 is the paper's 1-D statistic sqrt(X/Z) and is what the 08/28 meeting
-    notes specify for this study. root=4 is the fourth root the paper switches to
-    for its 4-D case; kept as an option so that comparison is one argument away.
+    See SUMMARY_ROOT above for which root the paper uses where.
     """
     Z_vec = np.asarray(Z_vec, dtype=float)
     X_vec = np.asarray(X_vec, dtype=float)
