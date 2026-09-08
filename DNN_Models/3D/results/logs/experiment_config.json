@@ -25,7 +25,7 @@
       5.0
     ]
   ],
-  "mut_time": "parent",
+  "mut_time": "offspring",
   "with_sim": false,
   "workers": 12
 }
