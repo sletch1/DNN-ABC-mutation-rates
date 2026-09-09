@@ -105,7 +105,47 @@ under.
 (The very last digits in `results/model/surrogate_metrics.json` may differ
 between machines — ordinary floating-point variation, not a problem.)
 
-## 4. What comes out
+## 4. What you'll see while it runs
+
+The pipeline prints four labelled steps. Real output, abbreviated:
+
+```
+--- [0/4] Creating virtual environment and installing packages ---   (first run only)
+Environment ready.
+
+--- [1/4] Training the surrogate (~30 seconds) ---
+train n=10000  val n=6000  test n=4000  features=['log10p1', 'log10p2', 'tau']
+E[within-design variance] = 6.903e-04  ->  irreducible floor on the 2-replicate test target = 3.451e-04
+conformal sd_scale = 1.0185
+[test ] n= 4000  mse_mean=3.628e-04 (1.05x its 2-rep floor)  95%cover=0.955
+
+--- [1b/4] Validating the simulator and the ground truth ---
+  [PASS] tau >= tp -> stage 1 only (p1)  [parent, exact]
+  [PASS] tau <= 0  -> stage 2 only (p2)  [parent, exact]
+  [PASS] tau >> tp -> stage 1 only (p1)  [offspring, in distribution]
+  [PASS] tau <= 0  -> stage 2 only (p2)  [offspring, in distribution]
+  [PASS] convention gap is measurable and of the documented magnitude
+  [PASS] ground truth was generated with mut_time = 'offspring'
+all checks passed
+
+--- [2/4] Running the estimator comparison: parameter recovery ---
+48 tasks on 12 workers (without the exact ABC-MCMC baseline)
+  [40/48] elapsed 3.0m  eta 0.6m
+  [48/48] elapsed 3.0m  eta 0.0m
+
+--- [3/4] Computing Monte Carlo standard errors ---
+--- [4/4] Regenerating figures ---
+Done. Everything written to results/:
+```
+
+**All six validation checks in step 1b should print PASS.** If any prints FAIL,
+stop and send me the output — that step exists to catch exactly the class of
+problem that would otherwise produce quietly wrong tables.
+
+Step 2 prints a running task count with an ETA. The whole thing is a few
+minutes, so there are no long silent stretches here (unlike the 1-D study).
+
+## 5. What comes out
 
 Everything lands in `results/`:
 
@@ -119,7 +159,7 @@ Everything lands in `results/`:
 `results/` is **already populated** with a committed full run, so you can read
 all of the above without running anything.
 
-## 5. What the model does, and what it found
+## 6. What the model does, and what it found
 
 The mutation rate is no longer constant: it jumps from `p1` to `p2` at an
 unknown time `τ`, and all three parameters are estimated **jointly** from one
@@ -148,14 +188,14 @@ the other two favour GPS-ABC and none favours the network. What binds here is
 not surrogate error but the model's own identifiability: `p1` and `τ` are weakly
 determined by a single scalar summary, so a better surrogate cannot help.
 
-## 6. Regenerating the ground-truth data (not needed)
+## 7. Regenerating the ground-truth data (not needed)
 
 `data/slow_data_3D.csv` (2,000 design points × 10 replicates, 35 MB) is
 included. It came from the exact cell-by-cell R simulator and takes hours on a
 compute server; `run_on_server.sh` does it. The R source is in `../../RCode/`
 and the reference MATLAB it was ported from is in `matlab/`.
 
-## 7. Folder map
+## 8. Folder map
 
 ```
 3D/
