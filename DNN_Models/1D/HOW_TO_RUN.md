@@ -11,7 +11,54 @@ download. The ground-truth data is already in `data/`.
 
 ## 2. Run it
 
-Open a terminal, `cd` into this folder, then:
+### Windows (PowerShell) — recommended
+
+Open PowerShell, `cd` into this folder, and run these once to set up:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If PowerShell refuses to run the activate script ("running scripts is disabled"),
+either use `.venv\Scripts\activate.bat` instead, or allow it once with:
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+
+Then run the pipeline:
+
+```powershell
+python network\train.py --seed 0
+python abc\run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
+python abc\mcse.py
+python figures\make_figures.py
+```
+
+**To check it runs first without waiting hours**, use these smaller settings for
+the second command, then read §5 before doing the full version:
+
+```powershell
+python abc\run_experiments.py --reps 2 --nmcmc 120 --burnin 40 --p-grid 1e-2 --J-grid 10 --workers 2
+python abc\mcse.py
+python figures\make_figures.py --quick
+```
+
+### Windows (Git Bash or WSL) — if you prefer the one-command version
+
+`run_all.sh` needs a bash shell. Install
+[Git for Windows](https://git-scm.com/download/win), right-click in this folder →
+"Git Bash Here", then:
+
+```bash
+./run_all.sh --quick     # ~3 minutes — checks everything works
+./run_all.sh             # the real run — several hours (see §5)
+```
+
+If you get `bad interpreter` or `\r: command not found`, Git checked the script
+out with Windows line endings. Fix it with:
+`git config core.autocrlf input` and re-clone, or run `dos2unix run_all.sh`.
+
+### Mac / Linux
 
 ```bash
 ./run_all.sh --quick     # ~3 minutes — checks everything works
@@ -20,10 +67,6 @@ Open a terminal, `cd` into this folder, then:
 ```
 
 If you get a permissions error: `chmod +x run_all.sh`, then retry.
-
-**Windows:** install [Git for Windows](https://git-scm.com/download/win),
-right-click in this folder → "Git Bash Here", and run the same commands. WSL
-works too.
 
 **First run only:** the script creates its own `.venv/` and downloads the
 packages, which adds roughly two minutes. Every run after that reuses it. Both

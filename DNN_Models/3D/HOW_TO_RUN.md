@@ -17,7 +17,49 @@ compares surrogates to each other rather than to the exact sampler
 
 ## 2. Run it
 
-Open a terminal, `cd` into this folder, then:
+### Windows (PowerShell) — recommended
+
+Open PowerShell, `cd` into this folder, and run these once to set up:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If PowerShell refuses to run the activate script ("running scripts is disabled"),
+either use `.venv\Scripts\activate.bat` instead, or allow it once with:
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+
+Then run the whole pipeline — about four minutes:
+
+```powershell
+python network\train.py --seed 0
+python tests\validate_simulator.py --quick
+python abc\run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --no-sim
+python abc\mcse.py
+python figures\make_figures.py
+```
+
+That reproduces the reported results. Add `--with-sim` to the third command to
+include the exact-simulator baseline instead (hours, and not needed).
+
+### Windows (Git Bash or WSL) — if you prefer the one-command version
+
+`run_all.sh` needs a bash shell. Install
+[Git for Windows](https://git-scm.com/download/win), right-click in this folder →
+"Git Bash Here", then:
+
+```bash
+./run_all.sh             # full run, reported settings (~4 minutes)
+./run_all.sh --quick     # ~1.5 minutes, just to check it runs
+```
+
+If you get `bad interpreter` or `\r: command not found`, Git checked the script
+out with Windows line endings. Fix it with:
+`git config core.autocrlf input` and re-clone, or run `dos2unix run_all.sh`.
+
+### Mac / Linux
 
 ```bash
 ./run_all.sh             # full run, reported settings (~4 minutes)
@@ -27,10 +69,6 @@ Open a terminal, `cd` into this folder, then:
 ```
 
 If you get a permissions error: `chmod +x run_all.sh`, then retry.
-
-**Windows:** install [Git for Windows](https://git-scm.com/download/win),
-right-click in this folder → "Git Bash Here", and run the same commands. WSL
-works too.
 
 **First run only:** the script creates its own `.venv/` and downloads the
 packages, which adds roughly two minutes. Every run after that reuses it. Both
