@@ -1,6 +1,14 @@
+# Pins are lower bounds, and deliberately loose: the point is that this runs on
+# whatever a reader already has, not that it reproduces a lockfile.
+#
+# Verified working on two quite different stacks:
+#   macOS 15 / Python 3.9  / torch 2.8.0 / numpy 2.x
+#   RHEL 9  / Python 3.11 / torch 2.7.1 / numpy 1.26.4
+# Both produce identical training metrics, so these numbers are not
+# platform-specific.
 numpy>=1.26
-pandas>=2.3
-scipy>=1.13
-matplotlib>=3.9
-scikit-learn>=1.6
-torch>=2.8
+pandas>=2.0
+scipy>=1.11
+matplotlib>=3.7
+scikit-learn>=1.3
+torch>=2.0
