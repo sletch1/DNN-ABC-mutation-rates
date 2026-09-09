@@ -7,7 +7,7 @@ them until this file existed. Each is checked here:
      model when the whole interval falls in one stage -- tau >= tp leaves every
      division in stage 1 (rate p1), tau <= 0 leaves every division in stage 2
      (rate p2). Checked against the independent constant-rate implementation in
-     DNN_Models/1D/abc/simulator.py, which was ported from the professor's
+     Models/1D/abc/simulator.py, which was ported from the professor's
      mut_bMBP.m rather than from the two-stage code, so agreement is real
      evidence and not a tautology.
 

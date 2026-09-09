@@ -25,7 +25,7 @@ problems**; on small-scale problems, all three architecture families perform
 comparably (i.e., architecture stops mattering once the problem is easy enough
 relative to the networks' capacity — directly analogous to what we found for
 our own 3-D architecture search once every candidate sat within ~15% of the
-irreducible noise floor, see `../DNN_Models/3D/results/logs/benchmark_arch.md`).
+irreducible noise floor, see `../Models/3D/results/logs/benchmark_arch.md`).
 
 ## Relevance to our project
 

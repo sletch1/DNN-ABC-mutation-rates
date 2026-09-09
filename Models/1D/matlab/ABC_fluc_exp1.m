@@ -1,6 +1,6 @@
 function [sample_theta, accp_rate, train_time] = ABC_fluc_exp1(nMCMC, Z_vec, X_vec, theta_ini, s, range, ns, a, t0, J, nsample, sigma0, kparams0, eps, gps)
 % ROLE: the ORIGINAL ABC / GPS-ABC sampler from the professor's code drop, and
-% the reference this project's DNN_Models/1D/abc/abc_mcmc.py is ported from.
+% the reference this project's Models/1D/abc/abc_mcmc.py is ported from.
 % Random-walk Metropolis-Hastings on theta = log10(p) with a truncated-normal
 % proposal; gps=false runs exact ABC-MCMC (re-simulating every iteration),
 % gps=true swaps in the GP surrogate from trainGPS.m.

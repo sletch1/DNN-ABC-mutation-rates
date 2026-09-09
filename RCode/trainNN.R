@@ -3,7 +3,7 @@
 # THE ORIGINAL (R/keras) PROOF-OF-CONCEPT for the neural-network surrogate,
 # 1-D constant-mutation-rate case. Kept for provenance and as the reference the
 # production Python pipeline was ported from -- the version actually used for
-# the paper's results is DNN_Models/1D/network/train.py.
+# the paper's results is Models/1D/network/train.py.
 #
 # THE IDEA. Inferring the mutation rate p normally means running the cell-level
 # simulator thousands of times inside an MCMC loop, which is brutally slow. A

@@ -40,7 +40,7 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
 >    with a dummy third input.
 >
 > The replacement targets the paper's actual model, **`(p1, p2, τ)`**, and is
-> complete: see [`DNN_Models/3D/README.md`](DNN_Models/3D/README.md) and Study II
+> complete: see [`Models/3D/README.md`](Models/3D/README.md) and Study II
 > of `manuscript.pdf`. **Its headline result is negative and is reported as
 > such** — the DNN surrogate does not beat a Gaussian process on this surface,
 > because what binds is the model's identifiability rather than surrogate error.
@@ -97,7 +97,7 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
 
 ## 1. The neural network
 
-![DNN architecture](DNN_Models/1D/results/figures/architecture.svg)
+![DNN architecture](Models/1D/results/figures/architecture.svg)
 
 ### Input / output
 
@@ -271,8 +271,8 @@ dimensions (target #2).
 | calibration | 303 | 0.00534 | 0.0538 | 0.954 |
 | **test** | 202 | **0.00435** | **0.0524** | **0.950** |
 
-![surrogate fit](DNN_Models/1D/results/figures/surrogate_fit.png)
-![test parity](DNN_Models/1D/results/figures/surrogate_parity.png)
+![surrogate fit](Models/1D/results/figures/surrogate_fit.png)
+![test parity](Models/1D/results/figures/surrogate_parity.png)
 
 The calibrated 95% band achieves exactly 0.950 coverage on held-out data; the test
 parity plot is tight across the full 3-order-of-magnitude range.
@@ -291,7 +291,7 @@ parity plot is tight across the full 3-order-of-magnitude range.
 | 1e-2 | 50 | 7.71e-6 (0.28) | 1.17e-5 (0.34) | 4.78e-6 (0.22) | 5.98e-6 (0.24) | **2.27e-6 (0.15)** |
 | 1e-2 | 100 | 4.01e-6 (0.20) | 6.08e-6 (0.25) | 2.62e-6 (0.16) | 6.22e-6 (0.25) | **2.34e-6 (0.15)** |
 
-![Table 1 visualized](DNN_Models/1D/results/figures/fig_table1_mse.png)
+![Table 1 visualized](Models/1D/results/figures/fig_table1_mse.png)
 
 **Reading this against GPS-ABC (the method to beat):** DNN-ABC has **equal or lower
 nRMSE in all nine cells**. The gap is a statistical tie at small `p` (where a 1-D GP
@@ -334,7 +334,7 @@ point accuracy (Table 1) and calibrated coverage (§4.1), it reflects genuinely 
 | 1e-2 | 50 | 47.62 | 0.143 | 0.139 | **343×** |
 | 1e-2 | 100 | 96.00 | 0.135 | 0.135 | **712×** |
 
-![timing](DNN_Models/1D/results/figures/fig_timing.png)
+![timing](Models/1D/results/figures/fig_timing.png)
 
 **The efficiency gap is the headline.** ABC-MCMC's per-iteration cost explodes with
 `p` and `J` (it runs the exact simulator every step); both surrogates are **flat at
@@ -347,7 +347,7 @@ larger training sets and higher dimensions.
 
 ### 4.5 Calibrated, input-dependent uncertainty (DNN vs GP)
 
-![uncertainty](DNN_Models/1D/results/figures/fig_uncertainty.png)
+![uncertainty](Models/1D/results/figures/fig_uncertainty.png)
 
 This is the DNN's clearest methodological edge over GPS-ABC. The empirical
 replicate noise of `log10(d̄)` varies with `p`; the DNN's heteroscedastic head
@@ -358,7 +358,7 @@ to the surrogate's role in the sampler.
 
 ### 4.6 The three ABC posteriors agree
 
-![posterior](DNN_Models/1D/results/figures/fig_posterior.png)
+![posterior](Models/1D/results/figures/fig_posterior.png)
 
 On a single dataset, the posteriors from ABC-MCMC, GPS-ABC and DNN-ABC concentrate
 on the true `p`, confirming the surrogates faithfully reproduce the exact method's
@@ -429,7 +429,7 @@ From `../../dnn_improvement.md`, quantified against this run:
 NN_ABC/
 ├── RCode/          R: the simulators and the ground-truth data generators.
 │                   Start at funMBP.R — every dataset in the repo comes from it.
-├── DNN_Models/     Python: the neural surrogates and the ABC pipelines built
+├── Models/     Python: the neural surrogates and the ABC pipelines built
 │                   on them. Both 1D/ and 3D/ are complete. The professor's
 │                   original MATLAB lives with the study it belongs to:
 │                     1D/matlab/  constant-rate simulator, MOM/MLE, the
@@ -441,8 +441,8 @@ NN_ABC/
 ```
 
 **Reading order for a newcomer:** `RCode/funMBP.R` (what is being simulated and
-why) → `DNN_Models/1D/network/model.py` (what the network is) →
-`DNN_Models/1D/abc/abc_mcmc.py` (how the network replaces the simulator inside
+why) → `Models/1D/network/model.py` (what the network is) →
+`Models/1D/abc/abc_mcmc.py` (how the network replaces the simulator inside
 the sampler). Every file carries a header block explaining its role, so the
 directory tree plus those headers should be enough without reading the code.
 
@@ -452,7 +452,7 @@ Files are grouped so a reader can find the neural network in one place
 (`network/`), separate from the ABC machinery (`abc/`):
 
 ```
-DNN_Models/1D/
+Models/1D/
 ├── paths.py                       # single source of truth for data/results locations
 ├── network/                       # THE DNN — architecture, training, diagram
 │   ├── model.py                   # HeteroscedasticMLP (GELU, two heads) + Gaussian-NLL
@@ -500,12 +500,12 @@ seconds to minutes.
 
 ### 1-D pipeline
 
-The ground-truth data (`DNN_Models/1D/data/slow_data_1D.csv`) is already
+The ground-truth data (`Models/1D/data/slow_data_1D.csv`) is already
 committed, so no simulation needs to be regenerated first. Run everything from
-[`DNN_Models/1D/`](DNN_Models/1D):
+[`Models/1D/`](Models/1D):
 
 ```bash
-cd DNN_Models/1D
+cd Models/1D
 
 # train + conformally calibrate the DNN surrogate (~seconds)
 python network/train.py
@@ -522,7 +522,7 @@ python network/architecture_search/benchmark_arch.py
 ```
 
 All scale knobs are CLI flags, so the same code runs the quick demo and a
-paper-scale study. Outputs land in `DNN_Models/1D/results/` (`tables/`,
+paper-scale study. Outputs land in `Models/1D/results/` (`tables/`,
 `figures/`, `model/`, `logs/`) — the same layout described in §7.
 
 ### 3-D pipeline — two-stage `(p1, p2, τ)`
@@ -533,7 +533,7 @@ removed and are being rewritten against this model.
 
 Ground truth is generated by [`RCode/genSlowData_3D.R`](RCode/genSlowData_3D.R),
 an exact cell-by-cell port of the reference MATLAB in
-[`DNN_Models/3D/matlab/`](DNN_Models/3D/matlab/):
+[`Models/3D/matlab/`](Models/3D/matlab/):
 
 ```bash
 # full dataset: 2000 Latin-hypercube design points x 10 replicates
@@ -573,7 +573,7 @@ below ~1e-5 nearly every culture is mutant-free and `d̄` collapses to zero.
   the full `[−8,−2]` and only queried in-range.
 - This is the **1-D constant-rate** case. The DNN's advantage was expected to be
   strongest in the higher-dimensional regime; Study II tested that and **did not
-  find it** — see the notice at the top and `DNN_Models/3D/README.md`.
+  find it** — see the notice at the top and `Models/3D/README.md`.
 - 40 replicates (vs the paper's 100) — MSE cells carry modest Monte-Carlo noise;
   turn `--reps` up for publication-grade error bars.
 
@@ -589,7 +589,7 @@ below ~1e-5 nearly every culture is mutant-free and `d̄` collapses to zero.
 > [`updates.md`](updates.md).
 >
 > The study that replaces it is the two-stage `(p1, p2, τ)` work in
-> [`DNN_Models/3D/`](DNN_Models/3D/README.md).
+> [`Models/3D/`](Models/3D/README.md).
 
 The 1-D pipeline above was the template for a three-parameter surrogate over
 mutation probability `p`, division rate `a`, and mutant relative growth `δ`.

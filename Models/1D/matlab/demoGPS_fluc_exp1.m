@@ -4,7 +4,7 @@
 % matches exactly: 101 grid points of log10(p) on [-8, -2], 10 replicates per
 % point, J = 30 here (the repo's slow_data_1D.csv uses J = 100, as in Fig. 1).
 %
-% Reference for DNN_Models/1D -- the design our surrogate is trained on.
+% Reference for Models/1D -- the design our surrogate is trained on.
 % For Figure 2, demonstrate GP regression for multiple samples of parallel cultured data with constant mutation
 addpath('C:/Users/Xiaowei/Documents/Work/MutationProject/MyCode');
 a = 1;

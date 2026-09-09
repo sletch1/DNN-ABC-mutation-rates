@@ -1,8 +1,8 @@
 % ROLE: THE 3-D / TWO-STAGE REFERENCE. This is the professor's Study 2 setup --
 % the GP surrogate for the two-stage model with parameters (mu1, mu2, jmpt),
-% and therefore the file DNN_Models/3D is benchmarked against.
+% and therefore the file Models/3D is benchmarked against.
 %
-% Read it before changing anything in DNN_Models/3D/abc/surrogates.py. Its
+% Read it before changing anything in Models/3D/abc/surrogates.py. Its
 % GPS-ABC baseline differs from ours in several load-bearing ways:
 %   - the GP is fit on RAW (mu1, mu2, jmpt), not log10 of the rates;
 %   - it predicts RAW S = mean(sqrt(X/Z)), not log10(d_bar);
@@ -14,7 +14,7 @@
 %
 % Note also that fluc_exp2(a, mu1, mu2, jmpt, chkt, J), called on line ~22, did
 % not ship in any of the professor's code drops; it is the J-culture wrapper
-% around mut2stage_bMBP.m (DNN_Models/3D/matlab/).
+% around mut2stage_bMBP.m (Models/3D/matlab/).
 addpath('C:/Users/Xiaowei/Documents/Work/MutationProject/MyCode');
 a = 1;
 log10p1_vec = (-7 : 0.5 : -2)';

@@ -6,7 +6,7 @@
 #            p2  for tau < t <= tp
 #
 # Exact cell-by-cell simulation, a direct R port of the professor's MATLAB
-# reference DNN_Models/3D/matlab/mut2stage_bMBP.m (see mut2stage_bMBP_slow in
+# reference Models/3D/matlab/mut2stage_bMBP.m (see mut2stage_bMBP_slow in
 # funMBP.R). This REPLACES the previous 3-D design, which varied (p, a, delta)
 # under a constant mutation rate -- the wrong model, and one whose `a` axis was
 # analytically non-identifiable. See ../updates.md.
@@ -27,9 +27,9 @@
 #   so p below ~1e-5 makes almost every culture mutant-free and d_bar collapses
 #   to 0. This range keeps every design point informative.
 #
-# Output: DNN_Models/3D/data/slow_data_3D.csv
+# Output: Models/3D/data/slow_data_3D.csv
 # Row format: Z0,a,delta,p1,p2,tau,tp,J,design,rep,d_bar,d_1,...,d_J
-#   matching DNN_Models/1D/data/slow_data_1D.csv, with the single `p` column
+#   matching Models/1D/data/slow_data_1D.csv, with the single `p` column
 #   replaced by (p1, p2, tau) and a `design` index identifying the LHS point.
 #   `delta` is carried as a constant 1 purely for format parity with the 1-D
 #   file -- the two-stage model has no differential mutant growth rate.
@@ -123,7 +123,7 @@ cat(sprintf("LHS: %d design points (running %d) x %d reps = %d rows; log10(p) in
             ndesign, limit, nrep, limit * nrep, logp_lo, logp_hi, tau_lo, tau_hi))
 cat(sprintf("Using %d cores (of %d detected)\n", n_cores, detectCores()))
 
-outdir <- file.path(script_dir, "..", "DNN_Models", "3D", "data")
+outdir <- file.path(script_dir, "..", "Models", "3D", "data")
 if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
 outfile <- file.path(outdir, outname)
 

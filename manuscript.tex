@@ -510,11 +510,11 @@ GP's flat, homoscedastic one.
 \begin{figure}[H]
 \centering
 \begin{subfigure}{0.48\textwidth}
-\includegraphics[width=\linewidth]{DNN_Models/1D/results/figures/surrogate_fit.png}
+\includegraphics[width=\linewidth]{Models/1D/results/figures/surrogate_fit.png}
 \caption{Calibrated 95\% predictive band}
 \end{subfigure}\hfill
 \begin{subfigure}{0.48\textwidth}
-\includegraphics[width=\linewidth]{DNN_Models/1D/results/figures/fig_uncertainty.png}
+\includegraphics[width=\linewidth]{Models/1D/results/figures/fig_uncertainty.png}
 \caption{Input-dependent uncertainty vs.\ the GP}
 \end{subfigure}
 \caption{One-dimensional surrogate calibration. Left: the calibrated 95\%
@@ -648,7 +648,7 @@ reproduce the exact method's inference and not merely its point estimate.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.7\textwidth]{DNN_Models/1D/results/figures/fig_posterior.png}
+\includegraphics[width=0.7\textwidth]{Models/1D/results/figures/fig_posterior.png}
 \caption{Study I: ABC-MCMC, GPS-ABC, and DNN-ABC posteriors for $\theta$ on a
 single representative data set.}
 \label{fig:posterior1D}
@@ -1183,7 +1183,7 @@ hidden state), with the same two-headed Gaussian-NLL objective, split-conformal
 calibration, and train/validation/test split as the deployed MLP
 (Section~\ref{sec:sim3D_fit}), and comparable parameter counts (2,402--3,426).
 Full architectural detail and code are in the repository
-(\texttt{DNN\_Models/3D/network/model\_families.py}). Each is evaluated exactly
+(\texttt{Models/3D/network/model\_families.py}). Each is evaluated exactly
 as GPS-ABC and DNN-ABC were: a surrogate-fit comparison against the
 irreducible noise floor of Section~\ref{sec:arch3D}, and the identical full
 ABC-MCMC recovery task of Section~\ref{sec:sim3D_abc} (same three truth

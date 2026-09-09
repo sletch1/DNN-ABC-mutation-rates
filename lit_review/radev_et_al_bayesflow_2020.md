@@ -51,5 +51,5 @@ feedforward network is. This is the direct citation for treating our
 CNN/RNN/LSTM comparison (in the 3-D study) as a deliberately structure-mismatched
 control rather than a genuine candidate for improvement, and for not building
 them at all in the 1-D study, where the input is a single scalar and the
-mismatch becomes outright degeneracy (see `../DNN_Models/3D/results/arch_families/`
+mismatch becomes outright degeneracy (see `../Models/3D/results/arch_families/`
 for the empirical result once the comparison finishes running).

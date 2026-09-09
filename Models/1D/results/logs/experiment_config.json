@@ -4,8 +4,8 @@
   "burnin": 250,
   "ns": 6,
   "eps": 0.005,
-  "timing_iters": 50,
-  "workers": 24,
+  "timing_iters": 60,
+  "workers": 12,
   "p_grid": [
     0.0001,
     0.001,

@@ -128,7 +128,7 @@ conformalCI <- function(data.val, data.new, alpha) {
 # Two-stage (piecewise-constant) mutation rate -- the 3-D model (p1, p2, tau)
 # ---------------------------------------------------------------------------
 # Direct R port of the professor's MATLAB reference,
-# DNN_Models/3D/matlab/mut2stage_bMBP.m. The mutation probability is a step
+# Models/3D/matlab/mut2stage_bMBP.m. The mutation probability is a step
 # function of time,
 #
 #     p(t) = p1  for 0 < t <= tau

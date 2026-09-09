@@ -4,13 +4,13 @@ Every module resolves data/results locations from here, so the layout can move
 without hunting down hard-coded relative paths. Import via the small sys.path
 shim at the top of each runnable script (see scripts in network/, abc/, figures/).
 
-Mirrors DNN_Models/1D/paths.py; the dataset is kept self-contained inside this
+Mirrors Models/1D/paths.py; the dataset is kept self-contained inside this
 package at 3D/data/slow_data_3D.csv.
 """
 
 from pathlib import Path
 
-PKG_ROOT = Path(__file__).resolve().parent                 # .../DNN_Models/3D
+PKG_ROOT = Path(__file__).resolve().parent                 # .../Models/3D
 DATA = PKG_ROOT / "data" / "slow_data_3D.csv"              # two-stage ground truth
 
 RESULTS = PKG_ROOT / "results"

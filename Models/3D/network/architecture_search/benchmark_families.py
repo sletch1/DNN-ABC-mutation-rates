@@ -64,7 +64,7 @@ import sys
 import time
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[2]          # .../DNN_Models/3D
+_ROOT = Path(__file__).resolve().parents[2]          # .../Models/3D
 for _d in (_ROOT, _ROOT / "network", _ROOT / "network" / "architecture_search",
            _ROOT / "abc"):
     if str(_d) not in sys.path:

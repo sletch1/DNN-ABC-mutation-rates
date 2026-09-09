@@ -3,7 +3,7 @@ function [gprMd, theta_rep_vec, S_vec] = trainGPS_rev(Z0, a, p_vec, tp, J, nsamp
 % mapping theta = log10(p) to the summary statistic mean(sqrt(X/Z)) on a grid
 % of p_vec, so ABC_fluc_exp1_rev.m can call predict(gprMd, theta) instead of
 % re-running the simulator inside the MCMC loop. This is the surrogate the
-% neural network in DNN_Models/ is benchmarked against.
+% neural network in Models/ is benchmarked against.
 %
 % RECONSTRUCTED, not original: ABC_fluc_exp1_rev.m calls trainGPS_rev(Z0, a,
 % p_vec, tp, J, nsample, sigma0, kparams0), but no file by that name shipped

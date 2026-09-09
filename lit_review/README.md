@@ -2,7 +2,7 @@
 
 Pulled while deciding whether CNN/RNN/LSTM surrogates are worth building alongside
 the existing FFN for the 1-D and 3-D studies (see `../manuscript.tex`,
-`../DNN_Models/*/network/model.py`). Six papers, one file each below. All
+`../Models/*/network/model.py`). Six papers, one file each below. All
 bibliographic details (authors, venue, volume/issue/pages, DOI) were pulled
 directly from the publisher/arXiv page, not from memory.
 
@@ -19,7 +19,7 @@ components. This is the direct justification for why CNN/RNN/LSTM are expected t
 be structurally mismatched here rather than just "worth a try" — and why we build
 them anyway for the 3-D study (long enough to be non-degenerate) but not the 1-D
 study (a length-1 input makes Conv1d/RNN/LSTM degenerate to a plain `Linear`
-layer — see `../DNN_Models/3D/results/arch_families/` once populated).
+layer — see `../Models/3D/results/arch_families/` once populated).
 
 ## Papers
 
@@ -35,7 +35,7 @@ layer — see `../DNN_Models/3D/results/arch_families/` once populated).
 ## How these get used
 
 - `manuscript.tex`: cited in a new discussion subsection comparing FFN/CNN/RNN/LSTM
-  for the 3-D surrogate (added once `DNN_Models/3D/results/arch_families/` results
+  for the 3-D surrogate (added once `Models/3D/results/arch_families/` results
   land from the background build).
 - Not cited for the 1-D study, since CNN/RNN/LSTM were not built there (see
   reasoning above and in `manuscript.tex`'s discussion section once added).

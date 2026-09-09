@@ -187,7 +187,7 @@ Two things not to over-read from the table:
 # ground truth (from the repo root; ~24 min on 30 cores)
 Rscript RCode/genSlowData_3D.R
 
-cd DNN_Models/3D
+cd Models/3D
 python tests/validate_simulator.py                       # sanity + data provenance
 python network/architecture_search/benchmark_arch.py     # round 1
 python network/architecture_search/benchmark_round2.py   # round 2 (capacity floor)
