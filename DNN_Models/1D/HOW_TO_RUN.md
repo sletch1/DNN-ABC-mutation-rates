@@ -15,6 +15,7 @@ Open a terminal, `cd` into this folder, then:
 
 ```bash
 ./run_all.sh --quick     # ~3 minutes — checks everything works
+                         # (~5 the very first time: see note below)
 ./run_all.sh             # the real run — several hours (see §5)
 ```
 
@@ -24,8 +25,9 @@ If you get a permissions error: `chmod +x run_all.sh`, then retry.
 right-click in this folder → "Git Bash Here", and run the same commands. WSL
 works too.
 
-The script creates its own `.venv/` and installs packages on first run (a few
-minutes of download, once).
+**First run only:** the script creates its own `.venv/` and downloads the
+packages, which adds roughly two minutes. Every run after that reuses it. Both
+cold-start paths were tested end to end and complete cleanly.
 
 ## 3. Check it worked
 
