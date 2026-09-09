@@ -1,5 +1,7 @@
 {
   "var_within": 0.0006902656376663402,
+  "summary_root": 4,
+  "sd_scale": 1.018483576223626,
   "arch": {
     "kind": "mlp",
     "hidden": [

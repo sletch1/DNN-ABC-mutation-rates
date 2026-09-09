@@ -1,118 +1,41 @@
 # How to run the 1-D model
 
-This folder reproduces the 1-D (constant mutation-rate) study end to end.
-One script does everything.
+Constant mutation rate — the paper's Study 1.
 
-## What it does, briefly
+---
 
-A neural network is fit to predict the mean **and the variance** of the
-summary statistic `d̄` as a function of `log10(p)`, the log mutation
-probability — a heteroscedastic nonlinear regression, trained by maximum
-likelihood and then conformally calibrated so its predictive intervals have
-valid coverage. That fitted model is substituted for the expensive exact
-simulator inside an ABC-MCMC (Metropolis–Hastings) sampler, exactly the way
-the paper's Gaussian-process surrogate is used. The pipeline then compares
-five estimators — MOM, MLE, exact ABC-MCMC, GPS-ABC (the paper's GP) and
-DNN-ABC (this network) — on estimation accuracy, credible-interval width,
-coverage, and compute time, over a grid of true mutation rates `p` and
-culture counts `J`.
+## 1. What you need
 
-## Before you start
+Python 3.9 or newer. Nothing else: no GPU, no compiler, no server, no data to
+download. The ground-truth data is already in `data/`.
 
-You need **Python 3.9 or newer** and nothing else — no GPU, no compiler, no
-server access. The ground-truth data is already in `data/`, so there is nothing
-to download or generate.
+## 2. Run it
 
-Budget **several hours** for a full run. That is expected and is explained
-below; `./run_all.sh --quick` finishes in 1–2 minutes if you just want to
-confirm the pipeline works. If you only want to read the results, skip to
-"Don't want to run anything?" below — `results/` is already populated.
-
-The script runs four steps in order:
-
-| Step | What happens | Time |
-|---|---|---|
-| 1 | Train + conformally calibrate the surrogate | ~30 seconds |
-| 2 | Run all five estimators on many simulated data sets → Tables 1–3 | **hours** |
-| 3 | Monte Carlo standard errors — which differences are real vs. noise | seconds |
-| 4 | Regenerate all figures | seconds |
-
-**Step 2 is genuinely slow, and that is the point.** It includes the exact
-ABC-MCMC baseline, which re-simulates the branching process cell by cell at
-every MCMC iteration — roughly 340 seconds per 100 iterations at `p=1e-4,
-J=100`, versus 0.135 seconds for either surrogate. That ~2500× gap is the
-paper's headline result, so reproducing it means actually paying that cost
-once. Use `--quick` first if you just want to confirm the pipeline runs.
-
-## Running it — Mac / Linux
-
-Open Terminal, `cd` into this folder, then:
+Open a terminal, `cd` into this folder, then:
 
 ```bash
-./run_all.sh            # full run, paper settings
-./run_all.sh --quick    # 1-2 minute smoke test first, if you prefer
+./run_all.sh --quick     # ~3 minutes — checks everything works
+./run_all.sh             # the real run — several hours (see §5)
 ```
 
-If you get a permissions error, run `chmod +x run_all.sh` once, then retry.
+If you get a permissions error: `chmod +x run_all.sh`, then retry.
 
-## Running it — Windows
+**Windows:** install [Git for Windows](https://git-scm.com/download/win),
+right-click in this folder → "Git Bash Here", and run the same commands. WSL
+works too.
 
-The script needs a bash shell. Windows ships one with Git for Windows:
+The script creates its own `.venv/` and installs packages on first run (a few
+minutes of download, once).
 
-1. Install [Git for Windows](https://git-scm.com/download/win) if you don't
-   have it (this also installs "Git Bash").
-2. Right-click inside this folder → **"Git Bash Here"**.
-3. Run the same command:
+## 3. Check it worked
 
-```bash
-./run_all.sh            # or: ./run_all.sh --quick
-```
-
-WSL (Windows Subsystem for Linux) works identically if you already use it.
-
-**If you'd rather not use bash at all**, the four steps are just Python
-commands — run these from PowerShell inside this folder:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python network\train.py
-python abc\run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
-python abc\mcse.py
-python figures\make_figures.py
-```
-
-Requires Python 3.9 or newer. No GPU needed — everything runs on CPU.
-
-## What to expect
-
-**On the first run**, the script creates a `.venv/` folder and installs
-packages (numpy, pandas, scipy, matplotlib, scikit-learn, torch) — a few
-minutes of download the first time only. Subsequent runs skip this.
-
-**While running**, you'll see labelled progress: `[0/4]` through `[4/4]`,
-training output showing early-stopping and the conformal calibration factor,
-then a progress counter with an ETA during the long comparison step
-(`[120/360] done  elapsed 4.2m  eta 8.4m`), then timing results per cell.
-
-**Runtime**: `--quick` takes 1–2 minutes. The full run takes **several hours**
-— it is dominated by the exact-simulator baseline at the small-`p`, large-`J`
-cells (see the note above), and replicates already run in parallel across all
-your CPU cores. Nothing is wrong if step 2 sits at a low task count for a long
-while; the slowest single cell alone is tens of minutes of genuine simulation.
-
-**Check your environment with this.** Training is deterministic at `--seed 0`
-and reproduces the committed run to the precision shown below (the last digits
-of `surrogate_metrics.json` can differ, which is ordinary floating-point
-variation across BLAS builds and nothing to worry about). Run just step 1
-(about 30 seconds):
+Training is deterministic. Run just the training step:
 
 ```bash
 python network/train.py --seed 0
 ```
 
-and confirm the last three lines read
+You should see:
 
 ```
 conformal sd_scale = 1.0500
@@ -120,47 +43,75 @@ conformal sd_scale = 1.0500
 [test] n= 202  MSE(log)=0.00435  MAE(log)=0.05238  MSE(d_bar)=4.952e-05  95%cover=0.950
 ```
 
-If those match, your environment is sound and the rest will reproduce. If they
-do not, stop there rather than starting the multi-hour step 2.
+If those match, your environment is fine. (The very last digits in
+`results/model/surrogate_metrics.json` may differ — ordinary floating-point
+variation between machines, not a problem.)
 
-**When it finishes**, everything lands in `results/`:
+**Do this before starting the full run**, so you don't wait hours to find out
+something was wrong.
 
-- `results/tables/TABLES.md` — Tables 1, 2 and 3, formatted for reading
-- `results/tables/mcse.md` — Monte Carlo standard errors, i.e. which
-  table differences are statistically resolved and which are ties
-- `results/figures/*.png` — all result figures
-- `results/model/` — the trained surrogate and its fit metrics
+## 4. What comes out
 
-`--quick` produces the same files with far fewer replicates, so the numbers
-will be noisier than the reported ones — use it to confirm the pipeline runs,
-not to read results off.
+Everything lands in `results/`:
 
-## Don't want to run anything?
+| File | What it is |
+|---|---|
+| `results/tables/TABLES.md` | Tables 1–3, formatted for reading |
+| `results/tables/mcse.md` | Monte Carlo standard errors — which differences are real and which are noise |
+| `results/figures/*.png` | all figures |
+| `results/model/` | the trained surrogate and its fit metrics |
 
-`results/` is already populated with the committed outputs of a full run, so
-`results/tables/TABLES.md`, `results/tables/mcse.md` and the figures can be
-read directly with no Python environment at all.
+`results/` is **already populated** with a committed full run, so you can read
+all of the above without running anything.
 
-## Folder map
+## 5. Why the full run takes hours
+
+The pipeline compares five estimators — MOM, MLE, exact ABC-MCMC, GPS-ABC (the
+paper's Gaussian process) and DNN-ABC (this network). The exact ABC-MCMC
+baseline re-simulates the branching process cell by cell at every MCMC
+iteration: roughly **340 seconds per 100 iterations** at `p=1e-4, J=100`,
+against **0.135 seconds** for either surrogate.
+
+That ~2500× gap *is* the headline result, so reproducing it means paying the
+cost once. Replicates already run in parallel across all your cores. If step 2
+sits at a low task count for a long time, nothing is wrong — a single slow cell
+is tens of minutes of genuine simulation.
+
+`--quick` shrinks the expensive parts (2 replicates, one cheap `p`/`J` cell, a
+short posterior chain), so it confirms the pipeline runs but its numbers are
+noisy. Do not read results off a `--quick` run.
+
+## 6. What the model does
+
+A neural network is fit to predict the mean **and the variance** of the summary
+statistic `d̄ = meanᵢ √(Xᵢ/Zᵢ)` as a function of `log10(p)` — a heteroscedastic
+regression, trained by maximum likelihood, then conformally calibrated so its
+predictive intervals have valid coverage. That fitted model replaces the
+expensive simulator inside an ABC-MCMC sampler, exactly where the paper puts its
+Gaussian-process surrogate.
+
+## 7. Folder map
 
 ```
 1D/
-├── run_all.sh       runs everything (this is the entry point)
+├── run_all.sh       the entry point
 ├── HOW_TO_RUN.md    this file
 ├── requirements.txt Python packages
-├── data/            ground-truth data from the exact simulator (included)
-├── network/         the neural network: architecture + training
-├── abc/             the simulator, the classical estimators, and the ABC-MCMC sampler
-├── matlab/          the professor's original MATLAB for the constant-rate model,
-│                    byte-identical: the simulator (mut_bMBP_rev.m, fluc_exp1*.m),
-│                    the MOM/MLE baselines (MOMMLE_fluc_exp1.m), the ABC / GPS-ABC
-│                    sampler (ABC_fluc_exp1*.m, trainGPS*.m) and the paper's Fig. 1
-│                    summary-statistic selection (selsummary_fluc_exp1.m).
-│                    Everything in abc/ and network/ is a port of these.
-│                    (Two-stage MATLAB lives in ../3D/matlab/.)
+├── data/            ground-truth data (included)
+├── network/         the network: model.py (architecture), train.py (fitting)
+├── abc/             simulator, MOM/MLE estimators, surrogates, ABC-MCMC sampler
+├── matlab/          your original MATLAB, byte-identical — everything in abc/
+│                    and network/ is a port of these
 ├── figures/         figure generation
 └── results/         all outputs (already populated)
 ```
 
-Each file opens with a comment block explaining what it does and which part
-of the method it implements.
+Every file opens with a comment block explaining what it does and which part of
+the method it implements.
+
+**On the imports at the top of `network/train.py`:** `model`, `surrogates` and
+`paths` are files in this folder — `network/model.py`, `abc/surrogates.py` and
+`paths.py`. `train.py` adds its sibling folders to `sys.path` itself, so
+`python network/train.py` works from any directory as long as you have the whole
+`1D/` folder. They are not installable packages; there is nothing to `pip
+install` for them.

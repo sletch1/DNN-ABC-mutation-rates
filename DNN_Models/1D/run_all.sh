@@ -22,6 +22,9 @@ if [ "${1:-}" = "--quick" ]; then QUICK=1; fi
 if [ "$QUICK" = "1" ]; then
     REPS=2; NMCMC=120; BURNIN=40
     P_GRID="1e-2"; J_GRID="10"
+    # The posterior figure runs the exact simulator and ignores every setting
+    # above, so it needs shrinking separately or --quick is not quick.
+    FIG_FLAG="--quick"
     # Few workers on purpose: each one fits its own GP baseline at startup
     # (cubic in design size), which with only 2 tasks would otherwise dominate.
     WORKERS="--workers 2"
@@ -29,6 +32,7 @@ if [ "$QUICK" = "1" ]; then
 else
     REPS=40; NMCMC=600; BURNIN=250
     P_GRID="1e-4 1e-3 1e-2"; J_GRID="10 50 100"
+    FIG_FLAG=""
     WORKERS=""          # default: all cores but two
     echo "=== FULL RUN: $REPS replicates, paper settings (expect several hours) ==="
 fi
@@ -86,7 +90,7 @@ echo "--- [3/4] Computing Monte Carlo standard errors ---"
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- [4/4] Regenerating figures ---"
-"$VENV_PY" figures/make_figures.py
+"$VENV_PY" figures/make_figures.py $FIG_FLAG
 "$VENV_PY" network/gen_architecture_svg.py
 
 echo ""

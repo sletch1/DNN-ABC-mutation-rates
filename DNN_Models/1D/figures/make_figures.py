@@ -35,6 +35,8 @@ for _d in (_ROOT, _ROOT / "network", _ROOT / "network" / "architecture_search",
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import argparse
+
 import numpy as np
 import pandas as pd
 
@@ -170,11 +172,28 @@ def fig_timing():
 
 
 def main():
+    # --quick exists because fig_posterior runs the EXACT simulator inside its
+    # ABC-MCMC chain (backend="sim", ns=10) at J=100 for 1500 iterations. That is
+    # by far the most expensive thing in this script -- on a laptop it dominates
+    # the whole pipeline -- and without this flag a "quick" smoke test of
+    # run_all.sh still paid for it in full, taking ~12 minutes instead of ~3.
+    # The shrunk chain is for checking the pipeline runs, not for reading results.
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--quick", action="store_true",
+                    help="shrink the posterior figure's exact-simulator chain "
+                         "(pipeline check only, not publication figures)")
+    args = ap.parse_args()
+
     dnn, gp, df = _load()
     print("fig_uncertainty..."); fig_uncertainty(dnn, gp, df)
     print("fig_table1_mse..."); fig_table1(df)
     print("fig_timing..."); fig_timing()
-    print("fig_posterior (runs a few short chains)..."); fig_posterior(dnn, gp)
+    if args.quick:
+        print("fig_posterior (QUICK: short chain, J=10 -- not a paper figure)...")
+        fig_posterior(dnn, gp, J=10, n_mcmc=200, burn=60)
+    else:
+        print("fig_posterior (runs a few short chains)...")
+        fig_posterior(dnn, gp)
     print("figures written to", FIG_DIR)
 
 
