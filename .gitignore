@@ -18,3 +18,8 @@ MutationRates_ABC_paper.pdf
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+# distribution archives built by hand for sharing (see DNN_ABC.zip) -- these are
+# derived artifacts, rebuilt from the tree whenever needed, and large enough to
+# bloat the repo pointlessly
+*.zip
