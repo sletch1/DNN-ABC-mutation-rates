@@ -72,6 +72,13 @@ echo "--- [1/4] Training the surrogate (~30 seconds) ---"
 # Step 2: the estimator comparison
 # ---------------------------------------------------------------------------
 echo ""
+# Sanity checks before the comparison: that the two-stage simulator reduces to
+# the constant-rate one in both limits, and that the ground truth's mutation-time
+# convention is the one the pipeline assumes. Cheap, and it fails loudly rather
+# than producing quietly wrong tables.
+echo "--- [1b/4] Validating the simulator and the ground truth ---"
+"$VENV_PY" tests/validate_simulator.py --quick
+
 echo "--- [2/4] Running the estimator comparison: parameter recovery ---"
 "$VENV_PY" abc/run_experiments.py \
     --reps "$REPS" --nmcmc "$NMCMC" --burnin "$BURNIN" --ns 4 \

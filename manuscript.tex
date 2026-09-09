@@ -1037,8 +1037,9 @@ ABC-MCMC, GPS-ABC and DNN-ABC share the sampler and differ only in how the
 summary statistic and its uncertainty are obtained at each proposal, exactly as
 in Study I. The constant-rate MOM and MLE estimators of Study I have no
 counterpart here: they assume a single mutation rate and cannot identify
-$p_1$, $p_2$ or $\tau$ individually, so Study II compares the two surrogates
-against each other.
+$p_1$, $p_2$ or $\tau$ individually, so Study II compares the surrogates
+against each other: the neural one, and two Gaussian processes (ours and a
+faithful reproduction of the reference implementation).
 
 \paragraph{Two Gaussian-process baselines, and why both are reported.} Our GP
 baseline is stronger than the one \citeauthor{lu2023} actually use, and reporting
@@ -1180,7 +1181,7 @@ assume it.
 (each unrolling the three inputs as three timesteps, reading out the final
 hidden state), with the same two-headed Gaussian-NLL objective, split-conformal
 calibration, and train/validation/test split as the deployed MLP
-(Section~\ref{sec:sim3D_fit}), and comparable parameter counts (2,466--3,426).
+(Section~\ref{sec:sim3D_fit}), and comparable parameter counts (2,402--3,426).
 Full architectural detail and code are in the repository
 (\texttt{DNN\_Models/3D/network/model\_families.py}). Each is evaluated exactly
 as GPS-ABC and DNN-ABC were: a surrogate-fit comparison against the
@@ -1490,8 +1491,9 @@ prediction and substituted directly for the Gaussian process inside
 \citeauthor{lu2023}'s ABC-MCMC sampler, matches or improves on GPS-ABC in a
 direct one-dimensional reproduction of their benchmark. Extending the same
 construction to the two-stage model $(p_1,p_2,\tau)$, however, does \emph{not}
-reproduce that advantage: there the two surrogates are statistically tied, and
-we report the result rather than tune it away. The explanation we offer is a
+reproduce that advantage: there the neural and Gaussian-process surrogates are
+statistically tied in seven of nine comparisons with the other two favouring the
+Gaussian process, and we report the result rather than tune it away. The explanation we offer is a
 general one and is the more useful contribution of Study II. A surrogate can
 only improve an inference where surrogate error is what limits it; once the
 emulator sits at the data's irreducible noise floor -- as every network we

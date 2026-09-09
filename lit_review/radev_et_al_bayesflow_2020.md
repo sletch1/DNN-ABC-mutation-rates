@@ -38,7 +38,7 @@ holds.
 
 ## Relevance to our project
 
-Our surrogate's input, `(log10 p1, log10 p2, tau, [log10 p_eff])`, is neither
+Our surrogate's input, `(log10 p1, log10 p2, tau)`, is neither
 of Radev et al.'s two named cases: it is not a time series (there's no
 temporal ordering to `p1` vs. `p2` vs. `tau`; swapping their order in an
 input vector changes nothing about the physical model, but *would* change an

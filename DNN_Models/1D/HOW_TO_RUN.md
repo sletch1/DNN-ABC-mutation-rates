@@ -17,6 +17,17 @@ DNN-ABC (this network) — on estimation accuracy, credible-interval width,
 coverage, and compute time, over a grid of true mutation rates `p` and
 culture counts `J`.
 
+## Before you start
+
+You need **Python 3.9 or newer** and nothing else — no GPU, no compiler, no
+server access. The ground-truth data is already in `data/`, so there is nothing
+to download or generate.
+
+Budget **several hours** for a full run. That is expected and is explained
+below; `./run_all.sh --quick` finishes in 1–2 minutes if you just want to
+confirm the pipeline works. If you only want to read the results, skip to
+"Don't want to run anything?" below — `results/` is already populated.
+
 The script runs four steps in order:
 
 | Step | What happens | Time |
@@ -90,6 +101,27 @@ then a progress counter with an ETA during the long comparison step
 cells (see the note above), and replicates already run in parallel across all
 your CPU cores. Nothing is wrong if step 2 sits at a low task count for a long
 while; the slowest single cell alone is tens of minutes of genuine simulation.
+
+**Check your environment with this.** Training is deterministic at `--seed 0`
+and reproduces the committed run to the precision shown below (the last digits
+of `surrogate_metrics.json` can differ, which is ordinary floating-point
+variation across BLAS builds and nothing to worry about). Run just step 1
+(about 30 seconds):
+
+```bash
+python network/train.py --seed 0
+```
+
+and confirm the last three lines read
+
+```
+conformal sd_scale = 1.0500
+[train] n= 505  MSE(log)=0.00425  MAE(log)=0.05176  MSE(d_bar)=2.713e-05  95%cover=0.958
+[test] n= 202  MSE(log)=0.00435  MAE(log)=0.05238  MSE(d_bar)=4.952e-05  95%cover=0.950
+```
+
+If those match, your environment is sound and the rest will reproduce. If they
+do not, stop there rather than starting the multi-hour step 2.
 
 **When it finishes**, everything lands in `results/`:
 

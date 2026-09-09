@@ -48,7 +48,15 @@ def arrow(x1, y, x2):
 def main():
     feats = FEATURES_RAW
     hidden = list(ARCH.get("hidden", ()))
-    act = ARCH.get("activation", "gelu").upper()
+    # `activation` is either one name for every hidden layer ("gelu") or a
+    # sequence giving one per layer (["gelu", "tanh"], which is what the deployed
+    # config uses). Normalise to one label per layer so the diagram shows the
+    # activation each layer actually has rather than assuming they are the same.
+    _act = ARCH.get("activation", "gelu")
+    acts = [_act] * len(hidden) if isinstance(_act, str) else list(_act)
+    if len(acts) != len(hidden):
+        raise ValueError(f"{len(acts)} activations for {len(hidden)} hidden layers")
+    acts = [a.upper() for a in acts]
 
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
              f'viewBox="0 0 {W} {H}">',
@@ -56,14 +64,14 @@ def main():
              f'orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="{STROKE}"/></marker></defs>',
              f'<text x="{W/2}" y="26" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" '
              f'font-size="15" fill="#202124">3-D two-stage surrogate: '
-             f'(log10 p1, log10 p2, tau) -&gt; log10(d_bar) with predictive variance</text>']
+             f'(log10 p1, log10 p2, tau) -&gt; log10(S) with predictive variance</text>']
 
     y = 110
     x = 24
     parts.append(box(x, y, BOX_W, BOX_H, FILL_IN, "inputs",
                      f"{len(feats)}: p1, p2, tau"))
     x += BOX_W
-    for h in hidden:
+    for h, act in zip(hidden, acts):
         parts.append(arrow(x, y + BOX_H / 2, x + GAP))
         x += GAP
         parts.append(box(x, y, BOX_W, BOX_H, FILL_HID, f"Dense {h}", act))
