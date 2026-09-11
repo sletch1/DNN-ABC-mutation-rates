@@ -11,9 +11,47 @@ download. The ground-truth data is already in `data/`.
 
 ## 2. Run it
 
-### Windows (PowerShell) — recommended
+### The easy way: `run_all.py`
 
-Open PowerShell, `cd` into this folder, and run these once to set up:
+`run_all.py` runs the whole pipeline. There are **no command-line arguments to
+type**: it asks in the console which run you want, and you answer with 1 or 2.
+
+```
+Which run do you want?
+
+  [1] Quick  - a smoke test, roughly 3 minutes. Confirms the pipeline works
+               end to end. Its numbers are noisy: do not read results off it.
+
+  [2] Full   - the paper's settings: 40 replicates, 3 mutation rates, 3 culture
+               counts. Several hours (see section 6). You very likely do not
+               need this -- results/ already holds a full run.
+
+Enter 1 or 2 [1]:
+```
+
+**From an IDE (Spyder, VS Code, PyCharm, IDLE):** open `run_all.py` and press
+**Run**. Answer the question in the console pane, and that is the whole job.
+In Spyder the answer goes in the IPython console at the bottom right — click
+into it, type `1`, press Enter.
+
+**From a terminal:** `cd` into this folder and run `python run_all.py`
+(`python3` on Mac/Linux). To skip the question — a server job, say — pass
+`--quick` or `--full`.
+
+The pipeline runs with whatever interpreter your IDE is using, so the packages
+in `requirements.txt` have to be installed there. If any are missing the script
+says which, and offers to install them for you; answer `y` once and it handles
+it.
+
+Each step prints its output to the console as it runs, and the run stops with
+the error visible if a step fails. Press 1 for the first run — read section 6
+before choosing 2.
+
+### Setting up the packages yourself (optional)
+
+If you would rather not let the script install anything, do it once by hand.
+
+Windows (PowerShell):
 
 ```powershell
 python -m venv .venv
@@ -25,52 +63,36 @@ If PowerShell refuses to run the activate script ("running scripts is disabled")
 either use `.venv\Scripts\activate.bat` instead, or allow it once with:
 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 
-Then run the pipeline:
+Mac / Linux:
 
-```powershell
-python network\train.py --seed 0
-python abc\run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
-python abc\mcse.py
-python figures\make_figures.py
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Running the steps one at a time
+
+`run_all.py` is only a wrapper around these commands, so you can run them
+yourself instead. The paper's settings:
+
+```bash
+python network/train.py --seed 0
+python abc/run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
+python abc/mcse.py
+python figures/make_figures.py
 ```
 
 **To check it runs first without waiting hours**, use these smaller settings for
 the second command, then read §6 before doing the full version:
 
-```powershell
-python abc\run_experiments.py --reps 2 --nmcmc 120 --burnin 40 --p-grid 1e-2 --J-grid 10 --workers 2
-python abc\mcse.py
-python figures\make_figures.py --quick
-```
-
-### Windows (Git Bash or WSL) — if you prefer the one-command version
-
-`run_all.sh` needs a bash shell. Install
-[Git for Windows](https://git-scm.com/download/win), right-click in this folder →
-"Git Bash Here", then:
-
 ```bash
-./run_all.sh --quick     # ~3 minutes — checks everything works
-./run_all.sh             # the real run — several hours (see §6)
+python abc/run_experiments.py --reps 2 --nmcmc 120 --burnin 40 --ns 6 --p-grid 1e-2 --J-grid 10 --workers 2
+python abc/mcse.py
+python figures/make_figures.py --quick
 ```
 
-If you get `bad interpreter` or `\r: command not found`, Git checked the script
-out with Windows line endings. Fix it with:
-`git config core.autocrlf input` and re-clone, or run `dos2unix run_all.sh`.
-
-### Mac / Linux
-
-```bash
-./run_all.sh --quick     # ~3 minutes — checks everything works
-                         # (~5 the very first time: see note below)
-./run_all.sh             # the real run — several hours (see §6)
-```
-
-If you get a permissions error: `chmod +x run_all.sh`, then retry.
-
-**First run only:** the script creates its own `.venv/` and downloads the
-packages, which adds roughly two minutes. Every run after that reuses it. Both
-cold-start paths were tested end to end and complete cleanly.
+On Windows use backslashes in the script paths (`python network\train.py ...`).
 
 ## 3. Check it worked
 
@@ -97,11 +119,20 @@ something was wrong.
 
 ## 4. What you'll see while it runs
 
-The pipeline prints four labelled steps. Real output, abbreviated:
+`run_all.py` asks which run you want, then prints four labelled steps. Real
+output, abbreviated:
 
 ```
---- [0/4] Creating virtual environment and installing packages ---   (first run only)
-Environment ready.
+Interpreter: C:\Users\you\anaconda3\python.exe
+Folder:      C:\...\Models\1D
+
+Which run do you want?
+
+  [1] Quick  - a smoke test, roughly 3 minutes. ...
+  [2] Full   - the paper's settings: 40 replicates, ...
+
+Enter 1 or 2 [1]: 1
+=== QUICK MODE: pipeline check only, NOT paper-scale results ===
 
 --- [1/4] Training the surrogate (fast, well under a minute) ---
 train n=505  val n=303  test n=202
@@ -109,17 +140,20 @@ Early stopping at epoch 132 (best val NLL=-2.0804)
 conformal sd_scale = 1.0500
 [test] n= 202  MSE(log)=0.00435  MAE(log)=0.05238  MSE(d_bar)=4.952e-05  95%cover=0.950
 
---- [2/4] Running the estimator comparison: Tables 1, 2 and 3 ---
+--- [2/4] Estimator comparison: Tables 1, 2 and 3 (this is the long one) ---
 === Phase A: accuracy (Table 1 & 2) ===
 accuracy: 360 tasks (3p x 3J x 40 reps) on 30 workers
   [10/360] done  elapsed 11.0m  eta 385.4m
   ...
 === Phase B: timing (Table 3) ===
 
---- [3/4] Computing Monte Carlo standard errors ---
---- [4/4] Regenerating figures ---
-Done. Everything written to results/:
+--- [3/4] Monte Carlo standard errors ---
+--- [4/4] Figures ---
+Done in 412.6 min. Everything written to results/:
 ```
+
+Each step also echoes the exact command it is running, so if one fails you can
+re-run that single command on its own to see the error again.
 
 **Step 2 is where the time goes**, and it prints a running count with an ETA so
 you can see it is progressing. The ETA is honest but jumps around early on,
@@ -184,7 +218,7 @@ Gaussian-process surrogate.
 
 ```
 1D/
-├── run_all.sh       the entry point
+├── run_all.py       the entry point — press Run in an IDE, or `python run_all.py`
 ├── HOW_TO_RUN.md    this file
 ├── requirements.txt Python packages
 ├── data/            ground-truth data (included)

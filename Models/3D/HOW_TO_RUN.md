@@ -17,9 +17,52 @@ compares surrogates to each other rather than to the exact sampler
 
 ## 2. Run it
 
-### Windows (PowerShell) — recommended
+### The easy way: `run_all.py`
 
-Open PowerShell, `cd` into this folder, and run these once to set up:
+`run_all.py` runs the whole pipeline. There are **no command-line arguments to
+type**: it asks in the console which run you want, and you answer with 1, 2 or 3.
+
+```
+Which run do you want?
+
+  [1] Quick  - a smoke test, roughly 1.5 minutes. Confirms the pipeline works
+               end to end. Its numbers are noisy: do not read results off it.
+
+  [2] Full   - the reported settings: 16 replicates, a few minutes. This is
+               what produced the results in results/.
+
+  [3] Full + exact-simulator ABC baseline - hours, and not needed.
+
+Enter 1, 2 or 3 [1]:
+```
+
+Option 3 exists only for completeness: the reported results were produced
+without the exact-simulator baseline (`results/logs/experiment_config.json`
+records `"with_sim": false`), because this study compares the two surrogates to
+each other rather than to the exact sampler.
+
+**From an IDE (Spyder, VS Code, PyCharm, IDLE):** open `run_all.py` and press
+**Run**. Answer the question in the console pane, and that is the whole job.
+In Spyder the answer goes in the IPython console at the bottom right — click
+into it, type `2`, press Enter.
+
+**From a terminal:** `cd` into this folder and run `python run_all.py`
+(`python3` on Mac/Linux). To skip the question — a server job, say — pass
+`--quick`, `--full` or `--with-sim`.
+
+The pipeline runs with whatever interpreter your IDE is using, so the packages
+in `requirements.txt` have to be installed there. If any are missing the script
+says which, and offers to install them for you; answer `y` once and it handles
+it.
+
+Each step prints its output to the console as it runs, and the run stops with
+the error visible if a step fails.
+
+### Setting up the packages yourself (optional)
+
+If you would rather not let the script install anything, do it once by hand.
+
+Windows (PowerShell):
 
 ```powershell
 python -m venv .venv
@@ -31,48 +74,30 @@ If PowerShell refuses to run the activate script ("running scripts is disabled")
 either use `.venv\Scripts\activate.bat` instead, or allow it once with:
 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 
-Then run the whole pipeline — about four minutes:
-
-```powershell
-python network\train.py --seed 0
-python tests\validate_simulator.py --quick
-python abc\run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --no-sim
-python abc\mcse.py
-python figures\make_figures.py
-```
-
-That reproduces the reported results. Add `--with-sim` to the third command to
-include the exact-simulator baseline instead (hours, and not needed).
-
-### Windows (Git Bash or WSL) — if you prefer the one-command version
-
-`run_all.sh` needs a bash shell. Install
-[Git for Windows](https://git-scm.com/download/win), right-click in this folder →
-"Git Bash Here", then:
+Mac / Linux:
 
 ```bash
-./run_all.sh             # full run, reported settings (~4 minutes)
-./run_all.sh --quick     # ~1.5 minutes, just to check it runs
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-If you get `bad interpreter` or `\r: command not found`, Git checked the script
-out with Windows line endings. Fix it with:
-`git config core.autocrlf input` and re-clone, or run `dos2unix run_all.sh`.
+### Running the steps one at a time
 
-### Mac / Linux
+`run_all.py` is only a wrapper around these five commands, so you can run them
+yourself instead. About four minutes in total:
 
 ```bash
-./run_all.sh             # full run, reported settings (~4 minutes)
-./run_all.sh --quick     # ~1.5 minutes, just to check it runs
-                         # (~2 the very first time: see note below)
-./run_all.sh --with-sim  # also run the exact-simulator baseline (hours)
+python network/train.py --data data/slow_data_3D.csv --seed 0
+python tests/validate_simulator.py --quick
+python abc/run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --ns 4 --J-grid 100 --no-sim
+python abc/mcse.py
+python figures/make_figures.py
 ```
 
-If you get a permissions error: `chmod +x run_all.sh`, then retry.
-
-**First run only:** the script creates its own `.venv/` and downloads the
-packages, which adds roughly two minutes. Every run after that reuses it. Both
-cold-start paths were tested end to end and complete cleanly.
+That reproduces the reported results. Drop `--no-sim` from the third command to
+include the exact-simulator baseline instead (hours, and not needed). On Windows
+use backslashes in the script paths (`python network\train.py ...`).
 
 ## 3. Check it worked
 
@@ -107,11 +132,21 @@ between machines — ordinary floating-point variation, not a problem.)
 
 ## 4. What you'll see while it runs
 
-The pipeline prints four labelled steps. Real output, abbreviated:
+`run_all.py` asks which run you want, then prints four labelled steps. Real
+output, abbreviated:
 
 ```
---- [0/4] Creating virtual environment and installing packages ---   (first run only)
-Environment ready.
+Interpreter: C:\Users\you\anaconda3\python.exe
+Folder:      C:\...\Models\3D
+
+Which run do you want?
+
+  [1] Quick  - a smoke test, roughly 1.5 minutes. ...
+  [2] Full   - the reported settings: 16 replicates, a few minutes. ...
+  [3] Full + exact-simulator ABC baseline - hours, and not needed. ...
+
+Enter 1, 2 or 3 [1]: 2
+=== FULL RUN: 16 replicates, reported settings ===
 
 --- [1/4] Training the surrogate (~30 seconds) ---
 train n=10000  val n=6000  test n=4000  features=['log10p1', 'log10p2', 'tau']
@@ -128,15 +163,18 @@ conformal sd_scale = 1.0185
   [PASS] ground truth was generated with mut_time = 'offspring'
 all checks passed
 
---- [2/4] Running the estimator comparison: parameter recovery ---
+--- [2/4] Estimator comparison: parameter recovery ---
 48 tasks on 12 workers (without the exact ABC-MCMC baseline)
   [40/48] elapsed 3.0m  eta 0.6m
   [48/48] elapsed 3.0m  eta 0.0m
 
---- [3/4] Computing Monte Carlo standard errors ---
---- [4/4] Regenerating figures ---
-Done. Everything written to results/:
+--- [3/4] Monte Carlo standard errors ---
+--- [4/4] Figures ---
+Done in 3.6 min. Everything written to results/:
 ```
+
+Each step also echoes the exact command it is running, so if one fails you can
+re-run that single command on its own to see the error again.
 
 **All six validation checks in step 1b should print PASS.** If any prints FAIL,
 stop and send me the output — that step exists to catch exactly the class of
@@ -199,7 +237,7 @@ and the reference MATLAB it was ported from is in `matlab/`.
 
 ```
 3D/
-├── run_all.sh       the entry point
+├── run_all.py       the entry point — press Run in an IDE, or `python run_all.py`
 ├── HOW_TO_RUN.md    this file
 ├── requirements.txt Python packages
 ├── data/            ground-truth data (included)

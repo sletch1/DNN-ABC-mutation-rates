@@ -176,7 +176,7 @@ def main():
     # ABC-MCMC chain (backend="sim", ns=10) at J=100 for 1500 iterations. That is
     # by far the most expensive thing in this script -- on a laptop it dominates
     # the whole pipeline -- and without this flag a "quick" smoke test of
-    # run_all.sh still paid for it in full, taking ~12 minutes instead of ~3.
+    # the full pipeline still paid for it in full, taking ~12 minutes instead of ~3.
     # The shrunk chain is for checking the pipeline runs, not for reading results.
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true",
