@@ -39,50 +39,57 @@ in Markov Branching Processes}}
 \begin{abstract}
 \citet{lu2023} introduced GPS-ABC, an approximate Bayesian computation (ABC)
 procedure for estimating mutation rates in a two-type Markov branching process
-(MBP) that replaces the expensive MBP simulator inside the ABC-MCMC acceptance
-step with a Gaussian process (GP) surrogate fit to a small design of simulator
-outputs. We ask whether a neural network can play the same role, and whether
-doing so helps. We develop a heteroscedastic multilayer-perceptron surrogate,
-calibrated by split-conformal prediction \citep{lei2018}, that substitutes
-directly for the GP inside the same ABC-MCMC sampler with no other change to
-the inference procedure. In a one-dimensional simulation study reproducing the
-constant-mutation-rate benchmark of \citet{lu2023}, replicated with Monte
-Carlo standard errors reported throughout \citep{morris2019}, the neural
-surrogate is never worse than GPS-ABC on point-estimation mean squared error
-in any of nine tested configurations and is tighter by a margin that clearly
-exceeds simulation noise at the largest tested mutation rate (up to 62\%
-lower MSE, a gap of 5--8 Monte Carlo standard errors); at smaller mutation
-rates the two surrogates are statistically indistinguishable on point
-accuracy. The neural surrogate nonetheless produces tighter 95\% credible
-intervals with no loss of empirical coverage in eight of nine configurations,
-and achieves near-exact conformal calibration, all at the same
-two-to-three-order-of-magnitude speedup over exact ABC-MCMC that the GP
-already provides.
-In a second simulation study we turn to the two-stage
-(piecewise-constant) mutation model, in which the mutation probability jumps
-from $p_1$ to $p_2$ at an unknown time $\tau$ and all three parameters are
-estimated jointly. Here we report a deliberately negative result. The neural
-surrogate fits the response surface to within $1.05\times$ its irreducible
-noise floor, but so do networks spanning three orders of magnitude in size, and
-downstream the neural and Gaussian-process surrogates are statistically tied in
-seven of nine parameter-by-truth comparisons at the two-Monte-Carlo-standard-error
-level, with the other two favouring the Gaussian process. That verdict proved
-robust to three separate corrections of the pipeline -- the mutation-time
-convention, the summary statistic, and the activation selected under it -- each
-of which measurably improved the surrogate without changing the conclusion. We argue this is the expected outcome whenever surrogate error ceases to
-be the binding constraint, and that what binds instead is the model's intrinsic
-identifiability: $p_2$ is well determined while $p_1$ and $\tau$ are recovered
+(MBP). Its central device is a substitution: inside the ABC-MCMC acceptance
+step, an expensive MBP simulator is replaced by a Gaussian process (GP)
+surrogate fit to a small design of simulator outputs. This paper asks whether a
+neural network can perform that same substitution, and, more usefully, when
+doing so actually helps. We develop a heteroscedastic multilayer-perceptron
+surrogate, calibrated by split-conformal prediction \citep{lei2018}, that takes
+the Gaussian process's place inside the same ABC-MCMC sampler with no other
+change to the inference procedure, and we evaluate it in two simulation
+studies.
+
+The first study reproduces the constant-mutation-rate benchmark of
+\citet{lu2023}, replicated with Monte Carlo standard errors reported throughout
+\citep{morris2019}. There the neural surrogate is never worse than GPS-ABC on
+point-estimation mean squared error in any of nine tested configurations, and
+at the largest tested mutation rate it is better by a margin that clearly
+exceeds simulation noise (up to $62\%$ lower MSE, a gap of $5$--$8$ Monte Carlo
+standard errors); at smaller rates the two are statistically indistinguishable
+on point accuracy. The neural surrogate nonetheless returns tighter $95\%$
+credible intervals with no loss of empirical coverage in eight of nine
+configurations, and achieves near-exact conformal calibration, all at the same
+two-to-three-order-of-magnitude speedup over exact ABC-MCMC that the Gaussian
+process already provides.
+
+The second study turns to the two-stage (piecewise-constant) mutation model, in
+which the mutation probability jumps from $p_1$ to $p_2$ at an unknown time
+$\tau$ and all three parameters are estimated jointly. Here we report a
+deliberately negative result. The neural surrogate fits the response surface to
+within $1.05\times$ its irreducible noise floor -- but so do networks spanning
+three orders of magnitude in size, and downstream the neural and
+Gaussian-process surrogates are statistically tied in seven of nine
+parameter-by-truth comparisons at the two-Monte-Carlo-standard-error level,
+with the other two favouring the Gaussian process. That verdict survived three
+separate corrections to the pipeline -- the mutation-time convention, the
+summary statistic, and the activation selected under it -- each of which
+measurably improved the surrogate without changing the conclusion. We argue
+that this is the expected outcome whenever surrogate error ceases to be the
+binding constraint. What binds instead is the model's intrinsic
+identifiability: $p_2$ is well determined, while $p_1$ and $\tau$ are recovered
 poorly by every method tested. Every method also over-covers its credible
 intervals, most severely for the weakly identified $\tau$, a limitation we
-diagnose as a property of the ABC acceptance kernel rather
-than a deficiency of the surrogate's own predictive calibration, which remains
-near-exact throughout. A further controlled comparison across architecture
-families -- feedforward, convolutional, and recurrent surrogates, motivated by
-where each is known to help in the simulation-based-inference literature --
-finds that neither a convolutional nor a recurrent inductive bias improves on
-the architecture-agnostic feedforward network for this three-input problem, the
-outcome predicted by the parameters' lack of any real spatial or temporal
-structure. We discuss when a neural surrogate should be preferred
+diagnose as a property of the ABC acceptance kernel rather than a deficiency of
+the surrogate's own predictive calibration, which remains near-exact
+throughout. A further controlled comparison across architecture families --
+feedforward, convolutional, and recurrent surrogates, motivated by where each
+is known to help in the simulation-based-inference literature -- finds that
+neither a convolutional nor a recurrent inductive bias improves on the
+architecture-agnostic feedforward network for this three-input problem, which
+is the outcome the parameters' lack of any real spatial or temporal structure
+predicts.
+
+Taken together, the two studies say when a neural surrogate should be preferred
 to a Gaussian process inside ABC, and what the coverage gap implies for
 deploying conformally calibrated surrogates inside likelihood-free samplers
 more generally. Code, data, and a fully scripted reproduction pipeline are
@@ -98,73 +105,81 @@ regression; simulation study; Markov branching process
 \label{sec:intro}
 % =============================================================================
 
-Approximate Bayesian computation (ABC) enables likelihood-free Bayesian
-inference for stochastic models whose likelihood is intractable but which can
-be simulated forward \citep{beaumont2002,marjoram2003,marin2012}. The basic
-ABC-MCMC sampler \citep{marjoram2003} accepts a proposed parameter $\theta'$
-in proportion to how closely a simulated summary statistic $S(\theta')$
-matches the observed statistic $S_{\mathrm{obs}}$, at the cost of one or more
-forward simulations per MCMC iteration. When the simulator is expensive, this
+Approximate Bayesian computation (ABC) makes Bayesian inference possible for
+stochastic models whose likelihood is intractable but which can be simulated
+forward \citep{beaumont2002,marjoram2003,marin2012}. The basic ABC-MCMC sampler
+\citep{marjoram2003} accepts a proposed parameter $\theta'$ in proportion to how
+closely a simulated summary statistic $S(\theta')$ matches the observed
+statistic $S_{\mathrm{obs}}$. That simplicity carries a price: every iteration
+costs one or more forward simulations. When the simulator is expensive, this
 per-iteration cost dominates the runtime of the entire analysis and can put a
-full posterior exploration out of reach.
+full posterior exploration out of reach altogether.
 
-\citet{lu2023} study this problem for a two-type Markov branching process
-(MBP) model of microbial mutation, used to estimate the per-division mutation
+\citet{lu2023} study this problem for a two-type Markov branching process (MBP)
+model of microbial mutation, used to estimate the per-division mutation
 probability from Luria--Delbr\"uck-style fluctuation experiments. Their exact
-simulator (their Algorithm~2) is a cell-by-cell simulation of the branching
-process and can take from a fraction of a second to several minutes per call
+simulator (their Algorithm~2) simulates the branching process cell by cell, and
+a single call takes anywhere from a fraction of a second to several minutes
 depending on the parameter regime. To make ABC-MCMC tractable, they propose
 \textbf{GPS-ABC}: fit a Gaussian process (GP) regression surrogate to a modest
-design of simulator outputs, and substitute the GP's predictive mean and
-variance for the simulator inside the MCMC acceptance step. This turns every
-iteration from a simulator call into a GP prediction, a
-two-to-three-order-of-magnitude speedup in their reported results.
+design of simulator outputs, then substitute the GP's predictive mean and
+variance for the simulator inside the MCMC acceptance step. Every iteration
+becomes a GP prediction rather than a simulator call, which is where their
+reported two-to-three-order-of-magnitude speedup comes from.
 
-A Gaussian process, however, has a well-known scaling limitation: fitting an
-$n$-point GP costs $O(n^3)$ and querying it costs $O(n)$ per point (for the
-na\"ive dense implementation used in practice for problems of this size).
-\citet{lu2023} report being limited to designs of roughly 50--200 points for
-this reason, and note that GPS-ABC can in fact be \emph{less} accurate than
-plain ABC-MCMC when the surrogate's training design is trained on the
-expensive exact simulator, precisely because so few exact-simulator calls can
-be afforded for the design. This motivates the central question of the
-present paper:
+The Gaussian process, however, brings a scaling limitation that is well known
+and, for this application, binding: fitting an $n$-point GP costs $O(n^3)$ and
+querying it costs $O(n)$ per point, for the na\"ive dense implementation used in
+practice at this problem size. Two consequences follow, and the second is the
+more damaging. The first is a ceiling on the design; \citet{lu2023} report being
+limited to roughly $50$--$200$ points for exactly this reason. The second is
+that the ceiling bites hardest where relieving it is most expensive. They note
+that GPS-ABC can in fact be \emph{less} accurate than plain ABC-MCMC when the
+surrogate's design is built from the expensive exact simulator, precisely
+because so few exact-simulator calls can be afforded for that design. A cubic
+fitting cost is therefore not merely an inconvenience of implementation; it
+propagates into the accuracy of the inference it was introduced to accelerate.
+This motivates the question the present paper asks:
 
 \begin{quote}
 \emph{Can a neural network surrogate replace the Gaussian process inside this
 same ABC-MCMC procedure, and if so, under what conditions does it help?}
 \end{quote}
 
-A feedforward network has no cubic fitting cost and a query cost that is
-\emph{flat} in the size of its training set, so it can be trained on
-substantially more simulator output than a GP can afford at matched
-computational budget, and it extends naturally to higher-dimensional summary
-functions where a GP's curse of dimensionality is most acute. Neither
-property is free, however: a GP's predictive variance is a direct consequence
-of the Gaussian-process prior and requires no separate calibration step,
-whereas a neural network's predictive uncertainty must be constructed and
-calibrated explicitly if it is to play the same role inside the ABC
-acceptance kernel.
+A feedforward network carries neither cost. It has no cubic fitting term, and
+its query cost is \emph{flat} in the size of its training set, so it can be
+trained on substantially more simulator output than a GP can afford at a matched
+computational budget; it also extends naturally to higher-dimensional summary
+functions, where a GP's curse of dimensionality is most acute. Neither property
+is free, however. A GP's predictive variance is a direct consequence of the
+Gaussian-process prior and requires no separate calibration step, whereas a
+neural network's predictive uncertainty must be constructed and calibrated
+explicitly if it is to play the same role inside the ABC acceptance kernel. That
+requirement, rather than the regression itself, is what makes the substitution
+non-trivial, and it is what Section~\ref{sec:method} is principally about.
 
-\paragraph{Contributions.} We (i) build a heteroscedastic neural-network
-surrogate, calibrated by split-conformal prediction \citep{lei2018}, that
-substitutes for the Gaussian process inside \citeauthor{lu2023}'s ABC-MCMC
-sampler with no other change to the inference algorithm; (ii) run a
-one-dimensional simulation study directly reproducing \citeauthor{lu2023}'s
-constant-mutation-rate benchmark, comparing four estimators -- method of
-moments, maximum likelihood, exact ABC-MCMC, and GPS-ABC -- against the neural
-surrogate on estimation accuracy, credible-interval length, coverage, and
-wall-clock cost; (iii) run a second simulation study on the
-two-stage mutation model that is the original paper's actual multi-parameter
-contribution, estimating $(p_1,p_2,\tau)$ jointly; (iv) report, honestly and
-without tuning away, that the neural surrogate's advantage does \emph{not}
-carry over to that regime, together with a measurement of the data's
-irreducible noise floor that explains why; and (v) test, rather than assume,
-whether a convolutional or recurrent architecture improves on the
-architecture-agnostic feedforward surrogate in that same regime, motivated by
-where such architectures are known to help elsewhere in the simulation-based-inference
-literature, and report that neither does. Section~\ref{sec:background} reviews the
-MBP model and GPS-ABC. Section~\ref{sec:method} develops the general neural
+\paragraph{Contributions.} This paper makes five contributions. First, we build
+a heteroscedastic neural-network surrogate, calibrated by split-conformal
+prediction \citep{lei2018}, that substitutes for the Gaussian process inside
+\citeauthor{lu2023}'s ABC-MCMC sampler with no other change to the inference
+algorithm. Second, we run a one-dimensional simulation study reproducing
+\citeauthor{lu2023}'s constant-mutation-rate benchmark directly, comparing four
+estimators -- method of moments, maximum likelihood, exact ABC-MCMC, and
+GPS-ABC -- against the neural surrogate on estimation accuracy,
+credible-interval length, coverage, and wall-clock cost. Third, we run a second
+simulation study on the two-stage mutation model that is the original paper's
+actual multi-parameter contribution, estimating $(p_1,p_2,\tau)$ jointly.
+Fourth, we report, honestly and without tuning it away, that the neural
+surrogate's advantage does \emph{not} carry over to that regime, and we pair
+that report with a measurement of the data's irreducible noise floor that
+explains why. Fifth, we test rather than assume whether a convolutional or
+recurrent architecture improves on the architecture-agnostic feedforward
+surrogate in that same regime, motivated by where such architectures are known
+to help elsewhere in the simulation-based-inference literature, and we report
+that neither does.
+
+The paper proceeds in that order. Section~\ref{sec:background} reviews the MBP
+model and GPS-ABC. Section~\ref{sec:method} develops the general neural
 surrogate framework. Sections~\ref{sec:sim1D} and \ref{sec:sim3D} report the
 constant-rate and two-stage simulation studies. Section~\ref{sec:discussion}
 discusses implications and limitations, and Section~\ref{sec:repro} describes
@@ -178,13 +193,13 @@ the reproducible pipeline accompanying this paper.
 \subsection{The mutation model and the observed statistic}
 
 Following \citet{lu2023}, a population initiated by a single wild-type cell
-grows for a fixed observation period under a two-type Markov branching
-process (MBP) governed by three quantities: the per-division mutation
-probability $p$, at which a dividing wild-type cell produces a mutant
-daughter instead of a wild-type daughter; the division-rate parameter $a$,
-which sets the overall time scale of growth; and the mutant relative growth
-rate $\delta$, the ratio of the mutant lineage's growth rate to the wild
-type's. We refer the reader to \citet{lu2023} for the full stochastic-process
+grows for a fixed observation period under a two-type Markov branching process
+(MBP). Three quantities govern it. The first is the per-division mutation
+probability $p$, the rate at which a dividing wild-type cell produces a mutant
+daughter instead of a wild-type one; it is the estimand throughout this paper.
+The second is the division-rate parameter $a$, which sets the overall time scale
+of growth. The third is the mutant relative growth rate $\delta$, the ratio of
+the mutant lineage's growth rate to the wild type's. We refer the reader to \citet{lu2023} for the full stochastic-process
 construction and for their Algorithm~2 (an exact, cell-by-cell simulator,
 slow) and Algorithm~4 (a fast approximate simulator using distributional
 shortcuts), both of which we re-implement in Python and validate directly
@@ -197,12 +212,14 @@ a final wild-type count $Z_j$ and mutant count $X_j$. Following
 \[
 \dbar \;=\; \frac{1}{J}\sum_{j=1}^{J} \sqrt{X_j / Z_j},
 \]
-which is well behaved across the many orders of magnitude spanned by $p$ and
-is the statistic used throughout their ABC procedure. We model
-$\log_{10}\dbar$ rather than $\dbar$ itself, since it varies smoothly and
-close to linearly in $\theta \equiv \log_{10} p$ (their Figure~2), which
-makes both Gaussian-process and neural-network regression considerably better
-behaved.
+which is well behaved across the many orders of magnitude spanned by $p$ and is
+the statistic used throughout their ABC procedure. One further transformation is
+worth stating explicitly, because every regression in this paper inherits it: we
+model $\log_{10}\dbar$ rather than $\dbar$ itself. The reason is that
+$\log_{10}\dbar$ varies smoothly and close to linearly in $\theta \equiv
+\log_{10} p$ (their Figure~2), and a target that is smooth and nearly linear in
+its input is one that both Gaussian-process and neural-network regression fit
+considerably better.
 
 \subsection{ABC-MCMC and GPS-ABC}
 \label{sec:abcmcmc}
@@ -252,12 +269,15 @@ convolution
 \[
 S(\theta') \;\sim\; \mathcal{N}\!\left(\mu_{\mathrm{GP}}(\theta'),\; \epsilon^2 + \sigma_{\mathrm{GP}}(\theta')^2\right).
 \]
-This is the mechanism by which the GP's predictive variance enters directly
-into the acceptance probability, and it is the reason a well-calibrated
-predictive variance -- not merely an accurate mean -- is required of any
-surrogate used this way: an overconfident $\sigma$ inflates the acceptance
-rate at parameter values the surrogate does not actually know well, and an
-underconfident one over-rejects.
+This convolution is the mechanism by which the GP's predictive variance enters
+the acceptance probability directly, and it sets the standard that any
+replacement surrogate must meet. What is required is not merely an accurate
+mean but a well-calibrated variance, because the two failure modes are
+asymmetric and both corrupt the posterior: an overconfident $\sigma$ inflates
+the acceptance rate at parameter values the surrogate does not actually know
+well, while an underconfident one over-rejects. A surrogate that predicts the
+response perfectly and its own uncertainty badly is not a usable substitute
+here.
 
 The GP's fitting cost is $O(n^3)$ in the design size $n$ and its per-query
 cost during MCMC sampling is $O(n)$, both because the predictive mean and
@@ -276,11 +296,15 @@ themselves come from the expensive exact simulator.
 % =============================================================================
 
 We replace the Gaussian process in step 4(b) of Algorithm~\ref{alg:abcmcmc}
-with a neural network $f_\phi$ trained to predict both the mean and the
-variance of $\log_{10}\dbar$ as a function of the parameter(s) of interest.
-The surrogate substitution is otherwise identical to GPS-ABC: the same
-sampler, the same acceptance ratio, the same convolution with $\epsilon^2$.
-We refer to this procedure as \textbf{DNN-ABC}.
+with a neural network $f_\phi$ trained to predict both the mean and the variance
+of $\log_{10}\dbar$ as a function of the parameter(s) of interest. The
+substitution is deliberately minimal: the sampler, the acceptance ratio, and the
+convolution with $\epsilon^2$ are all exactly those of GPS-ABC, so that any
+difference in the results that follow is attributable to the surrogate and to
+nothing else. We refer to the resulting procedure as \textbf{DNN-ABC}. The two
+subsections below supply the two things the network needs in order to stand in
+for the GP: an input-dependent predictive variance, and a guarantee that the
+variance is calibrated.
 
 \subsection{Heteroscedastic regression}
 \label{sec:hetero}
@@ -298,21 +322,24 @@ jointly by minimizing the Gaussian negative log-likelihood
 \;+\; \frac{1}{2}\log \sigma_\phi^2(x_i)
 \right],
 \end{equation}
-where $y_i = \log_{10}\dbar_i$. Unlike a single-output network trained under
-squared-error loss, this directly targets an \emph{input-dependent} predictive
-variance -- the network's analogue of the GP's posterior variance -- which
-Section~\ref{sec:sim1D} shows is essential, since the true replicate-to-replicate
-noise in $\log_{10}\dbar$ is far from homoscedastic across the parameter
-range, something a Gaussian process with a single (homoscedastic) noise term
-cannot represent directly.
+where $y_i = \log_{10}\dbar_i$. The difference from a single-output network
+trained under squared-error loss is the point of the construction. Equation~\ref{eq:nll}
+targets an \emph{input-dependent} predictive variance directly -- the network's
+analogue of the GP's posterior variance -- and Section~\ref{sec:sim1D} shows
+that this is not a refinement but a requirement: the true
+replicate-to-replicate noise in $\log_{10}\dbar$ is far from homoscedastic
+across the parameter range, and a Gaussian process carrying a single noise term
+cannot represent that shape at all.
 
 \subsection{Split-conformal calibration}
 \label{sec:conformal}
 
-The variance head of a network trained under Equation~\ref{eq:nll} is not
-guaranteed to be well calibrated in finite samples: it is only an
-approximation to the true conditional variance, learned from a finite
-training set. We therefore apply split-conformal calibration
+Training a variance head is not the same as calibrating one. The head produced
+by Equation~\ref{eq:nll} is an approximation to the true conditional variance
+learned from a finite training set, and nothing in that objective guarantees it
+is well calibrated in finite samples. Since Section~\ref{sec:abcmcmc} established
+that the acceptance step consumes this quantity directly, an uncalibrated head is
+a defect the sampler will inherit. We therefore apply split-conformal calibration
 \citep{lei2018} to correct it. After training on a training split, we form
 calibration scores on a held-out calibration split of size $m$,
 \[
@@ -344,9 +371,10 @@ actually enters the sampler.
 \label{sec:validation}
 
 In both studies, ground truth is generated by the exact/slow MBP simulator
-(\citeauthor{lu2023}'s Algorithm~2), re-implemented in Python from the
-original R/MATLAB code. The port is validated in two ways before any surrogate
-is trained: the closed-form plating-time equation is solved and compared
+(\citeauthor{lu2023}'s Algorithm~2), re-implemented in Python from the original
+R/MATLAB code. A ported simulator is an assumption until it is checked, and
+every number in this paper rests on it, so the port is validated in two ways
+before any surrogate is trained: the closed-form plating-time equation is solved and compared
 against the R implementation's solver output (agreement to $3\times10^{-5}$),
 and the simulator's simulated $\dbar$ means are compared against the
 committed ground-truth CSV at matched grid points (Sections~\ref{sec:sim1D}
@@ -400,15 +428,17 @@ cells).
 The first study reproduces \citeauthor{lu2023}'s original benchmark exactly:
 $a=\delta=Z_0=1$ held fixed, and only $p$ varying. Ground truth is
 $101$ log-spaced values of $p$ with $\log_{10}p \in [-8,-2]$, ten replicates
-each ($1{,}010$ rows total), $J=100$. We split \emph{by replicate} so that
-every grid point of $p$ appears in every split with no leakage across splits:
-replicates 1--5 for training ($505$ rows), 6--8 for conformal calibration and
-early stopping ($303$ rows), and 9--10 held out for test-only evaluation
-($202$ rows). The GPS-ABC baseline is fit on the identical replicates 1--8 so
-that both surrogates see the same data budget; neither ever sees the test
-replicates.
+each ($1{,}010$ rows total), $J=100$. We split \emph{by replicate} rather than by grid point, which is what keeps the
+comparison honest: every value of $p$ then appears in every split, so a split
+tests generalisation to fresh noise rather than to an unseen region of the
+parameter axis, and no grid point can leak from training into evaluation.
+Replicates 1--5 are used for training ($505$ rows), 6--8 for conformal
+calibration and early stopping ($303$ rows), and 9--10 are held out for
+test-only evaluation ($202$ rows). The GPS-ABC baseline is fit on the identical
+replicates 1--8, so that both surrogates see the same data budget; neither ever
+sees the test replicates.
 
-\subsection{Architecture}
+\subsection{Architecture, and the one choice that mattered}
 \label{sec:arch1D}
 
 The network is a shallow funnel multilayer perceptron: input
@@ -443,22 +473,25 @@ DNN, ReLU + BatchNorm + dropout (64, 64, 32) & $4.352\times10^{-3}$ & $+1035\%$ 
 \end{tabular}}
 \end{table}
 
-The result that determines every downstream comparison in this study is the
-last row: an otherwise-reasonable network with BatchNorm
-\citep{ioffe2015} and dropout fits \emph{eleven times worse} than the same
-network without them. BatchNorm normalizes per-minibatch statistics -- useful
-in deep classification networks, but on a smooth, one-sided (the $\theta$-grid
-has a hard edge at $-8$) scalar regression it injects batch-dependent noise
-and biases predictions near the domain boundary. Removing it, not any choice
-of activation function, is what allows the network to match the GP's
-mean-curve fit. A follow-up ablation isolating only the activation function
+The row that determines every downstream comparison in this study is the last
+one: an otherwise-reasonable network carrying BatchNorm \citep{ioffe2015} and
+dropout fits \emph{eleven times worse} than the same network without them. The
+mechanism is specific to this problem rather than general. BatchNorm normalises
+per-minibatch statistics, which is useful in deep classification networks; but
+on a smooth scalar regression over a one-sided domain -- the $\theta$-grid has a
+hard edge at $-8$ -- it injects batch-dependent noise and biases predictions
+near that boundary. What closes the gap to the GP is therefore not any choice of
+activation function. It is the removal of a component that most practitioners
+would have included by default. A follow-up ablation isolating only the activation function
 (same 128-64 architecture, no BatchNorm, averaged over three random seeds)
 found ReLU, SiLU \citep{elfwing2018}, GELU \citep{hendrycks2016}, and tanh
-within $7\%$ of one another ($3.95$--$4.23 \times 10^{-4}$) -- a
-statistical tie, with ReLU marginally ahead. We use GELU for its smoothness
-(useful should the sampler later be adapted to a gradient-based scheme) and
-its immunity to the dead-neuron failure mode, at no measurable accuracy cost
-in this setting; ReLU would serve equally well. A second architecture-search
+within $7\%$ of one another ($3.95$--$4.23 \times 10^{-4}$): a statistical tie,
+with ReLU marginally ahead. Because accuracy does not separate them, the choice
+is made on structural grounds instead. We use GELU for its smoothness, which
+matters should the sampler later be adapted to a gradient-based scheme, and for
+its immunity to the dead-neuron failure mode, at no measurable accuracy cost in
+this setting. ReLU would serve equally well, and we claim nothing from the
+ranking. A second architecture-search
 round using $7$-network deep ensembles (mean-curve MSE $3.94$--$4.25\times
 10^{-4}$ across four ensemble configurations) did not improve on the single
 chosen network, so the simpler model is retained throughout.
@@ -566,9 +599,11 @@ $10^{-2}$ & 100 & 4.01e-6 (0.20)  & 6.08e-6 (0.25)  & 2.62e-6 (0.16) & 6.22e-6 (
 \end{tabular}}
 \end{table}
 
-DNN-ABC's point estimate is never worse than GPS-ABC's in nRMSE in any of
-the nine cells, but the $\Delta/\mathrm{SE}$ column shows this point-estimate
-comparison is only clearly resolved beyond simulation noise in two of them:
+Two readings of this table must be kept apart, and conflating them is the error
+the $\Delta/\mathrm{SE}$ column exists to prevent. DNN-ABC's point estimate is
+never worse than GPS-ABC's in nRMSE in any of the nine cells -- but being never
+worse is not the same as being reliably better, and that column shows the
+comparison is clearly resolved beyond simulation noise in only two of them:
 $p=10^{-2}$ at $J=50$ and $J=100$, where the gap is $5.7$ and $8.0$ combined
 Monte Carlo standard errors. In the other seven cells $|\Delta/\mathrm{SE}| <
 1$, so DNN-ABC's numerically lower MSE there is not distinguishable from
@@ -660,8 +695,9 @@ single representative data set.}
 % =============================================================================
 
 Study I holds $a=\delta=1$ and a single constant mutation probability, as does
-\citet{lu2023}'s constant-rate benchmark. Their multi-parameter study, however,
-does not vary $a$ or $\delta$ around that constant-rate model: it replaces the
+\citet{lu2023}'s constant-rate benchmark. Their multi-parameter study is
+commonly read as that same model with more parameters freed, and it is not.
+It does not vary $a$ or $\delta$ around the constant-rate model; it replaces the
 model outright with a \emph{two-stage} (piecewise-constant) mutation rate,
 
 \begin{equation}
@@ -704,10 +740,12 @@ Algorithm~1 uses the fourth root throughout. Study II therefore takes
 and every surrogate, every baseline and the sampler all consume $\log_{10}S$.
 Because the ground truth records each culture's $d_i = \sqrt{X_i/Z_i}$ as well
 as their mean, $S$ is recoverable exactly as $\overline{\sqrt{d_i}}$ without
-re-simulating anything. The choice is consequential rather than cosmetic: it
-lowers the surrogate's held-out error from $1.19\times$ its irreducible floor to
-$1.11\times$, and it changes which activation the selection of
-Section~\ref{sec:sim3D_act} returns.
+re-simulating anything. The choice is consequential rather than cosmetic, and we can quantify both of
+its consequences. It lowers the surrogate's held-out error from $1.19\times$ its
+irreducible floor to $1.11\times$, and it changes which activation the selection
+of Section~\ref{sec:sim3D_act} returns. A reader reproducing this study under
+the square root would therefore obtain a different network, not merely a
+slightly worse one.
 
 \paragraph{This is not \citeauthor{lu2023}'s parameter regime.} It should be
 stated plainly, because the difference is large and easy to miss. Their Study II
@@ -758,10 +796,11 @@ $\mathrm{corr}\!\left(\log_{10}S,\ \cdot\right)$ & $0.778$ & $0.337$ & $0.160$ \
 \end{tabular}
 \end{center}
 
-$p_2$ is well determined, $p_1$ weakly, and $\tau$ barely. The mechanism is
-intrinsic: mutations arising before $\tau$ are exponentially rare because few
-cells exist that early, so $p_1$'s contribution to the final mutant count is
-swamped by $p_2$'s. \citeauthor{lu2023} report precisely this, describing
+$p_2$ is well determined, $p_1$ weakly, and $\tau$ barely. The asymmetry is
+intrinsic to the process rather than an artefact of any method applied to it:
+mutations arising before $\tau$ are exponentially rare, because few cells exist
+that early, so $p_1$'s contribution to the final mutant count is swamped by
+$p_2$'s. \citeauthor{lu2023} report precisely this, describing
 multimodal $p_1$ and $\tau$ marginals and attributing them to a lack of
 identifiability. Any honest evaluation must therefore report per-parameter
 accuracy rather than a single aggregate that would conceal it, and must prefer
@@ -801,9 +840,9 @@ Linear (control) & 8 & 140.88 & 0.55319 & 29 \\
 \end{tabular}
 \end{table}
 
-Two conclusions follow, and the second is the more useful one. A network is
-genuinely required, and emphatically so: the linear control sits at
-$141\times$ the floor with $R^2 = 0.55$. (Under the square-root target of the
+Two conclusions follow, and the second is by far the more useful. The first is
+that a network is genuinely required here, and emphatically so: the linear
+control sits at $141\times$ the floor with $R^2 = 0.55$. (Under the square-root target of the
 earlier draft it sat at $24.8\times$; the fourth root makes the surface harder
 for a linear model by nearly a factor of six, so the paper's own choice of
 statistic strengthens rather than weakens the case for a network.) But capacity
@@ -814,10 +853,10 @@ residual depth were likewise statistically indistinguishable, as was the choice
 among the activations in common use for smooth regression
 (Section~\ref{sec:sim3D_act}) -- though that section also shows the qualifier
 matters, since several otherwise-reasonable activations outside that group are
-measurably worse. This contrasts sharply with Study I, where removing BatchNorm
-changed accuracy by an order of magnitude. On this surface, capacity and
-depth buy nothing, and a study that reported a ranking among these variants
-would be reporting seed noise.
+measurably worse. This contrasts sharply with Study I, where removing BatchNorm changed accuracy
+by an order of magnitude. On this surface, capacity and depth buy nothing. A
+study that reported a ranking among these variants would be reporting seed
+noise, and reporting it as though it were a finding.
 
 We therefore select the architecture for parsimony rather than accuracy: a
 two-layer $64\to32$ funnel with GELU/tanh activations
@@ -839,11 +878,12 @@ exact.
 \subsection{Choosing the activation function}
 \label{sec:sim3D_act}
 
-The architecture ladder of Section~\ref{sec:arch3D} fixes width and depth; the
+The architecture ladder of Section~\ref{sec:arch3D} fixes width and depth. The
 activation is a separate choice, and one a reviewer is entitled to see tested
-rather than asserted. There is no activation designed for this application, so
-the candidate set is dictated by the surface being fitted. Three of its
-properties matter. The target is smooth, so a piecewise-linear activation
+rather than asserted. No activation is designed for this application, so the
+candidate set has to be dictated by the surface being fitted rather than by
+convention. Three properties of that surface matter, and each rules something
+out. The target is smooth, so a piecewise-linear activation
 approximates it with kinks and leaves the surrogate non-differentiable in its
 inputs -- a concrete cost if the sampler is later made gradient-based. The
 inputs are standardised, so roughly half of all pre-activations are negative and
@@ -889,10 +929,10 @@ softplus & smooth unbounded & 1.383 & $8.7\times10^{-5}$ & 2.74 \\
 \end{tabular}
 \end{table}
 
-Two results follow, and they pull in opposite directions. First, the choice
-\emph{can} matter: the best-to-worst spread is $29\%$ of the best row's MSE at
-$t = 2.7$, outside seed noise, so it is not the case that any reasonable
-activation will do. The clearest failure is softplus, which is strictly
+Two results follow, and they pull in opposite directions; reporting either one
+alone would mislead. The first is that the choice \emph{can} matter. The
+best-to-worst spread is $29\%$ of the best row's MSE at $t = 2.7$, outside seed
+noise, so it is not the case that any reasonable activation will do. The clearest failure is softplus, which is strictly
 positive and therefore cannot produce centred activations, leaving every
 downstream layer to undo an accumulated offset. Second, and against that, the
 five leading candidates -- GELU, tanh, LeakyReLU, ReLU and Mish -- are mutually
@@ -913,8 +953,9 @@ configuration, not a general verdict.
 
 \paragraph{Mixed activations across layers.}
 Because the two hidden layers need not share an activation, we also compared all
-$10 \times 10 = 100$ ordered assignments. Two disciplines matter here and are
-easy to get wrong.
+$10 \times 10 = 100$ ordered assignments. A search that wide is easy to run and
+easy to fool oneself with, and two disciplines guard against that. We state both
+explicitly, because we violated the second in an earlier version of this study.
 
 The first is that selecting the best of $100$ noisy measurements estimates which
 candidate drew the most favourable seeds rather than which is best, so selection
@@ -1099,7 +1140,8 @@ DNN-ABC & $p_1$   & 1.407 & 3.43e-2 & 0.938 & 0.143 \\
 \end{tabular}
 \end{table}
 
-Two things in this table matter, and neither favours the neural surrogate.
+Two things in this table matter, and neither favours the neural surrogate. We
+set them out in turn.
 
 \emph{The two surrogates are statistically tied.} Attaching Monte Carlo standard
 errors to every cell and comparing DNN-ABC against the strengthened GPS-ABC at
@@ -1108,13 +1150,14 @@ and the remaining two favour GPS-ABC; none favours the network. The two are
 $p_2$ at $(1\times10^{-4}, 1\times10^{-2}, 3)$, difference
 $+0.050 \pm 0.039$, and $\tau$ at
 $(2\times10^{-3}, 8\times10^{-3}, 5)$, $+0.411 \pm 0.409$ -- both marginal.
-We state this plainly because Study I found a consistent
-DNN advantage and it would be easy to assume it carries over: it does not. The
-reason is visible in Section~\ref{sec:arch3D} -- when both surrogates fit the
-response surface essentially perfectly relative to its noise, the surrogate is
-no longer the bottleneck, and downstream accuracy is set by the identifiability
-of the model rather than by the quality of the emulator. A surrogate can only
-help where surrogate error is what limits the answer.
+We state this plainly because Study I found a consistent DNN advantage, and it
+would be natural to assume the advantage carries over. It does not. The reason
+is already visible in Section~\ref{sec:arch3D}: when both surrogates fit the
+response surface essentially perfectly relative to its own noise, the surrogate
+has stopped being the bottleneck, and downstream accuracy is set by the
+identifiability of the model rather than by the quality of the emulator. A
+surrogate can only help where surrogate error is what limits the answer. That
+condition held in Study I and does not hold here.
 
 \emph{Every method over-covers, and the differences between them are not
 resolvable at this replicate count.} Coverage of the nominal $95\%$ credible
@@ -1156,9 +1199,10 @@ recovered no better than an order of magnitude by either method.
 \label{sec:sim3D_arch}
 
 The heteroscedastic MLP of Section~\ref{sec:arch3D} treats its three inputs
-$(\log_{10}p_1,\log_{10}p_2,\tau)$ as an unordered feature vector. A natural question, and one a reviewer of a paper proposing a
-neural surrogate is entitled to ask, is whether an architecture built around a
-different inductive bias -- a convolution, or a recurrence -- does better. The
+$(\log_{10}p_1,\log_{10}p_2,\tau)$ as an unordered feature vector. Whether an
+architecture built around a different inductive bias -- a convolution, or a
+recurrence -- would do better is a natural question, and one a reviewer of a
+paper proposing a neural surrogate is entitled to ask rather than to be told. The
 simulation-based-inference literature gives a specific, testable answer before
 any experiment is run: \citet{radev2020} state that a summary network's
 architecture ``should be aligned with the probabilistic symmetry of the
@@ -1289,7 +1333,9 @@ repository (Section~\ref{sec:repro}).
 \subsection{Scope and what remains open}
 \label{sec:sim3D_coverage}
 
-Four limitations should be read alongside the results above.
+Four limitations should be read alongside the results above. The first two
+concern the regime this study occupies, the third the model it uses, and the
+fourth an error we made and corrected.
 
 \emph{The plating time is not the paper's.} $t_p = 10$ here against
 \citeauthor{lu2023}'s $t_p = 20$, forced by the exponential cost of exact
@@ -1345,12 +1391,13 @@ paired comparison on identical design points and seeds.
 \label{sec:discussion}
 % =============================================================================
 
-Across both studies, the neural surrogate's advantage over the Gaussian
-process is clearest exactly where the theory predicts it should be: in
+The two studies answer the question of Section~\ref{sec:intro} with a
+condition rather than a verdict, and the condition is the contribution we would
+most like carried forward. Across both studies, the neural surrogate's advantage
+over the Gaussian process appears exactly where theory predicts it should: in
 surrogate quality and cost scaling as the useful training-set size grows
-(Table~\ref{tab:arch1D}), and this advantage compounds when
-the exact simulator used to build the training design is itself expensive, as
-it is here. In the one-dimensional case, where a Gaussian process fit on
+(Table~\ref{tab:arch1D}), and it compounds when the exact simulator used to
+build the training design is itself expensive, as it is here. In the one-dimensional case, where a Gaussian process fit on
 $\sim 800$ points is already close to a well-specified problem's optimum,
 the two surrogates are close to interchangeable on point accuracy and query
 speed, and DNN-ABC's advantage is concentrated in tighter, still-calibrated
@@ -1363,24 +1410,23 @@ near-tie, and every method over-covers its credible intervals -- at $1.000$
 throughout for $\tau$ -- despite held-out predictive calibration that a plain
 regression diagnostic reports as near-exact (Table~\ref{tab:fit3D}). The
 over-coverage is a property of the ABC acceptance kernel built on top of the
-surrogate rather than of the surrogate's own predictions. This is, we think, a broader methodological
-point for anyone deploying a conformally calibrated regression surrogate
-inside a likelihood-free sampler: split-conformal calibration
-\citep{lei2018} is a strong, distribution-free guarantee about the
-surrogate's own predictive interval, and Sections~\ref{sec:sim1D_calib} and
-\ref{sec:sim3D_fit} show it holding to a high degree of precision in both
-studies -- but it is a guarantee about the regression problem the surrogate
-was trained to solve, not about the coverage of whatever downstream
-quantity the surrogate's uncertainty is subsequently plugged into. The two
-can, and here do, come apart.
+surrogate rather than of the surrogate's own predictions. We take this to be a broader methodological point for anyone deploying a
+conformally calibrated regression surrogate inside a likelihood-free sampler,
+and it is easy to state and easy to forget. Split-conformal calibration
+\citep{lei2018} is a strong, distribution-free guarantee, and
+Sections~\ref{sec:sim1D_calib} and \ref{sec:sim3D_fit} show it holding to high
+precision in both studies. But it is a guarantee about the regression problem
+the surrogate was trained to solve, not about the coverage of whatever
+downstream quantity the surrogate's uncertainty is subsequently plugged into.
+The guarantee does not travel with the number. The two can come apart, and
+here they do.
 
-A second, purely architectural, finding recurs across both studies and is
-worth stating plainly for anyone building a similar surrogate: the single
-largest driver of surrogate quality in the one-dimensional
-architecture search (Table~\ref{tab:arch1D}) was
-\emph{not} the choice of activation function, which was a near-tie among
-several reasonable choices, but the presence or absence of
-BatchNorm \citep{ioffe2015}. Study II qualifies even this: on that surface no
+A second finding is purely architectural, recurs across both studies, and is
+worth stating plainly for anyone building a similar surrogate. The single
+largest driver of surrogate quality in the one-dimensional architecture search
+(Table~\ref{tab:arch1D}) was \emph{not} the choice of activation function, which
+was a near-tie among several reasonable candidates. It was the presence or
+absence of BatchNorm \citep{ioffe2015}. Study II qualifies even this: on that surface no
 architectural choice mattered at all, because every candidate already sat at
 the noise floor (Table~\ref{tab:capacity3D}), which is itself worth measuring
 before any architecture search is run. An otherwise-standard network with BatchNorm
@@ -1459,13 +1505,17 @@ for the Gaussian-process baseline, and \texttt{torch} for the neural
 surrogates). No GPU is required for any part of the pipeline; every model in
 both studies trains on CPU in seconds to minutes.
 
-\paragraph{Instructions for reproduction.} Each study's surrogate can be
-retrained, its ABC tables reproduced, and its figures regenerated with three
-scripted commands documented in the repository's README; the
-two-stage pipeline documents the same sequence -- data generation, the two
-rounds of architecture search, the activation selection, training and conformal
-calibration, the ABC tables, Monte Carlo standard errors, and figure generation
--- in the order the results are presented in this paper.
+\paragraph{Instructions for reproduction.} Each study ships a single entry
+point, \texttt{run\_all.py}, that retrains its surrogate, reproduces its ABC
+tables, recomputes the Monte Carlo standard errors, and regenerates every
+figure. It takes no command-line arguments -- it asks at the console whether to
+run a short pipeline check or the full reported settings -- so the study can be
+reproduced from an editor as well as a terminal, and it runs under whichever
+Python interpreter invokes it. The underlying steps remain individually
+runnable and are documented in each package's guide, in the order the results
+are presented in this paper: data generation, the two rounds of architecture
+search, the activation selection, training and conformal calibration, the ABC
+tables, Monte Carlo standard errors, and figure generation.
 
 The two-stage package also ships a validation script that re-derives, rather
 than asserts, three facts the analysis depends on: that the two-stage simulator
@@ -1498,14 +1548,15 @@ direct one-dimensional reproduction of their benchmark. Extending the same
 construction to the two-stage model $(p_1,p_2,\tau)$, however, does \emph{not}
 reproduce that advantage: there the neural and Gaussian-process surrogates are
 statistically tied in seven of nine comparisons with the other two favouring the
-Gaussian process, and we report the result rather than tune it away. The explanation we offer is a
-general one and is the more useful contribution of Study II. A surrogate can
-only improve an inference where surrogate error is what limits it; once the
-emulator sits at the data's irreducible noise floor -- as every network we
-tried does, across three orders of magnitude of model size -- the binding
-constraint becomes the identifiability of the model itself, and no better
-emulator can help. Measuring that floor before comparing architectures is
-cheap, and we would encourage it as routine practice in surrogate studies.
+Gaussian process, and we report the result rather than tune it away. The explanation we offer for that failure is general, and it is the more useful
+contribution of Study II. A surrogate can only improve an inference where
+surrogate error is what limits it. Once the emulator sits at the data's
+irreducible noise floor -- as every network we tried does, across three orders
+of magnitude of model size -- the binding constraint becomes the identifiability
+of the model itself, and no better emulator can reach it. The practical
+consequence is a cheap diagnostic that we would encourage as routine: measure
+the noise floor before comparing architectures, because it determines whether
+the comparison can report anything at all.
 Both the surrogate-substitution framework and the diagnosis of where its
 guarantees do and do not transfer downstream should apply beyond this
 particular mutation-rate model to other ABC procedures built on a
