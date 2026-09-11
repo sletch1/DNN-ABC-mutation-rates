@@ -26,34 +26,6 @@ uncertainty the GP cannot — at the same ~100–2500× speedup over exact
 ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
 (most cells are a statistical tie on point accuracy; see §4.3/Table 3 there).
 
-> ### The 3-D study was rebuilt, and it is finished
->
-> An earlier 3-D extension estimated a joint `(p, a, δ)` surrogate. Two problems
-> retired it (full analysis in [`updates.md`](updates.md)):
->
-> 1. **Wrong model.** The paper's multi-parameter model is a *two-stage*
->    (piecewise-constant) mutation rate, `p(t) = p1` for `t ≤ τ` and `p2` after.
->    `(p, a, δ)` is a different model, not a reparameterization of it.
-> 2. **A dead axis.** The `a` direction is analytically non-identifiable in that
->    design — `a·t_p` depends on `p` alone, so the joint law of `(Z, X)` is
->    exactly invariant to `a`. The "3-D" surrogate was a 2-D `(p, δ)` surface
->    with a dummy third input.
->
-> The replacement targets the paper's actual model, **`(p1, p2, τ)`**, and is
-> complete: see [`Models/3D/README.md`](Models/3D/README.md) and Study II
-> of `manuscript.pdf`. **Its headline result is negative and is reported as
-> such** — the DNN surrogate does not beat a Gaussian process on this surface,
-> because what binds is the model's identifiability rather than surrogate error.
-> That conclusion survived three separate corrections, each of which measurably
-> improved the surrogate: fixing a mutation-time convention mismatch, adopting
-> the paper's fourth-root summary statistic for the two-stage model, and
-> reselecting the activation under it.
->
-> **§9 below still describes the RETIRED `(p, a, δ)` study** and is kept only for
-> provenance. Do not read its numbers as current. The 1-D study (§1–§8) is
-> unaffected — it matches the paper's Study 1 and its constant-rate assumptions
-> hold.
-
 ---
 
 ## Key findings & contributions
@@ -68,9 +40,10 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
 - A controlled architecture study (§5) that isolates the actual driver of surrogate
   quality — removing BatchNorm, not the choice of activation — which is what took the
   DNN from *losing* to GPS-ABC to beating it.
-- ~~A novel **3-D joint `(p, a, δ)` surrogate** (§9)~~ — **retired**, see the notice
-  above. Replaced by a **completed** two-stage `(p1, p2, τ)` study on the paper's
-  actual multi-parameter model, reported as Study II of the manuscript. It adds
+- ~~A novel **3-D joint `(p, a, δ)` surrogate** (§9)~~ — **retired**, see
+  [`updates.md`](updates.md). Replaced by a **completed** two-stage `(p1, p2, τ)`
+  study on the paper's actual multi-parameter model, reported as Study II of the
+  manuscript. It adds
   a faithful reproduction of the reference GPS-ABC baseline alongside our
   strengthened one, and a reproducible provenance check on the ground truth.
 - A fully reproducible pipeline (§8): one command trains the surrogate, one
@@ -89,9 +62,12 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
   **0.950** test-set coverage, with predictive uncertainty that tracks the data's
   true input-dependent noise — something GPS-ABC's homoscedastic GP cannot
   represent (§4.5).
-- **3-D extension: withdrawn.** The figures quoted here came from the retired
+- **3-D extension: replaced.** The figures quoted in §9 came from the retired
   `(p, a, δ)` study and are not claims about the two-stage model that replaces it.
-  No 3-D performance numbers are currently supported.
+  The current 3-D numbers are Study II of `manuscript.pdf`, whose headline result
+  is negative and reported as such: the DNN surrogate does not beat a Gaussian
+  process on the two-stage surface, because what binds is the model's
+  identifiability rather than surrogate error.
 
 ---
 
@@ -437,7 +413,7 @@ NN_ABC/
 │                                 selection (the paper's Fig. 1)
 │                     3D/matlab/  two-stage simulator and the Study 2 GP driver
 ├── manuscript.tex  The write-up (see the §9 caveat above).
-└── updates.md      Why the 3-D study was retired, and the plan to replace it.
+└── updates.md      Why the 3-D study was retired, and what replaced it.
 ```
 
 **Reading order for a newcomer:** `RCode/funMBP.R` (what is being simulated and
@@ -453,6 +429,8 @@ Files are grouped so a reader can find the neural network in one place
 
 ```
 Models/1D/
+├── run_all.py                     # the entry point — press Run in an IDE, or `python run_all.py`
+├── HOW_TO_RUN.md                  # step-by-step guide, including Windows
 ├── paths.py                       # single source of truth for data/results locations
 ├── network/                       # THE DNN — architecture, training, diagram
 │   ├── model.py                   # HeteroscedasticMLP (GELU, two heads) + Gaussian-NLL
@@ -501,8 +479,23 @@ seconds to minutes.
 ### 1-D pipeline
 
 The ground-truth data (`Models/1D/data/slow_data_1D.csv`) is already
-committed, so no simulation needs to be regenerated first. Run everything from
-[`Models/1D/`](Models/1D):
+committed, so no simulation needs to be regenerated first.
+
+Everything below is wrapped by one script, [`Models/1D/run_all.py`](Models/1D/run_all.py).
+Open it in an IDE (Spyder, VS Code, PyCharm) and press **Run**, or from a
+terminal:
+
+```bash
+cd Models/1D
+python run_all.py          # asks: [1] quick smoke test, or [2] the paper's settings
+```
+
+It takes no command-line arguments — it asks in the console — and runs with
+whatever interpreter is active, offering to install anything missing. See
+[`Models/1D/HOW_TO_RUN.md`](Models/1D/HOW_TO_RUN.md) for what to expect at each
+step and how long the full run takes.
+
+To drive the steps yourself instead:
 
 ```bash
 cd Models/1D
@@ -527,11 +520,33 @@ paper-scale study. Outputs land in `Models/1D/results/` (`tables/`,
 
 ### 3-D pipeline — two-stage `(p1, p2, τ)`
 
-The 3-D study is mid-rebuild. What exists today is the **simulator and its ground
-truth**; the surrogate and ABC stages of the retired `(p, a, δ)` package were
-removed and are being rewritten against this model.
+The two-stage study is complete and is reported as Study II of the manuscript.
+Its pipeline is wrapped the same way, by
+[`Models/3D/run_all.py`](Models/3D/run_all.py):
 
-Ground truth is generated by [`RCode/genSlowData_3D.R`](RCode/genSlowData_3D.R),
+```bash
+cd Models/3D
+python run_all.py          # asks: [1] quick, [2] the reported settings, [3] + exact-simulator baseline
+```
+
+Or step by step — a few minutes end to end, because the expensive
+exact-simulator baseline is off by default (this study compares the two
+surrogates to each other):
+
+```bash
+cd Models/3D
+python network/train.py --data data/slow_data_3D.csv --seed 0
+python tests/validate_simulator.py --quick
+python abc/run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --ns 4 --J-grid 100 --no-sim
+python abc/mcse.py
+python figures/make_figures.py
+```
+
+Details in [`Models/3D/HOW_TO_RUN.md`](Models/3D/HOW_TO_RUN.md) and
+[`Models/3D/README.md`](Models/3D/README.md).
+
+The ground truth is committed, so it does not need regenerating. If you want to
+rebuild it, it is generated by [`RCode/genSlowData_3D.R`](RCode/genSlowData_3D.R),
 an exact cell-by-cell port of the reference MATLAB in
 [`Models/3D/matlab/`](Models/3D/matlab/):
 
@@ -573,7 +588,7 @@ below ~1e-5 nearly every culture is mutant-free and `d̄` collapses to zero.
   the full `[−8,−2]` and only queried in-range.
 - This is the **1-D constant-rate** case. The DNN's advantage was expected to be
   strongest in the higher-dimensional regime; Study II tested that and **did not
-  find it** — see the notice at the top and `Models/3D/README.md`.
+  find it** — see Study II of `manuscript.pdf` and `Models/3D/README.md`.
 - 40 replicates (vs the paper's 100) — MSE cells carry modest Monte-Carlo noise;
   turn `--reps` up for publication-grade error bars.
 
@@ -585,8 +600,8 @@ below ~1e-5 nearly every culture is mutant-free and `d̄` collapses to zero.
 > provenance. Its numbers are not current and should not be cited.** The `a` axis
 > is analytically non-identifiable in this design, so the "3-D" surrogate was a
 > 2-D surface with a dummy third input, and the model itself is not the paper's
-> multi-parameter model. See the notice at the top of this file and
-> [`updates.md`](updates.md).
+> multi-parameter model. See [`updates.md`](updates.md) and
+> [`Models/3D/README.md`](Models/3D/README.md) for the study that replaced it.
 >
 > The study that replaces it is the two-stage `(p1, p2, τ)` work in
 > [`Models/3D/`](Models/3D/README.md).
