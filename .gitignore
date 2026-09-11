@@ -24,3 +24,6 @@ MutationRates_ABC_paper.pdf
 # bloat the repo pointlessly
 *.zip
 *.xdv
+
+# working notes -- personal scratch, not part of the record
+Models/notes/
