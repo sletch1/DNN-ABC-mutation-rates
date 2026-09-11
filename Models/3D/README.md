@@ -15,7 +15,7 @@ summary statistic.
 > **This replaces an earlier 3-D study** that varied `(p, a, δ)` under a
 > *constant* mutation rate. That was the wrong model — not a reparameterization
 > of this one — and its `a` axis was analytically non-identifiable, making it
-> effectively 2-D. See [`../../updates.md`](../../updates.md).
+> effectively 2-D. Study II of the manuscript reports the study that replaced it.
 
 ---
 
@@ -103,7 +103,8 @@ So `p2` should be recovered well and `p1`/`τ` poorly, with wide and possibly
 multimodal marginals. **This is a property of the model, not a bug in the
 sampler** — the paper reports the same and names it as the model's known
 weakness. Sharpening those marginals is the stated target of the rebuild
-(`updates.md` §5), so the tables report per-parameter accuracy separately rather
+(see the manuscript's Study II), so the tables report per-parameter accuracy
+separately rather
 than a single score that would hide it.
 
 Because of this, prefer **`rmse_log`** to `nrmse` in the tables: for a weakly

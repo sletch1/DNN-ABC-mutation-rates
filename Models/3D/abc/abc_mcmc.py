@@ -12,7 +12,7 @@ does and what makes the problem hard: `d_bar` responds strongly to p2
 (corr 0.74 on the ground truth), weakly to p1 (0.40), and barely to tau (0.14).
 Expect a well-identified p2 and broad, possibly multimodal, p1 and tau
 marginals -- the paper reports exactly that, and sharpening those marginals is
-the stated target of the rebuild (see ../../updates.md section 5).
+the stated target of the rebuild.
 
 Three backends share one sampler; only the way the summary statistic and its
 uncertainty are obtained differs:

@@ -17,7 +17,7 @@ without a rewrite -- see `mut_time` below for the one restriction.
 
 Superseded model: the previous 3-D package (`../3D/`) varied (p, a, delta) under
 a CONSTANT mutation rate. That is a different model, not a reparameterization,
-and its `a` axis was analytically non-identifiable. See ../../updates.md.
+and its `a` axis was analytically non-identifiable.
 
 Contents
 --------
@@ -293,7 +293,7 @@ def solve_tp(Z0, a, p, c: float = 20.0) -> float:
     Retained only for the degenerate p1 == p2 cross-checks against the
     constant-rate package. The two-stage study fixes tp (= 20 in the paper's
     Study 2, = 10 for the exact-simulator design here) rather than solving it;
-    see ../../updates.md Q2.
+    see the manuscript's Study II.
     """
     from scipy.optimize import brentq
     f = lambda t: Z0 * (np.exp(a * t) - np.exp(a * t * (1 - 2 * p))) - c

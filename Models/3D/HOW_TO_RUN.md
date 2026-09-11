@@ -229,9 +229,17 @@ determined by a single scalar summary, so a better surrogate cannot help.
 ## 7. Regenerating the ground-truth data (not needed)
 
 `data/slow_data_3D.csv` (2,000 design points × 10 replicates, 35 MB) is
-included. It came from the exact cell-by-cell R simulator and takes hours on a
-compute server; `run_on_server.sh` does it. The R source is in `../../RCode/`
-and the reference MATLAB it was ported from is in `matlab/`.
+included. It came from the exact cell-by-cell R simulator, which takes hours and
+is worth running on a multi-core machine:
+
+```bash
+Rscript ../../RCode/genSlowData_3D.R                              # full dataset
+Rscript ../../RCode/genSlowData_3D.R --ndesign 20 --nrep 2 --out smoke.csv
+```
+
+Cores are auto-detected and each design point seeds itself from `(design, rep)`,
+so the output is identical regardless of core count or scheduling order. The
+reference MATLAB it was ported from is in `matlab/`.
 
 ## 8. Folder map
 

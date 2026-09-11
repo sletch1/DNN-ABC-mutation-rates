@@ -40,10 +40,9 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
 - A controlled architecture study (§5) that isolates the actual driver of surrogate
   quality — removing BatchNorm, not the choice of activation — which is what took the
   DNN from *losing* to GPS-ABC to beating it.
-- ~~A novel **3-D joint `(p, a, δ)` surrogate** (§9)~~ — **retired**, see
-  [`updates.md`](updates.md). Replaced by a **completed** two-stage `(p1, p2, τ)`
-  study on the paper's actual multi-parameter model, reported as Study II of the
-  manuscript. It adds
+- ~~A novel **3-D joint `(p, a, δ)` surrogate** (§9)~~ — **retired**, see §9.
+  Replaced by a **completed** two-stage `(p1, p2, τ)` study on the paper's
+  actual multi-parameter model, reported as Study II of the manuscript. It adds
   a faithful reproduction of the reference GPS-ABC baseline alongside our
   strengthened one, and a reproducible provenance check on the ground truth.
 - A fully reproducible pipeline (§8): one command trains the surrogate, one
@@ -413,7 +412,6 @@ NN_ABC/
 │                                 selection (the paper's Fig. 1)
 │                     3D/matlab/  two-stage simulator and the Study 2 GP driver
 ├── manuscript.tex  The write-up (see the §9 caveat above).
-└── updates.md      Why the 3-D study was retired, and what replaced it.
 ```
 
 **Reading order for a newcomer:** `RCode/funMBP.R` (what is being simulated and
@@ -600,8 +598,8 @@ below ~1e-5 nearly every culture is mutant-free and `d̄` collapses to zero.
 > provenance. Its numbers are not current and should not be cited.** The `a` axis
 > is analytically non-identifiable in this design, so the "3-D" surrogate was a
 > 2-D surface with a dummy third input, and the model itself is not the paper's
-> multi-parameter model. See [`updates.md`](updates.md) and
-> [`Models/3D/README.md`](Models/3D/README.md) for the study that replaced it.
+> multi-parameter model. See [`Models/3D/README.md`](Models/3D/README.md) and
+> Study II of `manuscript.pdf` for the study that replaced it.
 >
 > The study that replaces it is the two-stage `(p1, p2, τ)` work in
 > [`Models/3D/`](Models/3D/README.md).
