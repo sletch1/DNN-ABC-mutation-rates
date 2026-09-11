@@ -72,9 +72,9 @@ convention, the summary statistic, and the activation selected under it -- each
 of which measurably improved the surrogate without changing the conclusion. We argue this is the expected outcome whenever surrogate error ceases to
 be the binding constraint, and that what binds instead is the model's intrinsic
 identifiability: $p_2$ is well determined while $p_1$ and $\tau$ are recovered
-poorly by every method tested. Both surrogates also miscalibrate their credible
-intervals, in opposite directions, a limitation we diagnose as a property of the
-ABC acceptance kernel rather
+poorly by every method tested. Every method also over-covers its credible
+intervals, most severely for the weakly identified $\tau$, a limitation we
+diagnose as a property of the ABC acceptance kernel rather
 than a deficiency of the surrogate's own predictive calibration, which remains
 near-exact throughout. A further controlled comparison across architecture
 families -- feedforward, convolutional, and recurrent surrogates, motivated by
@@ -964,12 +964,17 @@ Mish & SiLU & $3.205\times10^{-4}$ & $1.8\times10^{-5}$ & 3.94 & 1.101 \\
 \end{tabular}
 \end{table}
 
-The leakage was not harmless. On test the best finalist is ReLU throughout,
-which ranks sixth on validation; selecting on test would therefore have chosen
-a different activation \emph{and} reported an optimistic number for it. This is
-the mechanism the two-stage design was meant to guard against, operating one
-level up: separating screening seeds from confirmation seeds does nothing if
-both are scored on the split reserved for reporting.
+Under the fourth-root target the two splits happen to agree at the top: GELU
+into tanh is best on test as well as on validation, so scoring the selection on
+test would not have changed the choice here. Below the winner they do not agree
+-- the validation runner-up falls to third on test and the fourth-placed pair
+rises to second -- and under the square-root target the two splits disagreed at
+the top as well. A procedure whose answer depends on which split it is scored
+on cannot be trusted when it happens to coincide either, and the quoted test
+figure would in any case have been optimistic for whichever candidate test
+selected. This is the mechanism the two-stage design was meant to guard against,
+operating one level up: separating screening seeds from confirmation seeds does
+nothing if both are scored on the split reserved for reporting.
 
 \paragraph{The deployed activation.} GELU into tanh is the best point estimate
 on the selection split, and that is what we deploy. Its held-out test MSE is
@@ -1354,10 +1359,10 @@ surrogate-quality advantage vanishes entirely, because both surrogates reach
 the data's noise floor (Table~\ref{tab:capacity3D}), and advantages in
 emulator quality do not automatically
 translate into a better \emph{downstream ABC posterior}: point accuracy is a
-near-tie, and both surrogates miscalibrate their credible intervals -- in
-opposite directions -- despite held-out predictive calibration that a plain
+near-tie, and every method over-covers its credible intervals -- at $1.000$
+throughout for $\tau$ -- despite held-out predictive calibration that a plain
 regression diagnostic reports as near-exact (Table~\ref{tab:fit3D}). The
-miscalibration is a property of the ABC acceptance kernel built on top of the
+over-coverage is a property of the ABC acceptance kernel built on top of the
 surrogate rather than of the surrogate's own predictions. This is, we think, a broader methodological
 point for anyone deploying a conformally calibrated regression surrogate
 inside a likelihood-free sampler: split-conformal calibration
@@ -1390,7 +1395,7 @@ Section~\ref{sec:sim3D_arch}, is best read as a companion to this one rather
 than a separate result: BatchNorm was a case of an architectural component
 actively fighting the problem's structure, whereas CNN1D/RNN/LSTM on the
 two-stage inputs are a case of architectural components with \emph{nothing to
-find} -- there is no spatial or temporal pattern in four unordered physical
+find} -- there is no spatial or temporal pattern in three unordered physical
 parameters for a kernel or a recurrence to exploit, so the honest expectation,
 confirmed by \citet{radev2020}'s stated design principle and by our own
 result, is indifference-to-mild-harm rather than either a large gain or a
@@ -1416,9 +1421,9 @@ standard errors throughout for exactly this reason, and
 Sections~\ref{sec:sim1D_results} and \ref{sec:sim3D_abc} use them to
 identify which point-accuracy comparisons are, and are not, resolved at
 this replicate count, rather than over-interpreting numerically lower MSE
-as a real effect in every cell. The three-dimensional study's $12$-cell grid,
-while chosen to span the parameter space broadly, does not cover it
-exhaustively. The exact ABC-MCMC prior is bounded in both studies to keep
+as a real effect in every cell. The three-dimensional study's three truth
+triples at a single culture count, while chosen to span the parameter space
+broadly, do not cover it exhaustively. The exact ABC-MCMC prior is bounded in both studies to keep
 the exact simulator feasible inside the sampling loop; surrogates are
 trained on a wider range and only queried within it. Finally,
 Study II's interval miscalibration is, by construction, a property of the
