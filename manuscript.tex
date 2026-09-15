@@ -401,7 +401,7 @@ mean 95\% credible-interval length, empirical coverage, and wall-clock time
 per 100 MCMC iterations.
 
 Each cell of each study is evaluated over $R$ independent replicated data
-sets ($R=40$ in Study I, $R=32$ in Study II), and, following
+sets ($R=40$ in Study I, $R=16$ per truth triple in Study II), and, following
 \citeauthor{morris2019}'s recommendation, we accompany every MSE comparison
 with its Monte Carlo standard error (MCSE), computed as the usual standard
 error of a sample mean applied to the per-replicate squared errors: writing
@@ -416,9 +416,7 @@ Table~\ref{tab:mse1D}, and Section~\ref{sec:sim3D_abc} for Study II); this is a 
 of whether a point comparison is resolved at this replicate count, not a
 formal hypothesis test, and we use it throughout to avoid over-interpreting
 small numerical differences as the replicate count varies across cells and
-between the two studies ($R=40$ versus $R=32$, further split unevenly by the
-number of live workers available for the most expensive, exact-simulator
-cells).
+between the two studies ($R=40$ versus $R=16$).
 
 % =============================================================================
 \section{Simulation Study I: One-Dimensional Constant Mutation Rate}
