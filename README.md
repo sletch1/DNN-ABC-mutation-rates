@@ -87,7 +87,7 @@ across the mutation-rate range.
 
 ### Architecture, and why each choice (`network/model.py: HeteroscedasticMLP`)
 
-`log10(p)` → **Dense 128 → GELU → Dense 64 → GELU** → two linear heads (`μ`, `log σ²`).
+`log10(p)` → **Dense 32 → GELU → Dense 16 → GELU** → two linear heads (`μ`, `log σ²`).
 
 **Depth — 2 hidden layers.** The target `E[log10(d̄) | log10 p]` is a *smooth,
 monotone 1-D curve* (paper Fig. 2). Two hidden layers already make the network a
@@ -96,13 +96,15 @@ parameters and overfitting risk on 505 training rows with no accuracy gain (a
 3-layer variant was tested — no improvement), while one layer under-fits the
 curvature. Two is the sweet spot.
 
-**Width — 128 → 64 (a funnel).** The first layer is wide (128) to capture the
-curve's changing slope and curvature across six orders of magnitude in `p`;
-narrowing to 64 compresses the representation toward the scalar output, a standard
-funnel that mildly regularizes. Going wider (256→128) gave **no** improvement in the
-benchmark, so 128→64 is about the smallest that fits the curve cleanly (~9k
-parameters). Early stopping + weight decay keep this from overfitting despite the
-parameter count exceeding the row count.
+**Width — 32 → 16 (a funnel), and how it got smaller.** The original search only
+compared 128→64 against wider options (256→128), found no improvement going wider,
+and stopped there — an artifact of never having tried going *narrower*. A later,
+dedicated capacity sweep (`network/architecture_search/benchmark_capacity.py` +
+`benchmark_capacity_confirm.py`, §5) tested that directly, all the way down to a
+linear control, and found 32→16 (626 params, 14× smaller than the original 128→64)
+the closest curve fit to the GP of every size tried, with no measurable cost on the
+actual downstream ABC-MCMC task at the paper's own replicate count. The network was
+switched to 32→16 on that basis; §5 has the full story and the numbers.
 
 **Activation — GELU (an honestly low-stakes choice).** On a curve this smooth the
 activation barely matters. Isolating it (same 128→64, no BatchNorm, averaged over 3
@@ -366,13 +368,13 @@ serve equally well. Deep ensembles were also tried
 (`.../benchmark_round2.py`) but did not beat a single network on this smooth curve,
 so the simpler model was kept.
 
-**Is 128→64 (8,642 params) actually needed?** No — but it isn't hurting either.
-A width/depth sweep (`network/architecture_search/benchmark_capacity.py`, 3-seed
-average, full write-up in `results/logs/benchmark_capacity.md`) shows the deployed
-size is not the best *curve* fit among the sizes tried: 32→16 (626 params, 14×
-smaller) comes closer to the GP (+1.6% vs GP's own fit) than 128→64 does (+7.6%),
-plausibly because the larger network has more room to overfit 606 training rows on
-a response this smooth.
+**Was 128→64 (8,642 params) actually needed? No — the network is now 32→16
+(626 params, 14× smaller).** A width/depth sweep
+(`network/architecture_search/benchmark_capacity.py`, 3-seed average, full write-up
+in `results/logs/benchmark_capacity.md`) showed the original size was not even the
+best *curve* fit among the sizes tried: 32→16 came closer to the GP (+1.6% vs GP's
+own fit) than 128→64 did (+7.6%), plausibly because the larger network has more
+room to overfit 606 training rows on a response this smooth.
 
 That raised the obvious follow-up: does the curve-fit gap survive into the actual
 ABC-MCMC task, at the same rigor as Table 1? `benchmark_capacity_confirm.py`
@@ -380,18 +382,24 @@ answers it in two stages, screening every size cheaply first (`run_all.py`'s own
 `--quick` settings) then confirming the survivors — all six passed the screen — at
 Table 1's exact scale (40 replicates, the full 3×3 grid), with Monte Carlo standard
 errors attached to every comparison
-(`results/logs/benchmark_capacity_confirm.md`). Result: 32→16 is the best point
-estimate on both downstream MSE and interval length of every size tested, deployed
-network included — but the gap is not resolved in any of the 9 cells (max
-|Δ/SE| = 0.53, well under the ≈2 threshold used everywhere else in this project).
-Even the worst two-layer candidate (16→8, 46× smaller) is only resolved as
-measurably worse in 1 of 9 cells. Every size from 8,642 down to 34 parameters — a
-254× range — clears the GP baseline by a wide, decisive margin throughout; only a
-purely linear control shows a clear, unambiguous cost on curve fit. The
-deployed network is kept at 128→64 regardless, since this analysis cannot show it
-is worse and every number in Tables 1–3 is already reported against it — but a
-reader retraining this surrogate under tighter compute or latency constraints can
-shrink it by more than an order of magnitude for free.
+(`results/logs/benchmark_capacity_confirm.md`). Result: 32→16 was the best point
+estimate on both downstream MSE and interval length of every size tested, 128→64
+included — though that specific edge is not itself resolved at this replicate
+count (max |Δ/SE| = 0.53 across the 9 cells, well under the ≈2 threshold used
+everywhere else in this project). Even the worst two-layer candidate (16→8, 46×
+smaller) was only resolved as measurably worse than 128→64 in 1 of 9 cells. Every
+size from 8,642 down to 34 parameters — a 254× range — cleared the GP baseline by
+a wide, decisive margin throughout; only a purely linear control showed a clear,
+unambiguous cost on curve fit.
+
+**The network was switched to 32→16 on that basis: the best point estimate
+everywhere it can be compared to 128→64, strictly better curve fit, and no
+analysis here can show a cost to the change.** Tables 1–3 and every figure in §3–4
+are reported for 32→16, retrained from the same data splits at the same paper
+scale; 128→64 is kept in the tables above as the architecture the activation and
+BatchNorm search was actually run against, not as the deployed model. The honest
+limit on this is the one already stated: what's established is that the smaller
+network is not worse, not that it is provably better.
 
 ---
 
