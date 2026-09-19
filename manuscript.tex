@@ -440,13 +440,19 @@ sees the test replicates.
 \label{sec:arch1D}
 
 The network is a shallow funnel multilayer perceptron: input
-$\theta=\log_{10}p$, a dense layer of width $128$ with GELU activation, a
-dense layer of width $64$ with GELU activation, and the two linear output
-heads of Section~\ref{sec:hetero} ($\sim 9{,}000$ parameters). We chose this
-architecture by a controlled search
-(Table~\ref{tab:arch1D}) against the mean-curve fit achieved by the GP
-baseline, holding fixed the goal of matching or beating the GP's fit to the
-denoised response curve $\mathbb{E}[\log_{10}\dbar \mid \theta]$:
+$\theta=\log_{10}p$, two GELU-activated dense layers, and the two linear
+output heads of Section~\ref{sec:hetero}. Its final width, $32$ then $16$
+($626$ parameters), is the outcome of a two-stage search reported across this
+section: an activation/normalisation sweep run at a $128$--$64$ baseline
+(immediately below), then a capacity sweep of that baseline itself once the
+activation question was settled (Section~\ref{sec:arch1D}, ``Is the two-layer
+$128$--$64$ network actually needed?''). We report the search in that
+order -- activation first, then capacity -- because that is the order it was
+run in, and each stage's conclusion held fixed the choice the previous stage
+made. The first stage was a controlled search (Table~\ref{tab:arch1D}) against
+the mean-curve fit achieved by the GP baseline, holding fixed the goal of
+matching or beating the GP's fit to the denoised response curve
+$\mathbb{E}[\log_{10}\dbar \mid \theta]$, at the $128$--$64$ width then in use:
 
 \begin{table}[H]
 \centering
@@ -460,7 +466,7 @@ $\approx 4.7\times 10^{-3}$).}
 Model & Mean-curve MSE & vs.\ GP \\
 \midrule
 Gaussian process (GPS-ABC baseline) & $3.836\times10^{-4}$ & --- \\
-\textbf{DNN, GELU (128, 64), no BatchNorm [chosen]} & $\mathbf{3.888\times10^{-4}}$ & $+1\%$ \\
+\textbf{DNN, GELU (128, 64), no BatchNorm [selects activation]} & $\mathbf{3.888\times10^{-4}}$ & $+1\%$ \\
 DNN ensemble $\times 5$, SiLU (128, 128, 64) & $3.960\times10^{-4}$ & $+3\%$ \\
 DNN ensemble $\times 5$, tanh (256, 128) & $4.178\times10^{-4}$ & $+9\%$ \\
 DNN, SiLU (128, 128, 64) & $4.400\times10^{-4}$ & $+15\%$ \\
@@ -516,7 +522,7 @@ and depth were never themselves swept. We test that directly in two stages,
 holding GELU and no BatchNorm fixed throughout
 (\texttt{network/architecture\_search/benchmark\_capacity.py} for the curve-fit
 sweep, \texttt{benchmark\_capacity\_confirm.py} for the downstream stage below).
-First, a curve-fit sweep from the deployed size down to a linear control,
+First, a curve-fit sweep from the $128$--$64$ baseline down to a linear control,
 averaged over three seeds, against the denoised response curve. Second, a
 screen-then-confirm downstream check mirroring the discipline of
 Section~\ref{sec:sim3D_act}'s activation search: every candidate is first
@@ -540,8 +546,8 @@ MSE and 95\% CI length are DNN-ABC at the same scale as Table~\ref{tab:mse1D}
 Hidden layers & Parameters & Curve MSE ($\times$ GP) & Downstream MSE & Downstream 95\% CI \\
 \midrule
 GP (GPS-ABC baseline) & --- & $3.836\times10^{-4}$ (---) & $2.702\times10^{-6}$ & $2.137\times10^{-3}$ \\
-\textbf{32--16} & \textbf{626} & $\mathbf{3.896\times10^{-4}}$ ($\mathbf{+1.6\%}$) & $\mathbf{1.433\times10^{-6}}$ & $\mathbf{1.300\times10^{-3}}$ \\
-128--64 (deployed) & $8{,}642$ & $4.129\times10^{-4}$ ($+7.6\%$) & $1.514\times10^{-6}$ & $1.308\times10^{-3}$ \\
+\textbf{32--16 (deployed)} & \textbf{626} & $\mathbf{3.896\times10^{-4}}$ ($\mathbf{+1.6\%}$) & $\mathbf{1.433\times10^{-6}}$ & $\mathbf{1.300\times10^{-3}}$ \\
+128--64 (original) & $8{,}642$ & $4.129\times10^{-4}$ ($+7.6\%$) & $1.514\times10^{-6}$ & $1.308\times10^{-3}$ \\
 64--32 & $2{,}274$ & $3.957\times10^{-4}$ ($+3.2\%$) & $1.565\times10^{-6}$ & $1.377\times10^{-3}$ \\
 16 (1 layer) & $66$ & $4.460\times10^{-4}$ ($+16.3\%$) & $1.579\times10^{-6}$ & $1.375\times10^{-3}$ \\
 8 (1 layer) & $34$ & $4.983\times10^{-4}$ ($+29.9\%$) & $1.668\times10^{-6}$ & $1.393\times10^{-3}$ \\
@@ -551,38 +557,43 @@ Linear (control) & $4$ & $4.672\times10^{-4}$ ($+21.8\%$) & --- & --- \\
 \end{tabular}
 \end{table}
 
-Two things follow, and they point in different directions. On raw curve fit,
+Two things follow, and they point in the same direction here. On raw curve fit,
 capacity is not merely unnecessary above a small threshold -- it is mildly
-\emph{counter-productive} at the deployed size: $128$--$64$ has the largest gap
+\emph{counter-productive} at the original size: $128$--$64$ has the largest gap
 to the GP of any two-layer candidate tested ($+7.6\%$), while $32$--$16$, at
 $14\times$ fewer parameters, comes closest to matching it ($+1.6\%$). With only
 $606$ training rows and a response curve this smooth, the larger network has
 more room to overfit, not less. On the downstream task the surrogate is
-actually deployed for, $32$--$16$ is the best point estimate on both accuracy
-and interval length of every candidate tested, deployed network included --
-but attaching Monte Carlo standard errors to the gap, as
-Section~\ref{sec:ademp} does throughout, shows it is not resolved: all nine
-$\Delta/\mathrm{SE}$ values against the deployed $128$--$64$ fall below $0.6$
-in magnitude, nowhere near the $\sim 2$ threshold this paper treats as
-resolved elsewhere. Even the nominally worst two-layer candidate, $16$--$8$
-at $46\times$ fewer parameters, is measurably worse in only one of nine cells
-(the largest-$p$, largest-$J$ cell, where signal is strongest) and tied in the
-other eight. Every candidate, deployed network included, beats the GP baseline
+actually used for, $32$--$16$ is also the best point estimate on both accuracy
+and interval length of every candidate tested, $128$--$64$ included -- and
+attaching Monte Carlo standard errors to the gap, as Section~\ref{sec:ademp}
+does throughout, shows that while this specific edge over $128$--$64$ is not
+itself resolved (all nine $\Delta/\mathrm{SE}$ values fall below $0.6$ in
+magnitude, nowhere near the $\sim 2$ threshold this paper treats as resolved
+elsewhere), nothing in the data argues against it either: $32$--$16$ never
+does measurably worse than $128$--$64$ in any cell, on either the curve-fit or
+the downstream comparison. Even the nominally worst two-layer candidate,
+$16$--$8$ at $46\times$ fewer parameters, is measurably worse than $128$--$64$
+in only one of nine cells (the largest-$p$, largest-$J$ cell, where signal is
+strongest) and tied in the other eight. Every candidate beats the GP baseline
 by a wide, decisive margin on both columns in every cell. Only the linear
 control shows a clear, unambiguous cost on curve fit, confirming a
 nonlinearity is required somewhere, just not much capacity beyond that.
 
-We do not redeploy a smaller network on the strength of this table: the
-deployed $128$--$64$ architecture is not measurably worse downstream than any
-smaller candidate at this replicate count, and every other number in this
-section and in Tables~\ref{tab:mse1D}--\ref{tab:time1D} is reported against it,
-so changing it would mean rerunning the paper-scale comparison for a gap this
-analysis cannot show is real. The honest conclusion is narrower and, we think,
-still useful: this problem does not \emph{require} a network anywhere near
-$128$--$64$'s size, downstream performance is flat across more than two orders
-of magnitude of parameter count, and a reader retraining this surrogate under
-tighter compute or latency constraints can shrink it substantially without
-giving up anything the data can distinguish from noise.
+\textbf{We redeploy on the strength of this table.} $32$--$16$ is the best
+point estimate everywhere it can be compared to $128$--$64$ and strictly
+better on curve fit, at $14\times$ fewer parameters; no analysis in this paper
+can show a cost to making the change, and Occam's razor settles a comparison
+this evenly matched in favour of the smaller model. Every number in
+Tables~\ref{tab:mse1D}--\ref{tab:time1D} and every figure in this study is
+therefore reported for the $32$--$16$ network, retrained from the same data
+splits and re-evaluated at the same paper scale; the $128$--$64$ row above is
+retained as the architecture the activation and BatchNorm search of
+Table~\ref{tab:arch1D} was actually run against, not as the deployed model.
+The honest limit on this conclusion is the one already stated: the specific
+margin by which $32$--$16$ leads is not itself distinguishable from Monte
+Carlo noise at this replicate count, so what is established is that the
+smaller network is not worse, not that it is provably better.
 
 \subsection{Regression calibration}
 \label{sec:sim1D_calib}
@@ -936,6 +947,50 @@ two-layer $64\to32$ funnel with GELU/tanh activations
 latency at this scale is dominated by interpreter and framework call overhead
 rather than arithmetic, so a $59\times$ reduction in parameter count buys only
 about $29\%$ less latency (Table~\ref{tab:capacity3D}).
+
+\paragraph{Does the curve-fit tie survive into the downstream task?} Table~\ref{tab:capacity3D}
+is a curve-fit diagnostic; it does not by itself say whether the same
+architectures remain tied on the actual ABC-MCMC recovery task, at the
+replicate count Table~\ref{tab:abc3D} uses. We test that directly, mirroring
+the design applied to the equivalent one-dimensional question
+(Section~\ref{sec:arch1D}): every candidate in the ladder is first screened at
+this package's own quick-check settings (2 replicates), and every candidate
+survives that screen, so all six are confirmed at Table~\ref{tab:abc3D}'s own
+scale -- $16$ replicates, all three truth triples, $3{,}000$ MCMC iterations --
+with Monte Carlo standard errors on $\mathrm{rmse}_{\log}$ attached to every
+comparison against the deployed $64\to32$
+(\texttt{abc/run\_experiments\_capacity.py}).
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Hidden layers & Parameters & Mean $\mathrm{rmse}_{\log}$ & Resolved vs.\ deployed \\
+\midrule
+GP (GPS-ABC baseline) & --- & $0.990$ & --- \\
+32--16 & $690$ & $1.067$ & $0/9$ (max $|\Delta/\mathrm{SE}|=1.63$) \\
+128--64 & $8{,}898$ & $1.105$ & $0/9$ (max $|\Delta/\mathrm{SE}|=1.16$) \\
+16--8 & $218$ & $1.133$ & $0/9$ (max $|\Delta/\mathrm{SE}|=1.06$) \\
+64--32 (deployed) & $2{,}402$ & $1.142$ & --- \\
+8--4 & $78$ & $1.149$ & $0/9$ (max $|\Delta/\mathrm{SE}|=1.32$) \\
+256--128--64 & $42{,}306$ & $1.208$ & $0/9$ (max $|\Delta/\mathrm{SE}|=1.55$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The curve-fit tie survives downstream, and it sharpens into something slightly
+more useful: $32$--$16$ is again the best point estimate, as it is on the
+one-dimensional model's own capacity question, but here \emph{no} pairwise
+comparison against the deployed network is resolved at the $2$-MCSE level --
+not even the largest network tested, $256$--$128$--$64$ at $17\times$ more
+parameters than deployed, which is in fact the nominally \emph{worst}
+performer of the six. This is a stronger form of the conclusion
+Table~\ref{tab:capacity3D} already draws: on this surface, downstream
+accuracy is flat across more than two orders of magnitude of parameter count
+in both directions from the deployed size, not merely insensitive to modest
+shrinkage. We do not redeploy on this evidence alone -- the deployed $64\to32$
+is what every number in Table~\ref{tab:abc3D} and Section~\ref{sec:sim3D_abc}
+is reported against, and this analysis cannot show a smaller network is
+better, only that it is not measurably worse.
 
 \paragraph{Heteroscedasticity.} The second output head is not optional here. The
 within-design-point replicate standard deviation of $\log_{10}\dbar$ varies by a
