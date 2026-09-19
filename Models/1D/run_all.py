@@ -100,7 +100,16 @@ def run(label, script, args=()):
     # Unbuffered, so the progress counter in step 2 appears live rather than in
     # one lump at the end. Line-by-line print() keeps it visible in Spyder's
     # console, which does not show a subprocess's raw output stream.
-    env = dict(os.environ, PYTHONUNBUFFERED="1")
+    #
+    # Thread count is capped rather than left at PyTorch's default (one thread
+    # per core). These networks are tiny -- a few thousand parameters -- so on
+    # a many-core shared machine the default causes thread-spawn overhead to
+    # dominate actual compute: on a 32-core server this made a 30-second
+    # training step take 10+ minutes at 800%+ CPU. A handful of threads is
+    # enough for a model this size regardless of how many cores are present.
+    n_threads = str(min(4, os.cpu_count() or 1))
+    env = dict(os.environ, PYTHONUNBUFFERED="1",
+               OMP_NUM_THREADS=n_threads, MKL_NUM_THREADS=n_threads)
     proc = subprocess.Popen(
         cmd, cwd=str(HERE), env=env, stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, text=True, bufsize=1,
