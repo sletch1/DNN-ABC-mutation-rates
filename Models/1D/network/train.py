@@ -55,11 +55,23 @@ Z_975 = 1.959964
 TRAIN_REPS, VAL_REPS, TEST_REPS = {1, 2, 3, 4, 5}, {6, 7, 8}, {9, 10}
 DEFAULT_DATA = str(DATA)
 
-# Architecture selected by benchmark_arch.py: a smooth activation (GELU) with NO
-# BatchNorm and no dropout gives the best mean-curve fit for this smooth 1-D
-# response -- within ~1% of the GP (a statistical tie), vs the original
-# ReLU+BatchNorm design which was ~10x worse (badly biased at the domain edges).
-ARCH = dict(hidden_dims=(128, 64), activation="gelu", use_bn=False, dropout=0.0)
+# Activation/normalization selected by benchmark_arch.py: a smooth activation
+# (GELU) with NO BatchNorm and no dropout gives the best mean-curve fit for
+# this smooth 1-D response -- within ~1% of the GP (a statistical tie), vs the
+# original ReLU+BatchNorm design which was ~10x worse (badly biased at the
+# domain edges).
+#
+# Width/depth selected by benchmark_capacity.py + benchmark_capacity_confirm.py:
+# a capacity sweep from the original 128-64 (8,642 params) down to a linear
+# control found 32-16 (626 params, 14x smaller) the best curve fit of every
+# size tried, and confirmed at Table 1's own scale (40 reps, full p x J grid,
+# Monte Carlo SEs attached) that the downstream task the surrogate is actually
+# used for is statistically flat across that whole range -- 32-16 is the best
+# point estimate on both accuracy and interval length there too, though that
+# specific edge over 128-64 was not itself resolved (max |Delta/SE| = 0.53
+# across 9 cells; see results/logs/benchmark_capacity_confirm.md). Deployed
+# at 32-16 on that basis: no measurable cost, 14x fewer parameters.
+ARCH = dict(hidden_dims=(32, 16), activation="gelu", use_bn=False, dropout=0.0)
 
 
 def load_splits(csv_path):
