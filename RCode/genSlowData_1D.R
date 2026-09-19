@@ -9,6 +9,14 @@
 # Output: Results/slow_data_1D.csv
 # Row format: Z0,a,delta,p,tp,J,rep,d_bar,d_1,...,d_J
 #   where d_i = sqrt(X_i / Z_i) for culture i (extinct cultures, Z_i = 0, get d_i = 0)
+#
+# This generates the design and the data in one step: 101 design points laid
+# out evenly in log10(p) over [-8, -2], with 10 independent replicate
+# fluctuation experiments at each. Those replicates are what allow an honest
+# train/val/test split BY REPLICATE (1-5 / 6-8 / 9-10) later -- every p value
+# appears in every split, so the network is tested on fresh noise draws rather
+# than extrapolated to unseen p. Seeding from (design point, replicate) keeps
+# the output identical regardless of run order or core count.
 
 script_dir <- dirname(sub("--file=", "", grep("--file=", commandArgs(trailingOnly = FALSE), value = TRUE)))
 if (length(script_dir) == 0) script_dir <- "."
