@@ -510,6 +510,70 @@ time step to recur into, so both architectures collapse mathematically to the
 already-tested single-layer linear map. Building them would relabel, not
 extend, the architecture search in Table~\ref{tab:arch1D}.
 
+\paragraph{Is the two-layer 128--64 network actually needed?} Table~\ref{tab:arch1D}
+fixes width at $128$--$64$ while sweeping activation and normalisation; width
+and depth were never themselves swept. We test that directly, holding GELU and
+no BatchNorm fixed and shrinking the network from the deployed size down to a
+linear control, averaged over three random seeds
+(\texttt{network/architecture\_search/benchmark\_capacity.py}).
+Table~\ref{tab:capacity1D} also reports each size's downstream ABC-MCMC
+accuracy and precision, on the same $p \times J$ grid used throughout
+Section~\ref{sec:sim1D_results} at $20$ replicates per cell; the exact-simulator
+baseline is not re-run for every candidate, since its cost cannot depend on
+the surrogate's size.
+
+\begin{table}[H]
+\centering
+\caption{One-dimensional model: does capacity matter? Curve MSE is
+against the denoised response curve, mean $\pm$ sd over three seeds. Downstream
+MSE and 95\% CI length are DNN-ABC on the full $p\times J$ grid, $20$
+replicates/cell, one representative seed per row (full detail in
+\texttt{results/logs/benchmark\_capacity.md} in the repository).}
+\label{tab:capacity1D}
+\begin{tabular}{lrrrr}
+\toprule
+Hidden layers & Parameters & Curve MSE ($\times$ GP) & Downstream MSE & Downstream 95\% CI \\
+\midrule
+GP (GPS-ABC baseline) & --- & $3.836\times10^{-4}$ (---) & $2.292\times10^{-6}$ & $2.101\times10^{-3}$ \\
+128--64 (deployed) & $8{,}642$ & $4.129\times10^{-4}$ ($+7.6\%$) & $9.694\times10^{-7}$ & $1.300\times10^{-3}$ \\
+64--32 & $2{,}274$ & $3.957\times10^{-4}$ ($+3.2\%$) & $1.043\times10^{-6}$ & $1.314\times10^{-3}$ \\
+\textbf{32--16} & \textbf{626} & $\mathbf{3.896\times10^{-4}}$ ($\mathbf{+1.6\%}$) & $1.236\times10^{-6}$ & $1.382\times10^{-3}$ \\
+16--8 & $186$ & $4.508\times10^{-4}$ ($+17.5\%$) & $9.018\times10^{-7}$ & $1.203\times10^{-3}$ \\
+16 (1 layer) & $66$ & $4.460\times10^{-4}$ ($+16.3\%$) & $1.207\times10^{-6}$ & $1.388\times10^{-3}$ \\
+8 (1 layer) & $34$ & $4.983\times10^{-4}$ ($+29.9\%$) & $1.310\times10^{-6}$ & $1.400\times10^{-3}$ \\
+Linear (control) & $4$ & $4.672\times10^{-4}$ ($+21.8\%$) & $1.940\times10^{-6}$ & $1.800\times10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two things follow, and they point in different directions. On raw curve fit,
+capacity is not merely unnecessary above a small threshold -- it is mildly
+\emph{counter-productive} at the deployed size: $128$--$64$ has the largest gap
+to the GP of any two-layer candidate tested ($+7.6\%$), while $32$--$16$, at
+$14\times$ fewer parameters, comes closest to matching it ($+1.6\%$). With only
+$606$ training rows and a response curve this smooth, the larger network has
+more room to overfit, not less. On the downstream task the surrogate is
+actually deployed for, capacity is close to irrelevant: every size from
+$34$ to $8{,}642$ parameters -- a $254\times$ range -- lands within a narrow
+band on both accuracy and interval length, and all of them beat the GP
+baseline by a wide, consistent margin; the single best downstream cell
+($16$--$8$) is $46\times$ smaller than the deployed network, and the
+difference from $128$--$64$ is not distinguishable from noise at this
+replicate count. Only the linear control shows a clear, unambiguous cost,
+confirming a nonlinearity is required somewhere, just not much capacity
+beyond that.
+
+We do not redeploy a smaller network on the strength of this table: the
+deployed $128$--$64$ architecture is not measurably worse downstream than any
+smaller candidate, and every other number in this section and in
+Tables~\ref{tab:mse1D}--\ref{tab:time1D} is reported against it, so changing it
+would mean rerunning the paper-scale comparison for no accuracy gain. The
+honest conclusion is narrower and, we think, still useful: this problem does
+not \emph{require} a network anywhere near $128$--$64$'s size, and a reader
+retraining this surrogate under tighter compute or latency constraints can
+shrink it substantially -- by more than an order of magnitude -- without
+giving up anything on the metric that actually matters downstream.
+
 \subsection{Regression calibration}
 \label{sec:sim1D_calib}
 
