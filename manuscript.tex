@@ -584,16 +584,20 @@ nonlinearity is required somewhere, just not much capacity beyond that.
 point estimate everywhere it can be compared to $128$--$64$ and strictly
 better on curve fit, at $14\times$ fewer parameters; no analysis in this paper
 can show a cost to making the change, and Occam's razor settles a comparison
-this evenly matched in favour of the smaller model. Every number in
-Tables~\ref{tab:mse1D}--\ref{tab:time1D} and every figure in this study is
-therefore reported for the $32$--$16$ network, retrained from the same data
-splits and re-evaluated at the same paper scale; the $128$--$64$ row above is
-retained as the architecture the activation and BatchNorm search of
+this evenly matched in favour of the smaller model. The deployed network,
+effective this revision, is $32$--$16$; Tables~\ref{tab:mse1D}--\ref{tab:time1D}
+and every figure in this study are being regenerated against it at the same
+paper scale (40 replicates, the full $p\times J$ grid, including the
+exact-simulator baseline), and the values below are the outgoing $128$--$64$
+run pending that replacement -- retained here, rather than removed early, so
+the document is never internally silent about which network a number
+describes. The $128$--$64$ row above is retained permanently regardless, as
+the architecture the activation and BatchNorm search of
 Table~\ref{tab:arch1D} was actually run against, not as the deployed model.
-The honest limit on this conclusion is the one already stated: the specific
-margin by which $32$--$16$ leads is not itself distinguishable from Monte
-Carlo noise at this replicate count, so what is established is that the
-smaller network is not worse, not that it is provably better.
+The honest limit on the redeployment decision itself is the one already
+stated: the specific margin by which $32$--$16$ leads is not distinguishable
+from Monte Carlo noise at this replicate count, so what is established is
+that the smaller network is not worse, not that it is provably better.
 
 \subsection{Regression calibration}
 \label{sec:sim1D_calib}
