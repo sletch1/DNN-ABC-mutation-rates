@@ -372,13 +372,24 @@ average, full write-up in `results/logs/benchmark_capacity.md`) shows the deploy
 size is not the best *curve* fit among the sizes tried: 32→16 (626 params, 14×
 smaller) comes closer to the GP (+1.6% vs GP's own fit) than 128→64 does (+7.6%),
 plausibly because the larger network has more room to overfit 606 training rows on
-a response this smooth. On the *downstream* ABC-MCMC task the surrogate is actually
-used for, capacity stops mattering almost entirely: every size from 8,642 down to
-34 parameters — a 254× range — lands within a narrow band on both estimation MSE
-and 95% credible-interval length, and every one of them clears the GP baseline by a
-wide margin; only a purely linear control shows a clear, unambiguous cost. The
-deployed network is kept at 128→64 regardless, since it isn't measurably worse
-downstream and every number in Tables 1–3 is already reported against it — but a
+a response this smooth.
+
+That raised the obvious follow-up: does the curve-fit gap survive into the actual
+ABC-MCMC task, at the same rigor as Table 1? `benchmark_capacity_confirm.py`
+answers it in two stages, screening every size cheaply first (`run_all.py`'s own
+`--quick` settings) then confirming the survivors — all six passed the screen — at
+Table 1's exact scale (40 replicates, the full 3×3 grid), with Monte Carlo standard
+errors attached to every comparison
+(`results/logs/benchmark_capacity_confirm.md`). Result: 32→16 is the best point
+estimate on both downstream MSE and interval length of every size tested, deployed
+network included — but the gap is not resolved in any of the 9 cells (max
+|Δ/SE| = 0.53, well under the ≈2 threshold used everywhere else in this project).
+Even the worst two-layer candidate (16→8, 46× smaller) is only resolved as
+measurably worse in 1 of 9 cells. Every size from 8,642 down to 34 parameters — a
+254× range — clears the GP baseline by a wide, decisive margin throughout; only a
+purely linear control shows a clear, unambiguous cost on curve fit. The
+deployed network is kept at 128→64 regardless, since this analysis cannot show it
+is worse and every number in Tables 1–3 is already reported against it — but a
 reader retraining this surrogate under tighter compute or latency constraints can
 shrink it by more than an order of magnitude for free.
 
@@ -453,7 +464,8 @@ Models/1D/
 │   └── architecture_search/       # how the architecture was chosen (§5)
 │       ├── benchmark_arch.py      # activation + BatchNorm sweep at fixed 128-64
 │       ├── benchmark_round2.py    # deep ensembles, did not beat a single network
-│       └── benchmark_capacity.py  # width/depth sweep: is 128-64 actually needed?
+│       ├── benchmark_capacity.py  # width/depth sweep: is 128-64 actually needed?
+│       └── benchmark_capacity_confirm.py  # ...confirmed downstream at Table 1 scale
 ├── abc/                           # the ABC inference pipeline
 │   ├── simulator.py               # exact/fast MBP simulators (validated vs the CSV)
 │   ├── estimators.py              # MOM / MLE (paper Eqs. 11–12)
@@ -528,6 +540,7 @@ python figures/make_figures.py && python network/gen_architecture_svg.py
 # (optional) re-run the architecture search behind §5
 python network/architecture_search/benchmark_arch.py
 python network/architecture_search/benchmark_capacity.py
+python network/architecture_search/benchmark_capacity_confirm.py
 ```
 
 All scale knobs are CLI flags, so the same code runs the quick demo and a
