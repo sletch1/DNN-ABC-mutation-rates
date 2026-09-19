@@ -158,24 +158,24 @@ explicitly if it is to play the same role inside the ABC acceptance kernel. That
 requirement, rather than the regression itself, is what makes the substitution
 non-trivial, and it is what Section~\ref{sec:method} is principally about.
 
-\paragraph{Contributions.} This paper makes five contributions. First, we build
+\paragraph{Contributions.} This paper makes five contributions. We build
 a heteroscedastic neural-network surrogate, calibrated by split-conformal
 prediction \citep{lei2018}, that substitutes for the Gaussian process inside
 \citeauthor{lu2023}'s ABC-MCMC sampler with no other change to the inference
-algorithm. Second, we run a one-dimensional simulation study reproducing
+algorithm. We run a one-dimensional simulation study reproducing
 \citeauthor{lu2023}'s constant-mutation-rate benchmark directly, comparing four
 estimators -- method of moments, maximum likelihood, exact ABC-MCMC, and
 GPS-ABC -- against the neural surrogate on estimation accuracy,
-credible-interval length, coverage, and wall-clock cost. Third, we run a second
+credible-interval length, coverage, and wall-clock cost. We then run a second
 simulation study on the two-stage mutation model that is the original paper's
-actual multi-parameter contribution, estimating $(p_1,p_2,\tau)$ jointly.
-Fourth, we report, honestly and without tuning it away, that the neural
-surrogate's advantage does \emph{not} carry over to that regime, and we pair
-that report with a measurement of the data's irreducible noise floor that
-explains why. Fifth, we test rather than assume whether a convolutional or
-recurrent architecture improves on the architecture-agnostic feedforward
-surrogate in that same regime, motivated by where such architectures are known
-to help elsewhere in the simulation-based-inference literature, and we report
+actual multi-parameter contribution, estimating $(p_1,p_2,\tau)$ jointly, and
+we report, honestly and without tuning it away, that the neural surrogate's
+advantage does \emph{not} carry over to that regime; we pair that report with
+a measurement of the data's irreducible noise floor that explains why. Finally,
+rather than assume it, we test whether a convolutional or recurrent
+architecture improves on the architecture-agnostic feedforward surrogate in
+that same regime, motivated by where such architectures are known
+to help elsewhere in the simulation-based-inference literature, and find
 that neither does.
 
 The paper proceeds in that order. Section~\ref{sec:background} reviews the MBP
