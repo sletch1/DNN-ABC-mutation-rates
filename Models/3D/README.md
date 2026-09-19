@@ -88,6 +88,38 @@ so 18× fewer parameters buys only ~29% less latency.
 > nearly six, so the case for a network is stronger under the paper's own
 > statistic than under the one this package previously used.
 
+**Does that curve-fit tie survive the actual downstream task?** The table above
+is a curve-fit diagnostic only — it doesn't say whether the same sizes stay
+tied on ABC-MCMC recovery, at the replicate count the paper's own Table 1
+uses. `abc/run_experiments_capacity.py` answers that directly, mirroring the
+1-D package's own capacity confirm: every candidate is screened cheaply first
+(this package's own `--quick` settings), then every one of them — all six
+survived the screen — is confirmed at the paper's exact scale (16 replicates,
+all 3 truth triples, 3,000 MCMC iterations), with Monte Carlo standard errors
+on `rmse_log` attached to every comparison against the deployed 64-32
+(full write-up in `results/logs/benchmark_capacity_confirm.md`):
+
+| hidden | params | mean rmse_log | resolved vs. deployed |
+|---|---|---|---|
+| GP (GPS-ABC baseline) | — | 0.990 | — |
+| 32-16 | 690 | **1.067** (best) | 0/9, max \|Δ/SE\|=1.63 |
+| 128-64 | 8,898 | 1.105 | 0/9, max \|Δ/SE\|=1.16 |
+| 16-8 | 218 | 1.133 | 0/9, max \|Δ/SE\|=1.06 |
+| **64-32** ← deployed | **2,402** | **1.142** | — |
+| 8-4 | 78 | 1.149 | 0/9, max \|Δ/SE\|=1.32 |
+| 256-128-64 | 42,306 | 1.208 (worst) | 0/9, max \|Δ/SE\|=1.55 |
+
+The tie survives downstream, and gets sharper: 32-16 is again the best point
+estimate — same as the 1-D package's own capacity question — but here *no*
+comparison against the deployed network resolves at the 2-MCSE level, not
+even the largest network tested (256-128-64, 17× more parameters, and the
+nominally *worst* performer of the six). Downstream accuracy is flat across
+more than two orders of magnitude of parameter count in both directions from
+the deployed size. Not redeployed on this evidence alone: 64-32 is what every
+number in Table 1 (`table1_recovery.csv`) is reported against, and this
+analysis can show the smaller sizes aren't measurably worse, not that they're
+better.
+
 ## 3. Why the inference is hard (and expected to stay hard)
 
 One scalar summary carries very uneven information about three parameters:
@@ -176,6 +208,7 @@ Two things not to over-read from the table:
 │   ├── surrogates.py              #   predict(θ)→(mean,sd): DNN, GP, reference GP
 │   ├── abc_mcmc.py                #   joint MH over (log10 p1, log10 p2, τ)
 │   ├── run_experiments.py         #   the result tables
+│   ├── run_experiments_capacity.py #  ...confirmed downstream, same scale (§ capacity)
 │   └── mcse.py                    #   Monte Carlo SEs — which differences are real
 ├── tests/validate_simulator.py    #   degeneracy, convention gap, data provenance
 ├── figures/make_figures.py
@@ -195,6 +228,7 @@ python network/architecture_search/benchmark_round2.py   # round 2 (capacity flo
 python network/architecture_search/benchmark_activation_select.py   # activation
 python network/train.py                                  # train + calibrate
 python abc/run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --no-sim
+python abc/run_experiments_capacity.py                    # capacity ladder, confirmed downstream
 python abc/mcse.py                                       # attach Monte Carlo SEs
 python figures/make_figures.py
 python network/gen_architecture_svg.py
