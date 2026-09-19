@@ -838,8 +838,8 @@ Linear (control) & 8 & 140.88 & 0.55319 & 29 \\
 \end{tabular}
 \end{table}
 
-Two conclusions follow, and the second is by far the more useful. The first is
-that a network is genuinely required here, and emphatically so: the linear
+Two conclusions follow, and the second is the more useful of the two. The first
+is that a network is genuinely required here, and clearly so: the linear
 control sits at $141\times$ the floor with $R^2 = 0.55$. (Under the square-root target of the
 earlier draft it sat at $24.8\times$; the fourth root makes the surface harder
 for a linear model by nearly a factor of six, so the paper's own choice of
@@ -1390,8 +1390,8 @@ paired comparison on identical design points and seeds.
 % =============================================================================
 
 The two studies answer the question of Section~\ref{sec:intro} with a
-condition rather than a verdict, and the condition is the contribution we would
-most like carried forward. Across both studies, the neural surrogate's advantage
+condition rather than a verdict, and that condition is the contribution of this
+paper we would most emphasize. Across both studies, the neural surrogate's advantage
 over the Gaussian process appears exactly where theory predicts it should: in
 surrogate quality and cost scaling as the useful training-set size grows
 (Table~\ref{tab:arch1D}), and it compounds when the exact simulator used to
@@ -1410,14 +1410,14 @@ regression diagnostic reports as near-exact (Table~\ref{tab:fit3D}). The
 over-coverage is a property of the ABC acceptance kernel built on top of the
 surrogate rather than of the surrogate's own predictions. We take this to be a broader methodological point for anyone deploying a
 conformally calibrated regression surrogate inside a likelihood-free sampler,
-and it is easy to state and easy to forget. Split-conformal calibration
+and one that is easily overlooked. Split-conformal calibration
 \citep{lei2018} is a strong, distribution-free guarantee, and
 Sections~\ref{sec:sim1D_calib} and \ref{sec:sim3D_fit} show it holding to high
 precision in both studies. But it is a guarantee about the regression problem
 the surrogate was trained to solve, not about the coverage of whatever
 downstream quantity the surrogate's uncertainty is subsequently plugged into.
-The guarantee does not travel with the number. The two can come apart, and
-here they do.
+The guarantee does not automatically extend from one to the other, and the two
+can come apart; here they do.
 
 A second finding is purely architectural, recurs across both studies, and is
 worth stating plainly for anyone building a similar surrogate. The single
