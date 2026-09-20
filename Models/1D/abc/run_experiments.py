@@ -51,7 +51,7 @@ from simulator import solve_tp, fluc_exp, summary_stat
 from estimators import estimate_mom, estimate_mle
 from abc_mcmc import run_abc_mcmc, point_and_interval
 from surrogates import fit_gp_surrogate
-from train import load_surrogate, run as train_run
+from train import load_surrogate, load_splits, run as train_run
 from paths import DATA, RESULTS, TABLE_DIR, FIG_DIR, MODEL_DIR, LOG_DIR
 # Prior bounded to [-5,-1.5]: keeps the ABC-MCMC baseline's *slow* simulator
 # calls feasible. Extending toward p=1e-8 lets chains wander into the
@@ -76,20 +76,35 @@ PRIOR_RANGE = (-5.0, -1.5)
 _G = {}
 
 
+def _ckpt_path_for_J(base_ckpt_path, J):
+    """Path convention shared with network/train.py's run(): the deployed
+    J=100 checkpoint is unsuffixed, every other J gets its own file."""
+    base_ckpt_path = Path(base_ckpt_path)
+    if J == 100:
+        return base_ckpt_path
+    return base_ckpt_path.with_name(f"{base_ckpt_path.stem}_J{J}{base_ckpt_path.suffix}")
+
+
 def _init_worker(ckpt_path, data_path, cfg):
     """Runs once per worker process: load the trained DNN and fit the GP
-    baseline, so `_one_replicate` doesn't redo it per task (the GP's fit is
-    cubic in design size and would otherwise dominate the runtime).
+    baseline FOR EVERY J IN THE GRID, so `_one_replicate` doesn't redo it per
+    task (the GP's fit is cubic in design size and would otherwise dominate
+    the runtime) and so each replicate is scored against a surrogate that
+    actually knows its culture count (Section on posterior coverage /
+    README Section 4.3b): every surrogate used to be trained once, at J=100,
+    and queried at every J regardless, which is what produced the measured
+    undercoverage at small J.
     """
     import warnings
     warnings.filterwarnings("ignore")
-    dnn = load_surrogate(ckpt_path)
-    df = pd.read_csv(data_path)
-    tr = df[df["rep"].isin([1, 2, 3, 4, 5, 6, 7, 8])]
-    x = np.log10(tr["p"].to_numpy())
-    y = np.log10(tr["d_bar"].to_numpy())
-    gp = fit_gp_surrogate(x, y, budget=None)
-    _G["dnn"], _G["gp"], _G["cfg"] = dnn, gp, cfg
+    dnn_by_J, gp_by_J = {}, {}
+    for J in cfg["J_grid"]:
+        dnn_by_J[J] = load_surrogate(str(_ckpt_path_for_J(ckpt_path, J)))
+        (x_tr, y_tr), (x_va, y_va), _ = load_splits(data_path, J=(None if J == 100 else J))
+        x = np.concatenate([x_tr, x_va])
+        y = np.concatenate([y_tr, y_va])
+        gp_by_J[J] = fit_gp_surrogate(x, y, budget=None)
+    _G["dnn_by_J"], _G["gp_by_J"], _G["cfg"] = dnn_by_J, gp_by_J, cfg
 
 
 def _clamp_init(p_hat):
@@ -107,7 +122,7 @@ def _one_replicate(task):
     """
     p_true, J, rep = task
     cfg = _G["cfg"]
-    dnn, gp = _G["dnn"], _G["gp"]
+    dnn, gp = _G["dnn_by_J"][J], _G["gp_by_J"][J]
     rng = np.random.default_rng(10_000 * int(round(-np.log10(p_true))) + 100 * J + rep)
 
     tp = solve_tp(1, 1, p_true, 20)
@@ -235,15 +250,17 @@ def run_timing(cfg, ckpt_path):
     """Single-process seconds / 100 MCMC iterations for each ABC method."""
     import warnings
     warnings.filterwarnings("ignore")
-    dnn = load_surrogate(ckpt_path)
-    df = pd.read_csv(DATA)
-    tr = df[df["rep"].isin([1, 2, 3, 4, 5, 6, 7, 8])]
-    gp = fit_gp_surrogate(np.log10(tr["p"].to_numpy()),
-                          np.log10(tr["d_bar"].to_numpy()), budget=None)
+    dnn_by_J, gp_by_J = {}, {}
+    for J in cfg["J_grid"]:
+        dnn_by_J[J] = load_surrogate(str(_ckpt_path_for_J(ckpt_path, J)))
+        (x_tr, y_tr), (x_va, y_va), _ = load_splits(str(DATA), J=(None if J == 100 else J))
+        gp_by_J[J] = fit_gp_surrogate(np.concatenate([x_tr, x_va]), np.concatenate([y_tr, y_va]),
+                                      budget=None)
     n_time = cfg["timing_iters"]
     rows = []
     for p in cfg["p_grid"]:
         for J in cfg["J_grid"]:
+            dnn, gp = dnn_by_J[J], gp_by_J[J]
             rng = np.random.default_rng(0)
             tp = solve_tp(1, 1, p, 20)
             obs = summary_stat(*fluc_exp(1, 1, 1, p, tp, J, rng, use_slow=True))
@@ -348,9 +365,15 @@ def main():
     args = ap.parse_args()
 
     ckpt = MODEL_DIR / "surrogate_1d.pt"
-    if args.retrain or not ckpt.exists():
-        print("training DNN surrogate...")
-        train_run(str(DATA))
+    # One DNN surrogate per J in the grid, not just the deployed J=100 one --
+    # see _init_worker's docstring and Section on posterior coverage / README
+    # Section 4.3b for why: a single J=100-trained surrogate queried at every
+    # J is what produced the measured undercoverage at small J.
+    for J in args.J_grid:
+        j_ckpt = _ckpt_path_for_J(ckpt, J)
+        if args.retrain or not j_ckpt.exists():
+            print(f"training DNN surrogate at J={J}...")
+            train_run(str(DATA), J=(None if J == 100 else J))
 
     cfg = dict(reps=args.reps, nmcmc=args.nmcmc, burnin=args.burnin, ns=args.ns,
                eps=args.eps, timing_iters=args.timing_iters, workers=args.workers,

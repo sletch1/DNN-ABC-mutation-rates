@@ -77,18 +77,71 @@ DEFAULT_DATA = str(DATA)
 ARCH = dict(hidden_dims=(32, 16), activation="gelu", use_bn=False, dropout=0.0)
 
 
-def load_splits(csv_path):
+def resample_dbar_J(df, J, k_resamples=5, seed=0):
+    """Reconstruct what a J-culture experiment's d_bar would have looked like,
+    from the SAME simulated data, by averaging a random subset of J of the
+    100 stored per-culture values (d_1..d_100) instead of all 100.
+
+    This is the fix for the surrogate's J-blindness (Section on posterior
+    coverage in the manuscript / README Section 4.3b): every row in the
+    ground-truth CSV was generated at J=100, so a surrogate trained on the
+    stored `d_bar` column has only ever seen J=100 noise, and its predictive
+    interval is miscalibrated whenever it's queried at a smaller J -- exactly
+    the mechanism that produced the measured undercoverage. No new simulation
+    is needed to fix this: the culture-level values are already recorded, so
+    a J-culture experiment can be reconstructed by subsampling.
+
+    `k_resamples` independent random J-subsets are drawn per row (different
+    subsets, same underlying data) to keep the training-set size comparable
+    across J despite the subsampling -- one subsample per row would leave the
+    J=10 training set as noisy as the phenomenon it's trying to learn.
+    Returns one d_bar_J value per (row, resample), so the output has
+    len(df) * k_resamples entries, in row-major order (all k resamples of row
+    0, then all k of row 1, ...).
+    """
+    d_cols = [c for c in df.columns if c.startswith("d_") and c != "d_bar"]
+    D = df[d_cols].to_numpy()  # (n_rows, 100)
+    n_rows, n_cultures = D.shape
+    assert J <= n_cultures, f"J={J} exceeds the {n_cultures} stored cultures per row"
+    rng = np.random.default_rng(seed)
+    out = np.empty(n_rows * k_resamples)
+    for i in range(n_rows):
+        for k in range(k_resamples):
+            idx = rng.choice(n_cultures, size=J, replace=False)
+            out[i * k_resamples + k] = D[i, idx].mean()
+    return out
+
+
+def load_splits(csv_path, J=None, k_resamples=5, seed=0):
     """Read the ground-truth CSV and split by replicate. Returns three
     (x, y) pairs of log10(p) and log10(d_bar), for train/val/test.
+
+    J=None (the default) uses the stored d_bar column as-is -- every row was
+    simulated at J=100, so this is the J=100 surrogate. J=10 or J=50 instead
+    reconstructs a J-culture d_bar from the per-culture columns
+    (resample_dbar_J) and repeats x accordingly, so a J-specific surrogate can
+    be trained on the SAME underlying simulated data without new simulation.
     """
     df = pd.read_csv(csv_path)
     assert df["a"].nunique() == 1 and df["delta"].nunique() == 1, "expected the 1D file"
-    x = np.log10(df["p"].to_numpy())
-    y = np.log10(df["d_bar"].to_numpy())
     rep = df["rep"].to_numpy()
 
+    if J is None or J == 100:
+        x = np.log10(df["p"].to_numpy())
+        y = np.log10(df["d_bar"].to_numpy())
+        rep_expanded = rep
+    else:
+        x_base = np.log10(df["p"].to_numpy())
+        # Same log10 floor abc_mcmc.py uses for the (rare) all-extinct summary
+        # of 0, so a J-subsample that happens to draw only extinct cultures
+        # doesn't produce -inf.
+        y_base = np.log10(np.maximum(resample_dbar_J(df, J, k_resamples, seed), 1e-6))
+        x = np.repeat(x_base, k_resamples)
+        y = y_base
+        rep_expanded = np.repeat(rep, k_resamples)
+
     def subset(reps):
-        m = np.isin(rep, list(reps))
+        m = np.isin(rep_expanded, list(reps))
         return x[m], y[m]
 
     return subset(TRAIN_REPS), subset(VAL_REPS), subset(TEST_REPS)
@@ -230,25 +283,39 @@ def make_plots(surr, splits, outdir):
     fig.savefig(Path(outdir) / "surrogate_parity.png", dpi=150); plt.close(fig)
 
 
-def run(csv_path=None, outdir=None, seed=0):
+def run(csv_path=None, outdir=None, seed=0, J=None):
     """Load -> train -> conformally calibrate -> evaluate -> save. Writes the
     checkpoint and metrics to results/model/ and plots to results/figures/.
     `load_surrogate` below reads that checkpoint back without retraining.
+
+    J=None (default) trains the deployed J=100 surrogate exactly as before,
+    at MODEL_DIR/surrogate_1d.pt. J=10 or J=50 trains a J-specific surrogate
+    on resampled J-culture data (load_splits/resample_dbar_J) and writes it
+    to a separate surrogate_1d_J{J}.pt instead, so it can't be confused with
+    or overwrite the deployed model. Diagnostic plots (make_plots) are only
+    written for the deployed model; the J-specific ones are an internal
+    component of the ABC pipeline, not something a reader inspects directly.
     """
     csv_path = csv_path or str(DATA)
-    (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = load_splits(csv_path)
-    print(f"train n={len(x_tr)}  val n={len(x_va)}  test n={len(x_te)}")
+    (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = load_splits(csv_path, J=J, seed=seed)
+    label = "J=100 (deployed)" if J is None else f"J={J}"
+    print(f"[{label}] train n={len(x_tr)}  val n={len(x_va)}  test n={len(x_te)}")
 
     model, xs, ys = train_model(x_tr, y_tr, x_va, y_va, seed=seed)
     sd_scale = calibrate_conformal(model, xs, ys, x_va, y_va)
-    print(f"conformal sd_scale = {sd_scale:.4f}")
+    print(f"[{label}] conformal sd_scale = {sd_scale:.4f}")
     surr = DNNSurrogate(model, xs, ys, sd_scale=sd_scale)
 
     metrics = {split: evaluate(surr, x, y, split)
                for split, (x, y) in [("train", (x_tr, y_tr)),
                                       ("val", (x_va, y_va)),
                                       ("test", (x_te, y_te))]}
-    make_plots(surr, ((x_tr, y_tr), (x_va, y_va), (x_te, y_te)), FIG_DIR)
+
+    ckpt_path = MODEL_DIR / "surrogate_1d.pt" if J is None else MODEL_DIR / f"surrogate_1d_J{J}.pt"
+    metrics_path = (MODEL_DIR / "surrogate_metrics.json" if J is None
+                    else MODEL_DIR / f"surrogate_metrics_J{J}.json")
+    if J is None:
+        make_plots(surr, ((x_tr, y_tr), (x_va, y_va), (x_te, y_te)), FIG_DIR)
 
     torch.save({"model_state": model.state_dict(),
                 "x_scaler": xs.state_dict(), "y_scaler": ys.state_dict(),
@@ -256,12 +323,12 @@ def run(csv_path=None, outdir=None, seed=0):
                 "activation": ARCH["activation"], "use_bn": ARCH["use_bn"],
                 "dropout": ARCH["dropout"],
                 "input": "log10(p)", "output": "log10(d_bar)",
-                "heteroscedastic": True, "source_csv": str(csv_path)},
-               MODEL_DIR / "surrogate_1d.pt")
-    with open(MODEL_DIR / "surrogate_metrics.json", "w") as f:
+                "heteroscedastic": True, "source_csv": str(csv_path),
+                "trained_at_J": J if J is not None else 100},
+               ckpt_path)
+    with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
-    print(f"saved -> {MODEL_DIR/'surrogate_1d.pt'}, {MODEL_DIR/'surrogate_metrics.json'}, "
-          f"plots in {FIG_DIR}")
+    print(f"[{label}] saved -> {ckpt_path}, {metrics_path}")
     return surr
 
 
@@ -286,5 +353,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=DEFAULT_DATA)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--J", type=int, default=None,
+                    help="train a J-specific surrogate (e.g. 10 or 50) on "
+                         "resampled J-culture data instead of the deployed "
+                         "J=100 model; see run()'s docstring")
     args = ap.parse_args()
-    run(args.data, seed=args.seed)
+    run(args.data, seed=args.seed, J=args.J)
