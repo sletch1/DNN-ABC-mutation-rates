@@ -124,6 +124,8 @@ def _one_replicate(task):
         p_hat, ci_lo, ci_hi, ci_len = point_and_interval(samples, cfg["burnin"])
         out[name] = p_hat
         out[name + "_cilen"] = ci_len
+        out[name + "_ci_lo"] = ci_lo
+        out[name + "_ci_hi"] = ci_hi
         out[name + "_acc"] = acc
     return out
 
@@ -177,6 +179,46 @@ def aggregate_tables(df, cfg):
     return pd.DataFrame(t1), pd.DataFrame(t2)
 
 
+def aggregate_coverage(df, cfg):
+    """Empirical POSTERIOR coverage of the 95% ABC credible interval, per (p,
+    J) cell, for the three ABC backends (MOM/MLE have no interval).
+
+    This is the number the manuscript's "no loss of coverage" claim (Section
+    sec:sim1D_calib) needs and never previously measured: that section reports
+    the surrogate's own REGRESSION coverage on held-out data (does the
+    predicted mean +/- z*sd bracket the true log10(d_bar) 95% of the time?),
+    which says nothing about whether the downstream ABC posterior's credible
+    interval actually brackets the true p 95% of the time. The two are
+    different random variables and can diverge; this function measures the one
+    that matters for the interval-length comparison in Table 2.
+
+    Binomial MCSE (mcse_prop = sqrt(p_hat*(1-p_hat)/n)) is attached per cell so
+    a departure from nominal 0.95 can be judged against sampling noise at this
+    replicate count rather than read off as if it were exact.
+    """
+    methods = ["ABC-MCMC", "GPS-ABC", "DNN-ABC"]
+    rows = []
+    for p in cfg["p_grid"]:
+        for J in cfg["J_grid"]:
+            sub = df[(df["p_true"] == p) & (df["J"] == J)]
+            row = {"p": p, "J": J, "R": len(sub)}
+            for m in methods:
+                lo_col, hi_col = m + "_ci_lo", m + "_ci_hi"
+                if lo_col not in sub or hi_col not in sub:
+                    continue  # older raw_replicates.csv without endpoints saved
+                lo = sub[lo_col].to_numpy(dtype=float)
+                hi = sub[hi_col].to_numpy(dtype=float)
+                ok = np.isfinite(lo) & np.isfinite(hi)
+                lo, hi, n = lo[ok], hi[ok], int(ok.sum())
+                cov = float(np.mean((lo <= p) & (p <= hi))) if n else np.nan
+                row[m + "_coverage"] = cov
+                row[m + "_coverage_mcse"] = (
+                    float(np.sqrt(cov * (1 - cov) / n)) if n and np.isfinite(cov) else np.nan
+                )
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def run_timing(cfg, ckpt_path):
     """Single-process seconds / 100 MCMC iterations for each ABC method."""
     import warnings
@@ -218,6 +260,22 @@ def fmt_table1(t1, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC")):
         for m in methods:
             cells.append(f"{r[m]:.2e} ({r[m+'_nrmse']:.2f})")
         lines.append(f"| {r['p']:.0e} | {int(r['J'])} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def fmt_coverage(tcov, methods=("ABC-MCMC", "GPS-ABC", "DNN-ABC")):
+    """Posterior coverage table: does the 95% ABC credible interval actually
+    bracket the true p 95% of the time? (Section sec:sim1D_calib's coverage
+    claim is about the surrogate's regression coverage, a different quantity --
+    see aggregate_coverage's docstring.)"""
+    lines = ["| p | J | R | " + " | ".join(f"{m} cov (MCSE)" for m in methods) + " |",
+             "|---|---|---|" + "|".join(["---"] * len(methods)) + "|"]
+    for _, r in tcov.iterrows():
+        cells = []
+        for m in methods:
+            c, s = r.get(m + "_coverage"), r.get(m + "_coverage_mcse")
+            cells.append(f"{c:.3f} ({s:.3f})" if pd.notna(c) else "-")
+        lines.append(f"| {r['p']:.0e} | {int(r['J'])} | {int(r['R'])} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
 
@@ -295,6 +353,8 @@ def main():
     t1, t2 = aggregate_tables(raw, cfg)
     t1.to_csv(TABLE_DIR / "table1_mse.csv", index=False)
     t2.to_csv(TABLE_DIR / "table2_cilength.csv", index=False)
+    tcov = aggregate_coverage(raw, cfg)
+    tcov.to_csv(TABLE_DIR / "table_coverage.csv", index=False)
 
     print("\n=== Phase B: timing (Table 3) ===")
     t3 = run_timing(cfg, str(ckpt))
@@ -304,6 +364,7 @@ def main():
     tbl1_md = fmt_table1(t1)
     tbl2_md = fmt_table2(t2)
     tbl3_md = fmt_table3(t3)
+    tblcov_md = fmt_coverage(tcov)
     with open(TABLE_DIR / "TABLES.md", "w") as f:
         f.write("# Reproduced tables with DNN-ABC column\n\n")
         f.write(f"Config: {json.dumps(cfg)}\n\n")
@@ -311,9 +372,14 @@ def main():
         f.write(tbl1_md + "\n\n")
         f.write("## Table 2 - mean 95% interval length of p-hat\n\n")
         f.write(tbl2_md + "\n\n")
+        f.write("## Table 2b - POSTERIOR coverage of the 95% credible interval\n\n")
+        f.write("Does the interval actually bracket the true p 95% of the time? "
+                "(Distinct from Section sec:sim1D_calib's regression coverage --\n"
+                "see aggregate_coverage's docstring in run_experiments.py.)\n\n")
+        f.write(tblcov_md + "\n\n")
         f.write("## Table 3 - seconds per 100 MCMC iterations\n\n")
         f.write(tbl3_md + "\n")
-    print("\n" + tbl1_md + "\n\n" + tbl3_md)
+    print("\n" + tbl1_md + "\n\n" + tblcov_md + "\n\n" + tbl3_md)
     print(f"\ntotal wall time: {(time.time()-t_start)/60:.1f} min")
     print(f"results written to {RESULTS}")
 
