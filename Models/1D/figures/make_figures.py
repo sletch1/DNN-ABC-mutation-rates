@@ -66,7 +66,7 @@ def _load():
 
 
 def fig_uncertainty(dnn, gp, df):
-    xg = np.linspace(-8, -2, 200)
+    xg = np.linspace(-8, -1.46, 200)
     _, dnn_sd = dnn.predict(xg)
     _, gp_sd = gp.predict(xg)
     # empirical replicate std of log10(d_bar) per p grid point

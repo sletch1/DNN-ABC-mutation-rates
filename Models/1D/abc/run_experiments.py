@@ -53,12 +53,24 @@ from abc_mcmc import run_abc_mcmc, point_and_interval
 from surrogates import fit_gp_surrogate
 from train import load_surrogate, run as train_run
 from paths import DATA, RESULTS, TABLE_DIR, FIG_DIR, MODEL_DIR, LOG_DIR
-# Prior bounded to [-5,-2]: keeps the ABC-MCMC baseline's *slow* simulator calls
-# feasible. Extending toward p=1e-8 lets chains wander into the exponential-cost
-# region (tp ~ log(1/p), population ~ e^{a*tp}), where one slow-sim call can take
-# minutes. The paper likewise uses a bounded prior ([-5,-1]) for the slow regime;
-# the surrogates are still trained on the full [-8,-2] and only queried in-range.
-PRIOR_RANGE = (-5.0, -2.0)
+# Prior bounded to [-5,-1.5]: keeps the ABC-MCMC baseline's *slow* simulator
+# calls feasible. Extending toward p=1e-8 lets chains wander into the
+# exponential-cost region (tp ~ log(1/p), population ~ e^{a*tp}), where one
+# slow-sim call can take minutes; the upper bound only needs to clear the
+# largest tested p with real margin. The paper likewise uses a bounded prior
+# ([-5,-1]) for the slow regime; the surrogates are trained on [-8,-1.46] and
+# only queried in-range.
+#
+# The upper bound was -2.0 until it was found to coincide EXACTLY with
+# log10(1e-2), the largest tested p: the prior forbade the sampler from
+# proposing theta above the true value there, so every method's 95% credible
+# interval measured ~0% posterior coverage at that cell specifically -- not a
+# defect of any one estimator, but a structural artifact of the grid (see
+# aggregate_coverage's docstring, and the manuscript's discussion of it).
+# ground-truth data was extended to log10(p) in [-8, -1.46] (RCode/extendSlowData_1D.R)
+# and the prior moved to -1.5, giving every tested p, including 1e-2, real
+# headroom (0.5 log10-units) from the boundary rather than sitting on it.
+PRIOR_RANGE = (-5.0, -1.5)
 
 # Per-worker cache for the fitted surrogates, populated by _init_worker.
 _G = {}

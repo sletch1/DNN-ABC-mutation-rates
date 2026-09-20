@@ -57,7 +57,7 @@ def _log_prior(theta, lam, lo, hi):
 
 
 def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
-                 rng=None, prior_range=(-8.0, -2.0), lam=2.0, eps=0.005,
+                 rng=None, prior_range=(-8.0, -1.5), lam=2.0, eps=0.005,
                  # sim backend:
                  sim_kwargs=None, ns=1,
                  # surrogate backend:

@@ -1,8 +1,11 @@
 """Train the heteroscedastic MLP surrogate for the 1-D constant-mutation-rate
 case: log10(p) -> ( mean log10(d_bar), predictive variance ).
 
-Ground truth: DNN_Prototypes/1D/data/slow_data_1D.csv (exact/slow simulator, Algorithm 2),
-101 log-spaced p in log10(p) in [-8,-2], 10 replicates each (1010 rows).
+Ground truth: data/slow_data_1D.csv (exact/slow simulator, Algorithm 2), 110
+log-spaced p in log10(p) in [-8,-1.46], 10 replicates each (1100 rows). The
+original 101 points spanned [-8,-2]; 9 more were appended
+(RCode/extendSlowData_1D.R) so the ABC-MCMC prior's upper bound could move
+off of p=1e-2 -- see PRIOR_RANGE's comment in abc/run_experiments.py.
 
 Splits by replicate so every p grid point appears in every split with no leakage:
   train = reps 1-6, val = reps 7-8 (early stopping + conformal calibration),
@@ -201,7 +204,7 @@ def make_plots(surr, splits, outdir):
     import matplotlib.pyplot as plt
 
     (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = splits
-    xg = np.linspace(-8, -2, 601)
+    xg = np.linspace(-8, -1.46, 601)
     mg, sg = surr.predict(xg)
     lo, hi = mg - Z_975 * sg, mg + Z_975 * sg
 
