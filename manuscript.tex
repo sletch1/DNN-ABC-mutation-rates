@@ -51,14 +51,15 @@ studies.
 
 The first study reproduces the constant-mutation-rate benchmark of
 \citet{lu2023}, replicated with Monte Carlo standard errors reported throughout
-\citep{morris2019}. There the neural surrogate is never worse than GPS-ABC on
-point-estimation mean squared error in any of nine tested configurations, and
-at the largest tested mutation rate it is better by a margin that clearly
-exceeds simulation noise (up to $62\%$ lower MSE, a gap of $5$--$8$ Monte Carlo
-standard errors); at smaller rates the two are statistically indistinguishable
-on point accuracy. The neural surrogate nonetheless returns tighter $95\%$
-credible intervals with no loss of empirical coverage in eight of nine
-configurations, and achieves near-exact conformal calibration, all at the same
+\citep{morris2019}. There the neural surrogate's point-estimation mean squared
+error is statistically indistinguishable from GPS-ABC's in seven of nine
+tested configurations -- nominally lower in five of those seven and higher in
+the other two, neither direction resolved beyond simulation noise -- and at
+the largest tested mutation rate it is better by a margin that clearly exceeds
+that noise (up to $60\%$ lower MSE, a gap of $5.8$--$8.1$ Monte Carlo standard
+errors). The neural surrogate nonetheless returns tighter $95\%$ credible
+intervals in all nine configurations with no loss of empirical coverage, and
+achieves near-exact conformal calibration, all at the same
 two-to-three-order-of-magnitude speedup over exact ABC-MCMC that the Gaussian
 process already provides.
 
@@ -584,20 +585,21 @@ nonlinearity is required somewhere, just not much capacity beyond that.
 point estimate everywhere it can be compared to $128$--$64$ and strictly
 better on curve fit, at $14\times$ fewer parameters; no analysis in this paper
 can show a cost to making the change, and Occam's razor settles a comparison
-this evenly matched in favour of the smaller model. The deployed network,
-effective this revision, is $32$--$16$; Tables~\ref{tab:mse1D}--\ref{tab:time1D}
-and every figure in this study are being regenerated against it at the same
-paper scale (40 replicates, the full $p\times J$ grid, including the
-exact-simulator baseline), and the values below are the outgoing $128$--$64$
-run pending that replacement -- retained here, rather than removed early, so
-the document is never internally silent about which network a number
-describes. The $128$--$64$ row above is retained permanently regardless, as
-the architecture the activation and BatchNorm search of
-Table~\ref{tab:arch1D} was actually run against, not as the deployed model.
-The honest limit on the redeployment decision itself is the one already
-stated: the specific margin by which $32$--$16$ leads is not distinguishable
-from Monte Carlo noise at this replicate count, so what is established is
-that the smaller network is not worse, not that it is provably better.
+this evenly matched in favour of the smaller model. The deployed network is
+$32$--$16$; Tables~\ref{tab:mse1D}--\ref{tab:time1D} and every figure in this
+study are reported for it, retrained from the same data splits and
+re-evaluated at the same paper scale (40 replicates, the full $p\times J$
+grid, including the exact-simulator baseline). The $128$--$64$ row above is
+retained permanently as the architecture the activation and BatchNorm search
+of Table~\ref{tab:arch1D} was actually run against, not as the deployed
+model. The honest limit on the redeployment decision itself is the one
+already stated: the specific margin by which $32$--$16$ led in this section's
+own comparison is not distinguishable from Monte Carlo noise at that
+replicate count, so what was established there is that the smaller network is
+not worse, not that it is provably better -- a conclusion the paper-scale
+retraining above does not overturn: Table~\ref{tab:mse1D} shows the same
+pattern of near-ties with two cells of clearly resolved advantage that the
+$128$--$64$ network showed, at $14\times$ fewer parameters.
 
 \subsection{Regression calibration}
 \label{sec:sim1D_calib}
@@ -613,14 +615,14 @@ on each data split.
 \toprule
 Split & $n$ & MSE($\log_{10}\dbar$) & MAE($\log_{10}\dbar$) & 95\% coverage \\
 \midrule
-Train & 505 & 0.00425 & 0.0518 & 0.958 \\
-Calibration & 303 & 0.00534 & 0.0538 & 0.954 \\
-\textbf{Test} & \textbf{202} & \textbf{0.00435} & \textbf{0.0524} & \textbf{0.9505} \\
+Train & 505 & 0.00424 & 0.0515 & 0.964 \\
+Calibration & 303 & 0.00533 & 0.0538 & 0.954 \\
+\textbf{Test} & \textbf{202} & \textbf{0.00434} & \textbf{0.0525} & \textbf{0.9554} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The held-out test-set coverage of $0.9505$ ($192$ of $202$ points) is within
+The held-out test-set coverage of $0.9554$ ($193$ of $202$ points) is within
 sampling noise of the nominal $0.95$, consistent with the finite-sample
 guarantee of \citet{lei2018}. Figure~\ref{fig:calib1D} shows the calibrated
 $95\%$ band against the test data and the resulting test-set parity, and
@@ -673,36 +675,38 @@ replicates.}
 \toprule
 $p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \midrule
-$10^{-4}$ & 10  & 9.36e-9 (0.97)  & 1.02e-8 (1.01)  & 2.90e-9 (0.54) & 7.02e-9 (0.84) & \textbf{6.32e-9 (0.80)} & 0.13 \\
-$10^{-4}$ & 50  & 8.68e-9 (0.93)  & 9.59e-9 (0.98)  & 1.91e-9 (0.44) & 1.88e-9 (0.43) & \textbf{1.74e-9 (0.42)} & 0.34 \\
-$10^{-4}$ & 100 & 4.18e-9 (0.65)  & 4.64e-9 (0.68)  & 7.75e-10 (0.28) & 8.21e-10 (0.29) & \textbf{7.28e-10 (0.27)} & 0.36 \\
-$10^{-3}$ & 10  & 1.38e-6 (1.17)  & 1.60e-6 (1.26)  & 4.60e-7 (0.68) & 5.10e-7 (0.71) & \textbf{5.05e-7 (0.71)} & 0.03 \\
-$10^{-3}$ & 50  & 3.21e-7 (0.57)  & 3.85e-7 (0.62)  & 1.15e-7 (0.34) & 1.23e-7 (0.35) & \textbf{1.12e-7 (0.33)} & 0.24 \\
-$10^{-3}$ & 100 & 2.71e-7 (0.52)  & 3.29e-7 (0.57)  & 4.33e-8 (0.21) & 4.29e-8 (0.21) & \textbf{4.21e-8 (0.21)} & 0.06 \\
-$10^{-2}$ & 10  & 3.42e-5 (0.58)  & 4.40e-5 (0.66)  & 2.64e-5 (0.51) & 1.14e-5 (0.34) & \textbf{8.76e-6 (0.30)} & 0.79 \\
-$10^{-2}$ & 50  & 7.71e-6 (0.28)  & 1.17e-5 (0.34)  & 4.78e-6 (0.22) & 5.98e-6 (0.24) & \textbf{2.27e-6 (0.15)} & \textbf{5.68} \\
-$10^{-2}$ & 100 & 4.01e-6 (0.20)  & 6.08e-6 (0.25)  & 2.62e-6 (0.16) & 6.22e-6 (0.25) & \textbf{2.34e-6 (0.15)} & \textbf{8.03} \\
+$10^{-4}$ & 10  & 9.36e-9 (0.97)  & 1.02e-8 (1.01)  & 2.90e-9 (0.54) & 7.02e-9 (0.84) & \textbf{6.61e-9 (0.81)} & 0.07 \\
+$10^{-4}$ & 50  & 8.68e-9 (0.93)  & 9.59e-9 (0.98)  & 1.91e-9 (0.44) & 1.88e-9 (0.43) & \textbf{1.78e-9 (0.42)} & 0.23 \\
+$10^{-4}$ & 100 & 4.18e-9 (0.65)  & 4.64e-9 (0.68)  & 7.75e-10 (0.28) & 8.21e-10 (0.29) & \textbf{7.83e-10 (0.28)} & 0.14 \\
+$10^{-3}$ & 10  & 1.38e-6 (1.17)  & 1.60e-6 (1.26)  & 4.60e-7 (0.68) & \textbf{5.10e-7 (0.71)} & 5.30e-7 (0.73) & $-$0.11 \\
+$10^{-3}$ & 50  & 3.21e-7 (0.57)  & 3.85e-7 (0.62)  & 1.15e-7 (0.34) & 1.23e-7 (0.35) & \textbf{1.19e-7 (0.34)} & 0.08 \\
+$10^{-3}$ & 100 & 2.71e-7 (0.52)  & 3.29e-7 (0.57)  & 4.33e-8 (0.21) & \textbf{4.29e-8 (0.21)} & 4.35e-8 (0.21) & $-$0.04 \\
+$10^{-2}$ & 10  & 3.42e-5 (0.58)  & 4.40e-5 (0.66)  & 2.64e-5 (0.51) & 1.14e-5 (0.34) & \textbf{8.57e-6 (0.29)} & 0.86 \\
+$10^{-2}$ & 50  & 7.71e-6 (0.28)  & 1.17e-5 (0.34)  & 4.78e-6 (0.22) & 5.98e-6 (0.24) & \textbf{2.36e-6 (0.15)} & \textbf{5.80} \\
+$10^{-2}$ & 100 & 4.01e-6 (0.20)  & 6.08e-6 (0.25)  & 2.62e-6 (0.16) & 6.22e-6 (0.25) & \textbf{2.48e-6 (0.16)} & \textbf{8.12} \\
 \bottomrule
 \end{tabular}}
 \end{table}
 
 Two readings of this table must be kept apart, and conflating them is the error
 the $\Delta/\mathrm{SE}$ column exists to prevent. DNN-ABC's point estimate is
-never worse than GPS-ABC's in nRMSE in any of the nine cells -- but being never
-worse is not the same as being reliably better, and that column shows the
-comparison is clearly resolved beyond simulation noise in only two of them:
-$p=10^{-2}$ at $J=50$ and $J=100$, where the gap is $5.7$ and $8.0$ combined
-Monte Carlo standard errors. In the other seven cells $|\Delta/\mathrm{SE}| <
-1$, so DNN-ABC's numerically lower MSE there is not distinguishable from
-GPS-ABC's at $R=40$ replicates -- a near-exact statistical tie, consistent
-with a GP fit on $\sim 800$ points already being close to optimal at these
-smaller mutation rates. The one regime where the surrogates are reliably
-distinguished is the largest tested rate, $p=10^{-2}$, where DNN-ABC's nRMSE
-is $0.15$ against GPS-ABC's $0.24$--$0.25$. Both surrogates match, and in
-several cells slightly improve on, the exact ABC-MCMC baseline, and all
-ABC-based methods substantially outperform the classical MOM/MLE estimators
--- reproducing \citeauthor{lu2023}'s central finding that ABC dominates the
-classical estimators for this model.
+numerically lower than GPS-ABC's in seven of the nine cells and marginally
+higher in the other two ($p=10^{-3}$ at $J=10$ and $J=100$) -- but nominally
+lower is not the same as reliably better, and in both directions the
+$\Delta/\mathrm{SE}$ column shows the comparison is clearly resolved beyond
+simulation noise in only two cells: $p=10^{-2}$ at $J=50$ and $J=100$, where
+the gap favours DNN-ABC by $5.8$ and $8.1$ combined Monte Carlo standard
+errors. In the other seven cells, including the two nominal reversals,
+$|\Delta/\mathrm{SE}| < 0.9$, so none of those differences -- in either
+direction -- is distinguishable from noise at $R=40$ replicates: a near-exact
+statistical tie, consistent with a GP fit on $\sim 800$ points already being
+close to optimal at these smaller mutation rates. The one regime where the
+surrogates are reliably distinguished is the largest tested rate, $p=10^{-2}$,
+where DNN-ABC's nRMSE is $0.15$--$0.16$ against GPS-ABC's $0.24$--$0.25$. Both
+surrogates match, and in several cells slightly improve on, the exact
+ABC-MCMC baseline, and all ABC-based methods substantially outperform the
+classical MOM/MLE estimators -- reproducing \citeauthor{lu2023}'s central
+finding that ABC dominates the classical estimators for this model.
 
 \begin{table}[H]
 \centering
@@ -713,21 +717,21 @@ $\hat p$. Bold marks the shorter of GPS-ABC and DNN-ABC.}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 2.39e-4 & 1.14e-4 & \textbf{1.04e-4} \\
-$10^{-4}$ & 50  & 1.56e-4 & \textbf{1.11e-4} & 1.13e-4 \\
-$10^{-4}$ & 100 & 1.21e-4 & 1.23e-4 & \textbf{1.19e-4} \\
-$10^{-3}$ & 10  & 2.51e-3 & 1.32e-3 & \textbf{8.86e-4} \\
-$10^{-3}$ & 50  & 1.53e-3 & 1.32e-3 & \textbf{8.94e-4} \\
-$10^{-3}$ & 100 & 9.52e-4 & 1.19e-3 & \textbf{8.34e-4} \\
-$10^{-2}$ & 10  & 7.97e-3 & 4.70e-3 & \textbf{2.51e-3} \\
-$10^{-2}$ & 50  & 5.15e-3 & 5.10e-3 & \textbf{2.80e-3} \\
-$10^{-2}$ & 100 & 3.89e-3 & 5.24e-3 & \textbf{3.05e-3} \\
+$10^{-4}$ & 10  & 2.39e-4 & 1.14e-4 & \textbf{1.01e-4} \\
+$10^{-4}$ & 50  & 1.56e-4 & 1.11e-4 & \textbf{1.04e-4} \\
+$10^{-4}$ & 100 & 1.21e-4 & 1.23e-4 & \textbf{1.14e-4} \\
+$10^{-3}$ & 10  & 2.51e-3 & 1.32e-3 & \textbf{9.39e-4} \\
+$10^{-3}$ & 50  & 1.53e-3 & 1.32e-3 & \textbf{9.45e-4} \\
+$10^{-3}$ & 100 & 9.52e-4 & 1.19e-3 & \textbf{8.99e-4} \\
+$10^{-2}$ & 10  & 7.97e-3 & 4.70e-3 & \textbf{2.90e-3} \\
+$10^{-2}$ & 50  & 5.15e-3 & 5.10e-3 & \textbf{3.19e-3} \\
+$10^{-2}$ & 100 & 3.89e-3 & 5.24e-3 & \textbf{3.43e-3} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-DNN-ABC produces the narrowest interval in eight of nine cells, $27\%$
-tighter than GPS-ABC on average and up to $47\%$ tighter, without any loss of
+DNN-ABC produces the narrowest interval in all nine cells, $24\%$
+tighter than GPS-ABC on average and up to $38\%$ tighter, without any loss of
 point accuracy (Table~\ref{tab:mse1D}) or empirical coverage
 (Section~\ref{sec:sim1D_calib}) -- genuine gained precision rather than
 overconfidence.
@@ -741,23 +745,23 @@ The final column is the speedup of DNN-ABC over exact ABC-MCMC.}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC & Speedup \\
 \midrule
-$10^{-4}$ & 10  & 56.32  & 0.137 & 0.135 & $417\times$ \\
-$10^{-4}$ & 50  & 189.16 & 0.141 & 0.134 & $1412\times$ \\
-$10^{-4}$ & 100 & 343.18 & 0.135 & 0.134 & $2567\times$ \\
-$10^{-3}$ & 10  & 17.81  & 0.137 & 0.133 & $134\times$ \\
-$10^{-3}$ & 50  & 72.72  & 0.134 & 0.142 & $511\times$ \\
-$10^{-3}$ & 100 & 134.85 & 0.135 & 0.135 & $998\times$ \\
-$10^{-2}$ & 10  & 9.93   & 0.137 & 0.132 & $75\times$ \\
-$10^{-2}$ & 50  & 47.62  & 0.143 & 0.139 & $343\times$ \\
-$10^{-2}$ & 100 & 96.00  & 0.135 & 0.135 & $712\times$ \\
+$10^{-4}$ & 10  & 51.08  & 0.128 & 0.150 & $340\times$ \\
+$10^{-4}$ & 50  & 171.79 & 0.127 & 0.145 & $1182\times$ \\
+$10^{-4}$ & 100 & 303.99 & 0.126 & 0.144 & $2111\times$ \\
+$10^{-3}$ & 10  & 16.48  & 0.123 & 0.143 & $116\times$ \\
+$10^{-3}$ & 50  & 67.59  & 0.125 & 0.144 & $469\times$ \\
+$10^{-3}$ & 100 & 125.68 & 0.124 & 0.143 & $876\times$ \\
+$10^{-2}$ & 10  & 9.33   & 0.123 & 0.143 & $65\times$ \\
+$10^{-2}$ & 50  & 44.34  & 0.124 & 0.144 & $309\times$ \\
+$10^{-2}$ & 100 & 88.22  & 0.124 & 0.144 & $614\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Both surrogates run at a flat $\approx 0.135$ seconds per 100 iterations
+Both surrogates run at a flat $\approx 0.13$--$0.15$ seconds per 100 iterations
 regardless of $p$ or $J$, because neither calls the simulator; exact ABC-MCMC's
 cost explodes with both, since it runs the exact simulator $n_s$ times per
-iteration. Against exact ABC-MCMC, DNN-ABC is $75$--$2567\times$ faster; against
+iteration. Against exact ABC-MCMC, DNN-ABC is $65$--$2111\times$ faster; against
 GPS-ABC it is a statistical tie in one dimension, as expected, since a GP over
 $\sim 800$ points is itself cheap to query -- the network's asymptotic query
 advantage would only emerge at larger training
