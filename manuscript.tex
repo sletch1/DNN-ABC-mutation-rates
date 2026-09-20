@@ -58,10 +58,13 @@ the other two, neither direction resolved beyond simulation noise -- and at
 the largest tested mutation rate it is better by a margin that clearly exceeds
 that noise (up to $60\%$ lower MSE, a gap of $5.8$--$8.1$ Monte Carlo standard
 errors). The neural surrogate nonetheless returns tighter $95\%$ credible
-intervals in all nine configurations with no loss of empirical coverage, and
-achieves near-exact conformal calibration, all at the same
-two-to-three-order-of-magnitude speedup over exact ABC-MCMC that the Gaussian
-process already provides.
+intervals in all nine configurations, and its own regression calibration is
+near-exact -- but posterior coverage of those intervals tells a different
+story: both surrogates under-cover at the smallest tested culture count and
+recover toward nominal as the culture count grows to match their training
+data, a genuine limitation we measure directly rather than infer from
+regression diagnostics, all at the same two-to-three-order-of-magnitude
+speedup over exact ABC-MCMC that the Gaussian process already provides.
 
 The second study turns to the two-stage (piecewise-constant) mutation model, in
 which the mutation probability jumps from $p_1$ to $p_2$ at an unknown time
@@ -732,9 +735,10 @@ $10^{-2}$ & 100 & 3.89e-3 & 5.24e-3 & \textbf{3.43e-3} \\
 
 DNN-ABC produces the narrowest interval in all nine cells, $24\%$
 tighter than GPS-ABC on average and up to $38\%$ tighter, without any loss of
-point accuracy (Table~\ref{tab:mse1D}) or empirical coverage
-(Section~\ref{sec:sim1D_calib}) -- genuine gained precision rather than
-overconfidence.
+point accuracy (Table~\ref{tab:mse1D}). Whether this is genuine gained
+precision or overconfidence is not settled by interval length alone --
+Section~\ref{sec:sim1D_coverage} measures the posterior coverage this
+comparison needs, and the answer depends on $J$.
 
 \begin{table}[H]
 \centering
@@ -779,6 +783,96 @@ reproduce the exact method's inference and not merely its point estimate.
 single representative data set.}
 \label{fig:posterior1D}
 \end{figure}
+
+\subsection{Posterior coverage: what Section~\ref{sec:sim1D_calib} does not measure}
+\label{sec:sim1D_coverage}
+
+Section~\ref{sec:conformal} draws the distinction on which this subsection
+turns: split-conformal \emph{regression} calibration (Section~\ref{sec:sim1D_calib},
+near-exact at $0.9554$ on held-out data) is a guarantee about the surrogate's
+own predictive interval, not about whether the downstream ABC credible
+interval for $\hat p$ actually brackets the true $p$ $95\%$ of the time. Both
+Table~\ref{tab:mse1D} and Table~\ref{tab:ci1D} are silent on the second
+quantity. We measure it directly by saving the credible interval's endpoints
+(not merely its length) for every replicate of every method, exactly as
+Section~\ref{sec:ademp} does for every other comparison in this paper.
+
+\paragraph{A structural artifact, caught before it could confound this
+measurement.} The first attempt at this measurement returned exactly $0.000$
+coverage for all three ABC methods, at every $J$, at $p=10^{-2}$ specifically
+-- not a defect of any estimator, but a coincidence in the experimental
+design: $\log_{10}(10^{-2}) = -2.0$ is exactly the ABC-MCMC prior's upper
+bound used throughout Section~\ref{sec:sim1D_results}, so the sampler could
+never propose $\theta$ above the true value there, and the resulting interval's
+upper endpoint was structurally incapable of reaching the truth (confirmed
+directly: across replicates it topped out at $0.0096$--$0.0099$, never
+reaching $p=0.01$). We fixed this before drawing any conclusion from the
+coverage numbers, rather than working around it: the ground-truth grid was
+extended nine points further in $\log_{10}p$ (same spacing as the original
+$101$-point design), giving real training data up to $\log_{10}p=-1.46$, and
+the prior's upper bound was moved to $-1.5$ -- $0.5$ $\log_{10}$-units of
+headroom for $p=10^{-2}$ instead of zero. Every number in
+Tables~\ref{tab:mse1D}--\ref{tab:time1D} is unchanged to five significant
+figures under this fix, which is expected rather than suspicious: a
+truncation exactly at the truth devastates the interval's upper tail while
+barely moving the posterior mean, since the likelihood already concentrated
+most mass below the truth independently of the prior. The coverage numbers
+below are measured after this fix.
+
+\begin{table}[H]
+\centering
+\caption{Study I: empirical posterior coverage of the 95\% ABC credible
+interval for $\hat p$, with binomial Monte Carlo standard error
+($\sqrt{\hat c(1-\hat c)/R}$, $R=40$). This is a different quantity from
+Table~\ref{tab:fit1D}'s regression coverage; see Section~\ref{sec:sim1D_coverage}.}
+\label{tab:cov1D}
+\begin{tabular}{rrrrr}
+\toprule
+$p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
+\midrule
+$10^{-4}$ & 10  & 0.775 (0.066) & 0.450 (0.079) & 0.500 (0.079) \\
+$10^{-4}$ & 50  & 0.900 (0.047) & 0.775 (0.066) & 0.800 (0.063) \\
+$10^{-4}$ & 100 & 0.925 (0.042) & 0.950 (0.034) & 0.950 (0.034) \\
+$10^{-3}$ & 10  & 0.800 (0.063) & 0.525 (0.079) & 0.450 (0.079) \\
+$10^{-3}$ & 50  & 0.975 (0.025) & 0.900 (0.047) & 0.875 (0.052) \\
+$10^{-3}$ & 100 & 0.950 (0.034) & 0.975 (0.025) & 0.925 (0.042) \\
+$10^{-2}$ & 10  & 0.850 (0.056) & 0.775 (0.066) & 0.425 (0.078) \\
+$10^{-2}$ & 50  & 1.000 (0.000) & 1.000 (0.000) & 0.850 (0.056) \\
+$10^{-2}$ & 100 & 0.950 (0.034) & 1.000 (0.000) & 0.925 (0.042) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two patterns are visible, and only one of them is about the surrogates. First,
+GPS-ABC and DNN-ABC coverage rises with $J$ in every row: both are
+badly under nominal at $J=10$ ($0.425$--$0.775$) and close to it by $J=100$
+($0.925$--$1.000$) -- the culture count the training data (Section~\ref{sec:sim1D}) is generated at
+throughout, and the only one either surrogate has ever seen a summary
+statistic computed from. This is the mechanism the paper's design invites: a
+surrogate trained exclusively on $J=100$ summaries has no way to know that a
+$J=10$ observation is intrinsically noisier, so its predictive interval is
+calibrated for the wrong noise level whenever $J \ne 100$. DNN-ABC is
+consistently the most under-covering of the three at $J=10$ ($0.425$--$0.500$),
+consistent with Table~\ref{tab:ci1D}'s finding that it also returns the
+tightest intervals there: the same overconfidence that makes the interval
+short makes it wrong. Second, and separately, exact ABC-MCMC itself is not at
+nominal at $J=10$ ($0.775$--$0.850$) despite calling the true simulator at the
+correct $J$ on every iteration -- a property of the ABC acceptance kernel
+(the synthetic-likelihood construction of Algorithm~\ref{alg:abcmcmc}) at
+this culture count, not of any surrogate, and not explained by the
+$J$-mismatch mechanism above.
+
+We do not correct the surrogates' $J$-blindness in this version of the
+result: doing so honestly requires retraining on $J$-specific data (the raw
+per-culture values needed to do this are already recorded and require no new
+simulation) and re-measuring, not adjusting the reported numbers after the
+fact. What Table~\ref{tab:cov1D} establishes is narrower and, we think, the
+more important point for a reader building a similar surrogate: \textbf{the
+interval-length advantage in Table~\ref{tab:ci1D} is not evidence of equal or
+better calibration}, and a surrogate trained at a single simulation condition
+should be expected to misrepresent its own uncertainty whenever queried
+away from it, in a way no regression diagnostic computed at the training
+condition can reveal.
 
 % =============================================================================
 \section{Simulation Study II: The Two-Stage Mutation Model}

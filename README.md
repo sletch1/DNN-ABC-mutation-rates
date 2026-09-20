@@ -56,7 +56,11 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
   Monte Carlo noise), and clearly lower — up to 61% — at the two largest,
   highest-`J` `p=1e-2` cells (Table 1, §4.2).
 - **Precision:** ~24% tighter 95% credible intervals than GPS-ABC on average (up to
-  38% tighter), in all 9 cells, with no loss of coverage (Table 2, §4.3).
+  38% tighter), in all 9 cells (Table 2, §4.3) — but tighter is not the same as
+  better calibrated: **posterior coverage** of those intervals is measurably
+  below nominal for both surrogates at small `J`, recovering toward nominal at
+  `J=100` (§4.3b). Regression coverage (0.955, a different quantity) stays
+  near-exact throughout.
 - **Speed:** 65×–2111× faster than exact ABC-MCMC — a dead tie with GPS-ABC in
   1-D — at flat cost regardless of `p` or `J` (Table 3, §4.4).
 - **Calibration:** the heteroscedastic head + conformal calibration achieve
@@ -219,9 +223,11 @@ prior `θ ∈ [−5,−2]`, grid `p ∈ {1e-4, 1e-3, 1e-2} × J ∈ {10, 50, 100
 - `p = 1e-4`: **11.4%** tighter (J=10), **6.3%** tighter (J=50), **7.3%** tighter (J=100)
 - `p = 1e-3`: **28.9%** tighter (J=10), **28.4%** tighter (J=50), **24.5%** tighter (J=100)
 - `p = 1e-2`: **38.3%** tighter (J=10), **37.5%** tighter (J=50), **34.5%** tighter (J=100)
-- **Average: ~24% tighter intervals**, in all 9 cells. Because this comes with
-  equal accuracy and calibrated 0.95 coverage, it is genuine **precision, not
-  overconfidence**.
+- **Average: ~24% tighter intervals**, in all 9 cells, with equal accuracy —
+  but see §4.3b: the *posterior* coverage of these intervals (not the
+  surrogate's own regression coverage) is measurably below nominal at small
+  `J`, so "tighter" should not be read as "more precise at no cost" without
+  that caveat.
 
 **vs ABC-MCMC — speed (the exact baseline both surrogates approximate):**
 - **65×** faster (`p=1e-2, J=10`) up to **2111×** faster (`p=1e-4, J=100`) per 100
@@ -303,8 +309,68 @@ the paper's central finding.
 
 DNN-ABC produces the **narrowest credible intervals** in all 9 cells — e.g. ~38%
 tighter than GPS-ABC at `p=1e-2, J=10`. Because this comes *with* equal accuracy
-(Table 1) and calibrated coverage (§4.1), it reflects genuinely more
+(Table 1), it reflects genuinely more
 *precise* inference, not overconfidence.
+
+### 4.3b Posterior coverage — what §4.1 does not measure
+
+§4.1's 0.955 is **regression** coverage: does the surrogate's own predicted
+mean ± interval bracket the true `log10(d_bar)` 95% of the time, on held-out
+data? That is a guarantee about the surrogate's fit, not about whether the
+downstream ABC credible interval for `p̂` actually brackets the true `p`.
+Table 1 and Table 2 are both silent on the second quantity, so we measured it
+directly — saving each replicate's interval endpoints, not just its length —
+for every method, every `(p, J)` cell.
+
+**A structural bug caught first.** The first attempt returned exactly **0.000**
+coverage for all three methods at every `J`, at `p=1e-2` specifically. Cause:
+`log10(0.01) = -2.0`, exactly the ABC-MCMC prior's old upper bound — the
+sampler could never propose `theta` above the true value there, so the
+interval's upper endpoint was structurally incapable of reaching `p=0.01`
+(confirmed directly: it topped out at 0.0096–0.0099 across replicates, every
+time). Not a surrogate defect — even the exact simulator baseline showed it.
+Fixed by extending the ground-truth grid 9 points further in `log10(p)` (same
+spacing as the original 101-point design; `RCode/extendSlowData_1D.R`) and
+moving the prior's upper bound to `-1.5`, giving `p=1e-2` real headroom
+instead of sitting on the wall. Tables 1–3's numbers are unchanged under this
+fix (expected: a truncation at the truth wrecks the interval's tail while
+barely moving the posterior mean) — only coverage was broken.
+
+**The real picture, measured after that fix (R=40, binomial MCSE in parens):**
+
+| p | J | ABC-MCMC | GPS-ABC | DNN-ABC |
+|---|---|---|---|---|
+| 1e-4 | 10 | 0.775 (0.066) | 0.450 (0.079) | 0.500 (0.079) |
+| 1e-4 | 50 | 0.900 (0.047) | 0.775 (0.066) | 0.800 (0.063) |
+| 1e-4 | 100 | 0.925 (0.042) | 0.950 (0.034) | 0.950 (0.034) |
+| 1e-3 | 10 | 0.800 (0.063) | 0.525 (0.079) | 0.450 (0.079) |
+| 1e-3 | 50 | 0.975 (0.025) | 0.900 (0.047) | 0.875 (0.052) |
+| 1e-3 | 100 | 0.950 (0.034) | 0.975 (0.025) | 0.925 (0.042) |
+| 1e-2 | 10 | 0.850 (0.056) | 0.775 (0.066) | 0.425 (0.078) |
+| 1e-2 | 50 | 1.000 (0.000) | 1.000 (0.000) | 0.850 (0.056) |
+| 1e-2 | 100 | 0.950 (0.034) | 1.000 (0.000) | 0.925 (0.042) |
+
+Two things, and only one is about the surrogates. **GPS-ABC and DNN-ABC
+coverage rises with `J`** in every row — badly under nominal at `J=10`
+(0.425–0.775), close to it by `J=100` (0.925–1.000), the *only* culture count
+either surrogate was ever trained on. A surrogate trained exclusively at
+`J=100` has no way to know a `J=10` observation is intrinsically noisier, so
+its interval is calibrated for the wrong noise level whenever `J≠100`.
+DNN-ABC under-covers most at `J=10` (0.425–0.500) — the same overconfidence
+that makes its interval shortest there (§4.3) makes it wrong there.
+**Separately**, exact ABC-MCMC itself sits below nominal at `J=10`
+(0.775–0.850) despite simulating at the true `J` every iteration — a property
+of the ABC acceptance kernel at this culture count, unrelated to either
+surrogate.
+
+**Not fixed in this pass.** The surrogates' `J`-blindness needs retraining on
+`J`-specific data to fix honestly (the raw per-culture values needed already
+exist, no new simulation required) — not an adjustment to numbers already
+reported. What this section establishes: **the interval-length advantage in
+§4.3 is not evidence of better calibration**, and a surrogate trained at one
+condition should be expected to misjudge its own uncertainty away from it, in
+a way §4.1's regression diagnostic — computed at that same training
+condition — cannot reveal.
 
 ### 4.4 Table 3 — computation time (seconds / 100 MCMC iterations)
 
