@@ -209,22 +209,33 @@ the paper switches to the fourth root for the two-stage model.
 
 A neural network predicts the mean **and the variance** of `log10 S` from
 `(log10 p1, log10 p2, τ)`, and replaces the simulator inside an ABC-MCMC
-sampler. Three surrogates are compared:
+sampler. Four methods are compared:
 
 | Method | What it is |
 |---|---|
 | `DNN-ABC` | this network |
 | `GPS-ABC` | a Gaussian process, strengthened: anisotropic kernel, log-scaled inputs |
 | `GPS-ABC-ref` | a Gaussian process matching `matlab/demoGPS_fluc_exp2.m` exactly |
+| `NPE` | amortized neural posterior estimation (`abc/npe.py`, `sbi`) -- not plugged into ABC-MCMC at all; direct posterior samples at a new observation, no acceptance step |
 
 Both GPs are reported because the strengthened one is better than the reference
 on every axis, so quoting only it would overstate the published baseline.
 
-**The headline result is negative and is reported as such.** DNN-ABC and
-GPS-ABC are statistically tied in seven of nine parameter-by-truth comparisons;
-the other two favour GPS-ABC and none favours the network. What binds here is
-not surrogate error but the model's own identifiability: `p1` and `τ` are weakly
-determined by a single scalar summary, so a better surrogate cannot help.
+**The headline result is negative for the surrogate-vs-surrogate comparison,
+and reported as such.** DNN-ABC and GPS-ABC are statistically tied in seven of
+nine parameter-by-truth comparisons; the other two favour GPS-ABC and none
+favours the network. What binds here is not surrogate error but the model's
+own identifiability: `p1` and `τ` are weakly determined by a single scalar
+summary, so a better surrogate cannot help.
+
+**NPE is the exception, and only on the one well-identified parameter.** On
+`p2`, NPE's RMSE beats every surrogate at every tested truth, resolved beyond
+replicate noise in most comparisons. On `p1` and `τ` it is a mix of ties and
+occasional wins/losses against each GP variant -- consistent with the same
+identifiability ceiling that limits the surrogates. If you only need to
+add/retrain NPE and the rest of `results/logs/raw_replicates.csv` is already
+correct, run `abc/add_npe.py` instead of the full pipeline: it reuses every
+already-simulated observation and finishes in well under a minute.
 
 ## 7. Regenerating the ground-truth data (not needed)
 

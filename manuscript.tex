@@ -185,7 +185,11 @@ simulation study on the two-stage mutation model that is the original paper's
 actual multi-parameter contribution, estimating $(p_1,p_2,\tau)$ jointly, and
 we report, honestly and without tuning it away, that the neural surrogate's
 advantage does \emph{not} carry over to that regime; we pair that report with
-a measurement of the data's irreducible noise floor that explains why. Finally,
+a measurement of the data's irreducible noise floor that explains why. NPE's
+does, but only on the one parameter the model actually identifies well,
+where it beats every surrogate tested, resolved beyond replicate noise in
+most comparisons -- an asymmetry, not a second general advantage, and we
+report it as such. Finally,
 rather than assume it, we test whether a convolutional or recurrent
 architecture improves on the architecture-agnostic feedforward surrogate in
 that same regime, motivated by where such architectures are known
@@ -1513,14 +1517,15 @@ triples, $J=100$, 16 replicates per cell. Errors are $\log_{10}$-scale RMSE for
 $p_1,p_2$ (so $1.0$ means an order of magnitude) and absolute for $\tau$. Two
 Gaussian-process baselines are reported: the strengthened one used throughout,
 and one built to match the reference implementation of \citeauthor{lu2023}
-(isotropic kernel, untransformed inputs and target).}
+(isotropic kernel, untransformed inputs and target). NPE (Section~\ref{sec:sim1D_results})
+has no acceptance step, so its rate column reads ``---''.}
 \label{tab:abc3D}
 \begin{tabular}{llrrrr}
 \toprule
 Method & Parameter & RMSE & Mean 95\% CI width & Coverage & Accept.\ rate \\
 \midrule
 GPS-ABC & $p_1$   & 1.391 & 3.46e-2 & 1.000 & 0.371 \\
-(strengthened) & $p_2$   & \textbf{0.156} & 3.22e-2 & 1.000 & \\
+(strengthened) & $p_2$   & 0.156 & 3.22e-2 & 1.000 & \\
         & $\tau$  & \textbf{1.422} & 9.07 & 1.000 & \\
 \midrule
 GPS-ABC & $p_1$   & \textbf{1.309} & 3.47e-2 & 1.000 & 0.810 \\
@@ -1530,6 +1535,10 @@ GPS-ABC & $p_1$   & \textbf{1.309} & 3.47e-2 & 1.000 & 0.810 \\
 DNN-ABC & $p_1$   & 1.407 & 3.43e-2 & 0.938 & 0.143 \\
         & $p_2$   & 0.258 & 3.07e-2 & 0.979 & \\
         & $\tau$  & 1.753 & 8.64 & 1.000 & \\
+\midrule
+NPE & $p_1$   & 1.373 & 3.10e-2 & 1.000 & --- \\
+        & $p_2$   & \textbf{0.089} & 2.89e-2 & 1.000 & \\
+        & $\tau$  & 1.425 & 8.77 & 1.000 & \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1572,6 +1581,27 @@ construction. Note also that this is not a failure of the surrogate's own
 predictive calibration, which is near-exact on held-out data
 (Table~\ref{tab:fit3D}, coverage $0.955$); it is a property of the ABC
 acceptance kernel built on top of it.
+
+\emph{NPE is the one method that does favour an amortized estimator here, and
+only on the well-identified parameter.} On $p_2$, NPE's RMSE ($0.089$) beats
+every surrogate at every truth tested -- never the reverse -- and the gap is
+resolved at the $2$-MCSE level in seven of the nine surrogate comparisons
+(all three against the reference GP, two of three each against the
+strengthened GP and DNN-ABC; the remaining two are ties, never a surrogate
+win). On $p_1$ and $\tau$, the weakly identified parameters, NPE is a mix of
+ties and occasional wins and losses against each GP variant, consistent with
+Section~\ref{sec:sim3D_identifiability}'s point that no method can extract
+information the summary statistic does not carry: an amortized estimator
+trained directly on simulator draws is not exempt from that limit, and
+Table~\ref{tab:abc3D} does not show it beating the identifiability ceiling
+either. The asymmetry is the finding: where the model actually identifies a
+parameter, learning the posterior directly from simulations outperformed
+substituting a surrogate into the same ABC-MCMC kernel Study I uses,
+resolved beyond replicate noise; where it does not, no method -- amortized or
+not -- does better than any other. Training cost and per-dataset sampling
+cost are negligible here for the same reason as Study I (seconds to train,
+milliseconds per dataset); the finding is about accuracy, not speed, and is
+the more interesting for it.
 
 We record one diagnostic that qualifies the comparison: DNN-ABC's acceptance
 rate is $0.143$ against the strengthened GP's $0.371$ and the reference GP's

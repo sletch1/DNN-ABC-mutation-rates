@@ -49,6 +49,7 @@ from abc_mcmc import run_abc_mcmc, summarize, ess, DEFAULT_BOX, DEFAULT_STEPS
 from surrogates import fit_gp_surrogate_3d, fit_gp_surrogate_3d_reference
 from train import (load_surrogate, run as train_run, TEST_REPS,
                    summary_from_cultures)
+from npe import train_npe, npe_summary
 from paths import DATA, RESULTS, TABLE_DIR, MODEL_DIR, LOG_DIR
 
 # Truth triples: a low/high p2 pair crossed with an early/late switch, chosen
@@ -63,7 +64,7 @@ A, TP, Z0 = 1.0, 10.0, 1
 _G = {}
 
 
-def _init_worker(ckpt, data_path, cfg):
+def _init_worker(ckpt, data_path, npe_posterior, cfg):
     import warnings
     warnings.filterwarnings("ignore")
     # One thread per worker, for both torch and the BLAS libraries behind
@@ -92,7 +93,11 @@ def _init_worker(ckpt, data_path, cfg):
     # budget as `gp`, so the two differ only in the model, not the data they saw.
     gp_ref = fit_gp_surrogate_3d_reference(tr.p1, tr.p2, tr.tau, S,
                                            budget=cfg["gp_budget"])
-    _G.update(dnn=dnn, gp=gp, gp_ref=gp_ref, cfg=cfg)
+    # NPE (npe.py) is trained once in main(), before the Pool starts, exactly
+    # like GPS-ABC/GPS-ABC-ref's fits here are trained once per worker rather
+    # than redundantly across every replicate -- see npe.py's docstring for
+    # why it isn't plugged into ABC-MCMC the way the other three are.
+    _G.update(dnn=dnn, gp=gp, gp_ref=gp_ref, npe=npe_posterior, cfg=cfg)
 
 
 def _one_replicate(task):
@@ -131,12 +136,32 @@ def _one_replicate(task):
             out[f"{name}_{k}_cov"] = int(post[k]["ci_lo"] <= truth[k] <= post[k]["ci_hi"])
         out[f"{name}_ess_p2"] = ess(s[cfg["burnin"]:, 1])
         out[f"{name}_ess_tau"] = ess(s[cfg["burnin"]:, 2])
+
+    # NPE: no chain, no acceptance step, no burn-in -- direct posterior
+    # samples at this replicate's observation, reusing `summarize` exactly
+    # as the MCMC backends do (see npe.py's docstring). `_secs` is the
+    # sampling cost alone, comparable to the MCMC backends' per-replicate
+    # cost; `_acc` has no meaning here so is left as 1.0 (every draw is
+    # used). ESS on i.i.d. posterior samples is expected to run close to
+    # the sample count itself, unlike the MCMC backends' autocorrelated
+    # chains -- a legitimate point of contrast, not a schema mismatch.
+    t0 = time.time()
+    npe_seed = int(rng.integers(2 ** 63 - 1))
+    npe_samples_summary = npe_summary(_G["npe"], obs, rng_seed=npe_seed)
+    out["NPE_secs"] = time.time() - t0
+    out["NPE_acc"] = 1.0
+    for k in ("p1", "p2", "tau"):
+        out[f"NPE_{k}"] = npe_samples_summary[k]["mean"]
+        out[f"NPE_{k}_cilen"] = npe_samples_summary[k]["ci_len"]
+        out[f"NPE_{k}_cov"] = int(npe_samples_summary[k]["ci_lo"] <= truth[k] <= npe_samples_summary[k]["ci_hi"])
+    out["NPE_ess_p2"] = npe_samples_summary["ess_p2"]
+    out["NPE_ess_tau"] = npe_samples_summary["ess_tau"]
     return out
 
 
 def aggregate(df, cfg):
     """Per-parameter nRMSE, mean CI width and empirical coverage, per method."""
-    methods = (["ABC-MCMC"] if cfg["with_sim"] else []) + ["GPS-ABC", "GPS-ABC-ref", "DNN-ABC"]
+    methods = (["ABC-MCMC"] if cfg["with_sim"] else []) + ["GPS-ABC", "GPS-ABC-ref", "DNN-ABC", "NPE"]
     rows = []
     for (p1, p2, tau) in cfg["truths"]:
         for J in cfg["J_grid"]:
@@ -201,9 +226,14 @@ def main():
     print(f"{len(tasks)} tasks on {args.workers} workers "
           f"({'with' if cfg['with_sim'] else 'without'} the exact ABC-MCMC baseline)")
 
+    print("training NPE (once, shared read-only across workers)...", flush=True)
+    t_npe = time.time()
+    npe_posterior = train_npe(str(DATA))
+    print(f"  done in {(time.time()-t_npe)/60:.1f}m", flush=True)
+
     rows, t0 = [], time.time()
     with Pool(args.workers, initializer=_init_worker,
-              initargs=(str(ckpt), str(DATA), cfg)) as pool:
+              initargs=(str(ckpt), str(DATA), npe_posterior, cfg)) as pool:
         for i, r in enumerate(pool.imap_unordered(_one_replicate, tasks), 1):
             rows.append(r)
             if i % 5 == 0 or i == len(tasks):
