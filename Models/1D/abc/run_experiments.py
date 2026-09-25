@@ -1,6 +1,6 @@
 """Reproduce Table 1 (MSE), Table 2 (95% interval length) and Table 3 (compute
-time) from Lu, Zhu & Wu (2023) -- adding DNN-ABC and NPE columns alongside the
-paper's MOM/MLE, ABC-MCMC and GPS-ABC columns.
+time) from Lu, Zhu & Wu (2023) -- adding a DNN-ABC column alongside the paper's
+MOM/MLE, ABC-MCMC and GPS-ABC columns.
 
 Experimental design (constant-mutation-rate, 1-D):
   truth  = exact/slow simulator (Algorithm 2), matching the DNN's training data.
@@ -8,22 +8,11 @@ Experimental design (constant-mutation-rate, 1-D):
   For each (p, J) and each replicate:
      - simulate observed fluctuation data at p (slow sim), form obs = mean sqrt(X/Z),
      - estimate p with: MOM, MLE, ABC-MCMC (slow sim inside the loop),
-       GPS-ABC (GP surrogate), DNN-ABC (our heteroscedastic MLP surrogate),
-       NPE (amortized neural posterior estimation, npe.py -- not an ABC-MCMC
-       method; see _one_replicate's and run_timing's docstrings for how it
-       differs from the other four).
+       GPS-ABC (GP surrogate), DNN-ABC (our heteroscedastic MLP surrogate).
   Aggregate over replicates:
      Table 1 -> MSE and sqrt(MSE)/p ; Table 2 -> mean 95% interval length.
-  Table 3 (timing) is a separate single-process pass timing each ABC-MCMC
-  method's seconds / 100 MCMC iterations; NPE's timing (Table 3b) is separate
-  again, since "per 100 iterations" isn't a meaningful unit for a method with
-  no MCMC chain -- see run_timing's docstring.
-
-  If Table 1/2/coverage need to be regenerated with a new/retrained NPE but
-  ABC-MCMC/GPS-ABC/DNN-ABC are already correct in results/logs/raw_replicates.csv,
-  use add_npe.py instead of rerunning this whole script: it reuses every
-  already-simulated `obs` and only redoes the (cheap) NPE step, skipping the
-  (expensive, hours-long) exact-simulator baseline entirely.
+  Table 3 (timing) is a separate single-process pass timing each method's
+  seconds / 100 MCMC iterations.
 
 All ABC-MCMC methods share the same sampler, prior, proposal and eps, so the
 only thing that changes across the ABC columns is how the summary statistic
@@ -63,7 +52,6 @@ from estimators import estimate_mom, estimate_mle
 from abc_mcmc import run_abc_mcmc, point_and_interval
 from surrogates import fit_gp_surrogate
 from train import load_surrogate, load_splits, run as train_run
-from npe import train_npe_by_J, npe_point_and_interval, NPE_PRIOR_RANGE
 from paths import DATA, RESULTS, TABLE_DIR, FIG_DIR, MODEL_DIR, LOG_DIR
 # Prior bounded to [-5,-1.5]: keeps the ABC-MCMC baseline's *slow* simulator
 # calls feasible. Extending toward p=1e-8 lets chains wander into the
@@ -119,11 +107,10 @@ def _fit_gps_by_J(data_path, J_grid):
     return gp_by_J
 
 
-def _init_worker(ckpt_path, gp_by_J, npe_by_J, cfg):
+def _init_worker(ckpt_path, gp_by_J, cfg):
     """Runs once per worker process: load the trained DNN for every J in the
-    grid (cheap) and stash the already-fitted GPs from `_fit_gps_by_J` and the
-    already-trained NPE posteriors from `train_npe_by_J` (see their
-    docstrings for why those are fit once, not here), so `_one_replicate`
+    grid (cheap) and stash the already-fitted GPs from `_fit_gps_by_J` (see
+    its docstring for why those are fit once, not here), so `_one_replicate`
     can score each replicate against a surrogate that actually knows its
     culture count (Section on posterior coverage / README Section 4.3b).
 
@@ -144,7 +131,7 @@ def _init_worker(ckpt_path, gp_by_J, npe_by_J, cfg):
     import threadpoolctl
     threadpoolctl.threadpool_limits(1)
     dnn_by_J = {J: load_surrogate(str(_ckpt_path_for_J(ckpt_path, J))) for J in cfg["J_grid"]}
-    _G["dnn_by_J"], _G["gp_by_J"], _G["npe_by_J"], _G["cfg"] = dnn_by_J, gp_by_J, npe_by_J, cfg
+    _G["dnn_by_J"], _G["gp_by_J"], _G["cfg"] = dnn_by_J, gp_by_J, cfg
 
 
 def _clamp_init(p_hat):
@@ -157,12 +144,12 @@ def _clamp_init(p_hat):
 
 
 def _one_replicate(task):
-    """Simulate one data set at `task = (p_true, J, rep)`, run all six
+    """Simulate one data set at `task = (p_true, J, rep)`, run all five
     estimators on it, and return one results row.
     """
     p_true, J, rep = task
     cfg = _G["cfg"]
-    dnn, gp, npe = _G["dnn_by_J"][J], _G["gp_by_J"][J], _G["npe_by_J"][J]
+    dnn, gp = _G["dnn_by_J"][J], _G["gp_by_J"][J]
     rng = np.random.default_rng(10_000 * int(round(-np.log10(p_true))) + 100 * J + rep)
 
     tp = solve_tp(1, 1, p_true, 20)
@@ -194,17 +181,6 @@ def _one_replicate(task):
         out[name + "_ci_lo"] = ci_lo
         out[name + "_ci_hi"] = ci_hi
         out[name + "_acc"] = acc
-
-    # NPE is not an ABC-MCMC backend: no acceptance step, no chain, no
-    # `_acc` entry. The amortized posterior was trained once outside this
-    # function (`train_npe_by_J`); this is just a direct sample from it at
-    # this replicate's observation, which is the entire per-dataset cost.
-    npe_seed = int(rng.integers(2**63 - 1))
-    p_hat, ci_lo, ci_hi, ci_len = npe_point_and_interval(npe, obs, rng_seed=npe_seed)
-    out["NPE"] = p_hat
-    out["NPE_cilen"] = ci_len
-    out["NPE_ci_lo"] = ci_lo
-    out["NPE_ci_hi"] = ci_hi
     return out
 
 
@@ -220,16 +196,12 @@ def run_accuracy(cfg, ckpt_path):
     t_gp = time.time()
     gp_by_J = _fit_gps_by_J(str(DATA), cfg["J_grid"])
     print(f"  done in {(time.time()-t_gp)/60:.1f}m", flush=True)
-    print(f"training NPE baseline (once per J, shared across workers)...", flush=True)
-    t_npe = time.time()
-    npe_by_J = train_npe_by_J(str(DATA), cfg["J_grid"])
-    print(f"  done in {(time.time()-t_npe)/60:.1f}m", flush=True)
     print(f"accuracy: {n} tasks ({len(cfg['p_grid'])}p x {len(cfg['J_grid'])}J x {cfg['reps']} reps) "
           f"on {cfg['workers']} workers", flush=True)
     rows = []
     t0 = time.time()
     with Pool(cfg["workers"], initializer=_init_worker,
-              initargs=(ckpt_path, gp_by_J, npe_by_J, cfg)) as pool:
+              initargs=(ckpt_path, gp_by_J, cfg)) as pool:
         # imap_unordered so we can log real progress + ETA (pool.map is opaque)
         for i, r in enumerate(pool.imap_unordered(_one_replicate, tasks), 1):
             rows.append(r)
@@ -243,7 +215,7 @@ def run_accuracy(cfg, ckpt_path):
 def aggregate_tables(df, cfg):
     """Collapse per-replicate results into Table 1 (MSE and normalized RMSE
     per (p, J) cell) and Table 2 (mean 95% credible-interval length)."""
-    methods = ["MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE"]
+    methods = ["MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC"]
     t1, t2 = [], []
     for p in cfg["p_grid"]:
         for J in cfg["J_grid"]:
@@ -282,7 +254,7 @@ def aggregate_coverage(df, cfg):
     a departure from nominal 0.95 can be judged against sampling noise at this
     replicate count rather than read off as if it were exact.
     """
-    methods = ["ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE"]
+    methods = ["ABC-MCMC", "GPS-ABC", "DNN-ABC"]
     rows = []
     for p in cfg["p_grid"]:
         for J in cfg["J_grid"]:
@@ -306,14 +278,7 @@ def aggregate_coverage(df, cfg):
 
 
 def run_timing(cfg, ckpt_path):
-    """Single-process seconds / 100 MCMC iterations for each ABC-MCMC-based
-    method, plus a separate NPE timing table: NPE isn't an MCMC method (no
-    iterations to count), so its cost is reported the way Section
-    "Related work" actually compares it -- one training cost paid once per
-    J, then a per-dataset posterior-sampling cost paid on every replicate --
-    rather than forced into the "seconds / 100 iterations" column the other
-    three share.
-    """
+    """Single-process seconds / 100 MCMC iterations for each ABC method."""
     import warnings
     warnings.filterwarnings("ignore")
     dnn_by_J, gp_by_J = {}, {}
@@ -322,19 +287,11 @@ def run_timing(cfg, ckpt_path):
         (x_tr, y_tr), (x_va, y_va), _ = load_splits(str(DATA), J=(None if J == 100 else J))
         gp_by_J[J] = fit_gp_surrogate(np.concatenate([x_tr, x_va]), np.concatenate([y_tr, y_va]),
                                       budget=None)
-
-    npe_train_seconds_by_J = {}
-    npe_by_J = {}
-    for J in cfg["J_grid"]:
-        t = time.time()
-        npe_by_J[J] = train_npe_by_J(str(DATA), [J])[J]
-        npe_train_seconds_by_J[J] = time.time() - t
-
     n_time = cfg["timing_iters"]
-    rows, npe_rows = [], []
+    rows = []
     for p in cfg["p_grid"]:
         for J in cfg["J_grid"]:
-            dnn, gp, npe = dnn_by_J[J], gp_by_J[J], npe_by_J[J]
+            dnn, gp = dnn_by_J[J], gp_by_J[J]
             rng = np.random.default_rng(0)
             tp = solve_tp(1, 1, p, 20)
             obs = summary_stat(*fluc_exp(1, 1, 1, p, tp, J, rng, use_slow=True))
@@ -350,22 +307,12 @@ def run_timing(cfg, ckpt_path):
                              rng=np.random.default_rng(1), prior_range=PRIOR_RANGE, **kw)
                 per[name] = (time.time() - t) / n_time * 100.0  # sec / 100 iters
             rows.append(per)
-
-            t = time.time()
-            npe_point_and_interval(npe, obs, rng_seed=1)
-            npe_sample_seconds = time.time() - t
-            npe_rows.append({"p": p, "J": J,
-                              "train_seconds": npe_train_seconds_by_J[J],
-                              "sample_seconds": npe_sample_seconds})
-
             print(f"  timed p={p:.0e} J={J}: ABC-MCMC={per['ABC-MCMC']:.2f}s "
-                  f"GPS-ABC={per['GPS-ABC']:.3f}s DNN-ABC={per['DNN-ABC']:.3f}s per 100 iter, "
-                  f"NPE sample={npe_sample_seconds*1000:.1f}ms "
-                  f"(trained once in {npe_train_seconds_by_J[J]:.1f}s at this J)")
-    return pd.DataFrame(rows), pd.DataFrame(npe_rows)
+                  f"GPS-ABC={per['GPS-ABC']:.3f}s DNN-ABC={per['DNN-ABC']:.3f}s per 100 iter")
+    return pd.DataFrame(rows)
 
 
-def fmt_table1(t1, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE")):
+def fmt_table1(t1, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC")):
     lines = ["| p | J | " + " | ".join(methods) + " |",
              "|---|---|" + "|".join(["---"] * len(methods)) + "|"]
     for _, r in t1.iterrows():
@@ -376,7 +323,7 @@ def fmt_table1(t1, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE
     return "\n".join(lines)
 
 
-def fmt_coverage(tcov, methods=("ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE")):
+def fmt_coverage(tcov, methods=("ABC-MCMC", "GPS-ABC", "DNN-ABC")):
     """Posterior coverage table: does the 95% ABC credible interval actually
     bracket the true p 95% of the time? (Section sec:sim1D_calib's coverage
     claim is about the surrogate's regression coverage, a different quantity --
@@ -392,7 +339,7 @@ def fmt_coverage(tcov, methods=("ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE")):
     return "\n".join(lines)
 
 
-def fmt_table2(t2, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC", "NPE")):
+def fmt_table2(t2, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC")):
     lines = ["| p | J | " + " | ".join(methods) + " |",
              "|---|---|" + "|".join(["---"] * len(methods)) + "|"]
     for _, r in t2.iterrows():
@@ -409,19 +356,6 @@ def fmt_table3(t3):
         speed = r["ABC-MCMC"] / r["DNN-ABC"] if r["DNN-ABC"] > 0 else np.nan
         lines.append(f"| {r['p']:.0e} | {int(r['J'])} | {r['ABC-MCMC']:.2f} | "
                      f"{r['GPS-ABC']:.3f} | {r['DNN-ABC']:.3f} | {speed:.0f}x |")
-    return "\n".join(lines)
-
-
-def fmt_table3b_npe(t3npe):
-    """NPE's timing, reported separately from Table 3 because it isn't an
-    MCMC method: one training cost paid once per J (shared across every
-    replicate and every p at that J), then a per-dataset sampling cost paid
-    on each replicate -- see run_timing's docstring."""
-    lines = ["| p | J | train once (s, per J) | sample (ms, per dataset) |",
-             "|---|---|---|---|"]
-    for _, r in t3npe.iterrows():
-        lines.append(f"| {r['p']:.0e} | {int(r['J'])} | {r['train_seconds']:.1f} | "
-                     f"{r['sample_seconds']*1000:.2f} |")
     return "\n".join(lines)
 
 
@@ -489,18 +423,16 @@ def main():
     tcov.to_csv(TABLE_DIR / "table_coverage.csv", index=False)
 
     print("\n=== Phase B: timing (Table 3) ===")
-    t3, t3npe = run_timing(cfg, str(ckpt))
+    t3 = run_timing(cfg, str(ckpt))
     t3.to_csv(TABLE_DIR / "table3_timing.csv", index=False)
-    t3npe.to_csv(TABLE_DIR / "table3b_npe_timing.csv", index=False)
     timing_plot(t3, FIG_DIR / "table3_timing.png")
 
     tbl1_md = fmt_table1(t1)
     tbl2_md = fmt_table2(t2)
     tbl3_md = fmt_table3(t3)
-    tbl3npe_md = fmt_table3b_npe(t3npe)
     tblcov_md = fmt_coverage(tcov)
     with open(TABLE_DIR / "TABLES.md", "w") as f:
-        f.write("# Reproduced tables with DNN-ABC and NPE columns\n\n")
+        f.write("# Reproduced tables with DNN-ABC column\n\n")
         f.write(f"Config: {json.dumps(cfg)}\n\n")
         f.write("## Table 1 - MSE of p-hat, and (sqrt(MSE)/p) in parentheses\n\n")
         f.write(tbl1_md + "\n\n")
@@ -511,11 +443,9 @@ def main():
                 "(Distinct from Section sec:sim1D_calib's regression coverage --\n"
                 "see aggregate_coverage's docstring in run_experiments.py.)\n\n")
         f.write(tblcov_md + "\n\n")
-        f.write("## Table 3 - seconds per 100 MCMC iterations (ABC-MCMC-based methods)\n\n")
-        f.write(tbl3_md + "\n\n")
-        f.write("## Table 3b - NPE timing (not an MCMC method -- see run_timing's docstring)\n\n")
-        f.write(tbl3npe_md + "\n")
-    print("\n" + tbl1_md + "\n\n" + tblcov_md + "\n\n" + tbl3_md + "\n\n" + tbl3npe_md)
+        f.write("## Table 3 - seconds per 100 MCMC iterations\n\n")
+        f.write(tbl3_md + "\n")
+    print("\n" + tbl1_md + "\n\n" + tblcov_md + "\n\n" + tbl3_md)
     print(f"\ntotal wall time: {(time.time()-t_start)/60:.1f} min")
     print(f"results written to {RESULTS}")
 

@@ -80,25 +80,25 @@ acceptance step of an ABC Markov chain Monte Carlo (MCMC) sampler. We ask
 whether a neural-network surrogate can perform the same substitution, and
 when doing so helps rather than hurts. We build a heteroscedastic
 feedforward surrogate, calibrated by split-conformal prediction, and
-evaluate it, alongside an amortized neural posterior estimator trained on
-the same budget, in two simulation studies.
+evaluate it in two simulation studies.
 
 In a one-dimensional benchmark, the network matches or exceeds the Gaussian
 process's accuracy and returns tighter intervals -- but measuring posterior
 coverage directly, not inferring it from regression diagnostics, shows both
-surrogates under-cover once deployed away from their training condition. The
-amortized estimator ties both on accuracy, covers better, and costs orders
-of magnitude less per dataset once trained. A second, three-parameter study
-finds the opposite
-result for the surrogate comparison: once surrogate error stops binding, the
-network confers no advantage, and the comparison is governed by which
-parameters the model can identify at all. A further comparison finds no
-benefit from convolutional or recurrent architectures on this input.
+surrogates under-cover once deployed away from their training condition. A
+second, three-parameter study finds the opposite result for the surrogate
+comparison: once surrogate error stops binding, the network confers no
+advantage, and the comparison is governed by which parameters the model can
+identify at all. There, an amortized neural posterior estimator trained on
+the same budget beats every surrogate on the one well-identified parameter,
+but fares no better on the two the model cannot pin down. A further
+comparison finds no benefit from convolutional or recurrent architectures on
+this input.
 
 Together, the studies indicate when a neural surrogate or an amortized
 estimator is worth deploying inside or instead of ABC-MCMC, and why
-calibration needs verifying directly, not assumed from regression
-diagnostics. Code, data, and a reproducible pipeline accompany the paper.}
+calibration needs verifying directly, not assumed from diagnostics. Code,
+data, and a reproducible pipeline accompany the paper.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; conformal prediction; heteroscedastic
@@ -172,24 +172,24 @@ a heteroscedastic neural-network surrogate, calibrated by split-conformal
 prediction \citep{lei2018}, that substitutes for the Gaussian process inside
 \citeauthor{lu2023}'s ABC-MCMC sampler with no other change to the inference
 algorithm. We run a one-dimensional simulation study reproducing
-\citeauthor{lu2023}'s constant-mutation-rate benchmark directly, comparing five
-estimators -- method of moments, maximum likelihood, exact ABC-MCMC, GPS-ABC,
-and an amortized neural posterior estimator (NPE) trained on the same
-simulation budget -- against the neural surrogate on estimation accuracy,
-credible-interval length, coverage, and wall-clock cost; NPE turns out to be
-a further near-exact tie with both surrogates on accuracy, with comparable
-or better coverage, at a per-dataset cost that is negligible once trained,
-which we take up directly in the trade-off the Related work paragraph below
-states and Section~\ref{sec:sim1D_results} measures. We then run a second
+\citeauthor{lu2023}'s constant-mutation-rate benchmark directly, comparing
+four estimators -- method of moments, maximum likelihood, exact ABC-MCMC, and
+GPS-ABC -- against the neural surrogate on estimation accuracy,
+credible-interval length, coverage, and wall-clock cost. We then run a second
 simulation study on the two-stage mutation model that is the original paper's
 actual multi-parameter contribution, estimating $(p_1,p_2,\tau)$ jointly, and
 we report, honestly and without tuning it away, that the neural surrogate's
 advantage does \emph{not} carry over to that regime; we pair that report with
-a measurement of the data's irreducible noise floor that explains why. NPE's
-does, but only on the one parameter the model actually identifies well,
-where it beats every surrogate tested, resolved beyond replicate noise in
-most comparisons -- an asymmetry, not a second general advantage, and we
-report it as such. Finally,
+a measurement of the data's irreducible noise floor that explains why. In
+that same second study we add an amortized neural posterior estimator (NPE)
+trained on the same simulation budget -- scoped here rather than to the
+first study because this is the one setting with both a well-identified and
+weakly-identified parameter jointly estimated, the contrast that makes the
+amortized-vs-surrogate question informative (Section~\ref{sec:sim3D_abc}
+gives the full reasoning) -- and find an asymmetry: NPE beats every
+surrogate tested on the well-identified parameter, resolved beyond replicate
+noise in most comparisons, but does no better than any other method on the
+two the model itself cannot pin down. Finally,
 rather than assume it, we test whether a convolutional or recurrent
 architecture improves on the architecture-agnostic feedforward surrogate in
 that same regime, motivated by where such architectures are known
@@ -214,10 +214,12 @@ practice through toolkits such as \texttt{sbi} \citep{tejerocantero2020}. These
 methods are \emph{amortized}: training cost is paid once, and posteriors for
 new data are then produced without any additional simulation or MCMC, which
 GPS-ABC, DNN-ABC and exact ABC-MCMC alike cannot offer, since each requires a
-fresh MCMC run per observed data set. Section~\ref{sec:sim1D_results} below adds an amortized neural posterior
-estimator, trained on the same simulation budget, to the comparison this
-paper otherwise restricts to the surrogate-inside-MCMC design, to make that
-trade-off concrete rather than assumed. The comparison is also motivated by a finding from that literature that bears directly on this
+fresh MCMC run per observed data set. Section~\ref{sec:sim3D_abc} adds an
+amortized neural posterior estimator, trained on the same simulation budget,
+to the comparison this paper otherwise restricts to the surrogate-inside-MCMC
+design, to make that trade-off concrete rather than assumed -- scoped to
+Study II rather than Study I for the reason given in the Contributions
+paragraph above. The comparison is also motivated by a finding from that literature that bears directly on this
 paper's own results: \citet{talts2018}'s simulation-based calibration protocol
 and \citet{hermans2022}'s large-scale audit of neural SBI methods both report
 that posterior approximations -- neural or otherwise -- routinely pass
@@ -736,30 +738,27 @@ closed-form expressions and serve as classical, non-ABC baselines.
 
 \begin{table*}[t]
 \centering
-\caption{Study I, Table 1: MSE of $\hat p$ across six estimators; normalized
+\caption{Study I, Table 1: MSE of $\hat p$ across five estimators; normalized
 RMSE $\sqrt{\mathrm{MSE}}/p$ in parentheses. Bold marks the lower of GPS-ABC
 and DNN-ABC in each row. $\Delta/\mathrm{SE}$ is the GPS-ABC$-$DNN-ABC MSE gap
 in units of its combined Monte Carlo standard error (Section~\ref{sec:ademp});
 values below $\sim 2$ in magnitude are not clearly resolved at $R=40$
-replicates. NPE (Section~\ref{sec:sim1D_results}) is discussed against both
-surrogates in the text rather than in a second $\Delta/\mathrm{SE}$ column,
-to keep the table to a readable width.}
+replicates.}
 \label{tab:mse1D}
-{\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{rrrrrrrrr}
+{\small
+\begin{tabular}{rrrrrrrr}
 \toprule
-$p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & NPE & $\Delta/\mathrm{SE}$ \\
+$p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \midrule
-$10^{-4}$ & 10  & 9.36e-9 (0.97) & 1.02e-8 (1.01) & 5.95e-9 (0.77) & 7.01e-9 (0.84) & \textbf{5.25e-9 (0.72)} & 1.54e-8 (1.24) & 0.37 \\
-$10^{-4}$ & 50  & 8.68e-9 (0.93) & 9.59e-9 (0.98) & 1.91e-9 (0.44) & 1.98e-9 (0.45) & \textbf{1.77e-9 (0.42)} & 2.07e-9 (0.45) & 0.45 \\
-$10^{-4}$ & 100 & 4.18e-9 (0.65) & 4.64e-9 (0.68) & 7.75e-10 (0.28) & 7.95e-10 (0.28) & \textbf{7.68e-10 (0.28)} & 1.36e-9 (0.37) & 0.10 \\
-$10^{-3}$ & 10  & 1.38e-6 (1.17) & 1.60e-6 (1.26) & 4.11e-7 (0.64) & 6.46e-7 (0.80) & \textbf{4.58e-7 (0.68)} & 7.88e-7 (0.89) & 0.60 \\
-$10^{-3}$ & 50  & 3.21e-7 (0.57) & 3.85e-7 (0.62) & 1.11e-7 (0.33) & \textbf{1.11e-7 (0.33)} & 1.33e-7 (0.36) & 1.39e-7 (0.37) & $-$0.48 \\
-$10^{-3}$ & 100 & 2.71e-7 (0.52) & 3.29e-7 (0.57) & 4.29e-8 (0.21) & 4.48e-8 (0.21) & \textbf{4.42e-8 (0.21)} & 4.59e-8 (0.21) & 0.04 \\
-$10^{-2}$ & 10  & 3.42e-5 (0.58) & 4.40e-5 (0.66) & 1.67e-5 (0.41) & \textbf{1.77e-5 (0.42)} & 2.30e-5 (0.48) & 1.90e-5 (0.44) & $-$1.02 \\
-$10^{-2}$ & 50  & 7.71e-6 (0.28) & 1.17e-5 (0.34) & 7.01e-6 (0.26) & \textbf{5.46e-6 (0.23)} & 9.93e-6 (0.32) & 9.81e-6 (0.31) & $-$1.44 \\
-$10^{-2}$ & 100 & 4.01e-6 (0.20) & 6.08e-6 (0.25) & 3.05e-6 (0.17) & \textbf{3.14e-6 (0.18)} & 3.37e-6 (0.18) & 4.95e-6 (0.22) & $-$0.21 \\
+$10^{-4}$ & 10  & 9.36e-9 (0.97) & 1.02e-8 (1.01) & 5.95e-9 (0.77) & 7.01e-9 (0.84) & \textbf{5.25e-9 (0.72)} & 0.37 \\
+$10^{-4}$ & 50  & 8.68e-9 (0.93) & 9.59e-9 (0.98) & 1.91e-9 (0.44) & 1.98e-9 (0.45) & \textbf{1.77e-9 (0.42)} & 0.45 \\
+$10^{-4}$ & 100 & 4.18e-9 (0.65) & 4.64e-9 (0.68) & 7.75e-10 (0.28) & 7.95e-10 (0.28) & \textbf{7.68e-10 (0.28)} & 0.10 \\
+$10^{-3}$ & 10  & 1.38e-6 (1.17) & 1.60e-6 (1.26) & 4.11e-7 (0.64) & 6.46e-7 (0.80) & \textbf{4.58e-7 (0.68)} & 0.60 \\
+$10^{-3}$ & 50  & 3.21e-7 (0.57) & 3.85e-7 (0.62) & 1.11e-7 (0.33) & \textbf{1.11e-7 (0.33)} & 1.33e-7 (0.36) & $-$0.48 \\
+$10^{-3}$ & 100 & 2.71e-7 (0.52) & 3.29e-7 (0.57) & 4.29e-8 (0.21) & 4.48e-8 (0.21) & \textbf{4.42e-8 (0.21)} & 0.04 \\
+$10^{-2}$ & 10  & 3.42e-5 (0.58) & 4.40e-5 (0.66) & 1.67e-5 (0.41) & \textbf{1.77e-5 (0.42)} & 2.30e-5 (0.48) & $-$1.02 \\
+$10^{-2}$ & 50  & 7.71e-6 (0.28) & 1.17e-5 (0.34) & 7.01e-6 (0.26) & \textbf{5.46e-6 (0.23)} & 9.93e-6 (0.32) & $-$1.44 \\
+$10^{-2}$ & 100 & 4.01e-6 (0.20) & 6.08e-6 (0.25) & 3.05e-6 (0.17) & \textbf{3.14e-6 (0.18)} & 3.37e-6 (0.18) & $-$0.21 \\
 \bottomrule
 \end{tabular}}
 \end{table*}
@@ -783,38 +782,24 @@ methods substantially outperform the classical MOM/MLE estimators --
 reproducing \citeauthor{lu2023}'s central finding that ABC dominates the
 classical estimators for this model.
 
-NPE's point accuracy joins the same tie: computing its $\Delta/\mathrm{SE}$
-against DNN-ABC and against GPS-ABC separately (not tabulated above, to keep
-the table to nine columns) gives a maximum magnitude of $1.44$ and $1.47$
-respectively across all nine cells, both short of the same $\sim 2$
-threshold. This holds even in the one cell where NPE's nominal MSE looks
-worst next to the surrogates -- $p=10^{-4}$, $J=10$, roughly $3\times$
-DNN-ABC's -- because that cell's Monte Carlo noise is large enough that even
-this gap is not distinguishable from it ($\Delta/\mathrm{SE}=1.12$). NPE is
-therefore not a weaker baseline on point accuracy at this replicate count;
-Section~\ref{sec:sim1D_results} returns to where it differs from the two
-surrogates instead: cost and coverage, not accuracy.
-
 \begin{table*}[t]
 \centering
-\caption{Study I, Table 2: mean length of the 95\% credible interval for
-$\hat p$ (NPE's is a posterior credible interval computed the same way, from
-direct posterior samples rather than an MCMC chain -- Section~\ref{sec:sim1D_results}).
-Bold marks the shorter of GPS-ABC and DNN-ABC.}
+\caption{Study I, Table 2: mean length of the 95\% ABC credible interval for
+$\hat p$. Bold marks the shorter of GPS-ABC and DNN-ABC.}
 \label{tab:ci1D}
-\begin{tabular}{rrrrrr}
+\begin{tabular}{rrrrr}
 \toprule
-$p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC & NPE \\
+$p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 2.62e-4 & 3.11e-4 & \textbf{2.45e-4} & 4.27e-4 \\
-$10^{-4}$ & 50  & 1.56e-4 & 1.50e-4 & \textbf{1.44e-4} & 1.61e-4 \\
-$10^{-4}$ & 100 & 1.21e-4 & 1.16e-4 & \textbf{1.16e-4} & 1.48e-4 \\
-$10^{-3}$ & 10  & 2.80e-3 & 3.32e-3 & \textbf{2.45e-3} & 3.36e-3 \\
-$10^{-3}$ & 50  & 1.43e-3 & 1.66e-3 & \textbf{1.29e-3} & 1.41e-3 \\
-$10^{-3}$ & 100 & 9.70e-4 & 1.20e-3 & \textbf{8.81e-4} & 1.08e-3 \\
-$10^{-2}$ & 10  & 1.83e-2 & 1.96e-2 & \textbf{1.89e-2} & 2.03e-2 \\
-$10^{-2}$ & 50  & 1.16e-2 & 1.74e-2 & \textbf{1.04e-2} & 1.17e-2 \\
-$10^{-2}$ & 100 & 7.73e-3 & 1.25e-2 & \textbf{6.80e-3} & 9.19e-3 \\
+$10^{-4}$ & 10  & 2.62e-4 & 3.11e-4 & \textbf{2.45e-4} \\
+$10^{-4}$ & 50  & 1.56e-4 & 1.50e-4 & \textbf{1.44e-4} \\
+$10^{-4}$ & 100 & 1.21e-4 & 1.16e-4 & \textbf{1.16e-4} \\
+$10^{-3}$ & 10  & 2.80e-3 & 3.32e-3 & \textbf{2.45e-3} \\
+$10^{-3}$ & 50  & 1.43e-3 & 1.66e-3 & \textbf{1.29e-3} \\
+$10^{-3}$ & 100 & 9.70e-4 & 1.20e-3 & \textbf{8.81e-4} \\
+$10^{-2}$ & 10  & 1.83e-2 & 1.96e-2 & \textbf{1.89e-2} \\
+$10^{-2}$ & 50  & 1.16e-2 & 1.74e-2 & \textbf{1.04e-2} \\
+$10^{-2}$ & 100 & 7.73e-3 & 1.25e-2 & \textbf{6.80e-3} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -830,14 +815,6 @@ DNN-ABC's advantage over GPS-ABC is genuine gained precision or overconfidence
 is not settled by interval length alone -- Section~\ref{sec:sim1D_coverage}
 measures the posterior coverage this comparison needs, and the answer depends
 on $J$.
-
-NPE's interval is the widest of the four ABC-based methods in most cells --
-wider than ABC-MCMC's in eight of nine and wider than GPS-ABC's in five of
-nine -- rather than competing with DNN-ABC on tightness. Whether that is a
-weakness or the more honest number is exactly the question interval length
-alone cannot answer; Section~\ref{sec:sim1D_results} measures it directly and
-finds NPE's coverage tracks its wider intervals more closely than either
-surrogate's does.
 
 \begin{table*}[t]
 \centering
@@ -883,55 +860,6 @@ three posteriors (exact ABC-MCMC, GPS-ABC, DNN-ABC) concentrate on the same
 true $p$ on a representative data set, confirming that the surrogates
 reproduce the exact method's inference and not merely its point estimate.
 
-Table~\ref{tab:time1D} has no NPE column because ``seconds per 100 MCMC
-iterations'' does not apply to it: NPE has no chain and no per-iteration cost
-to divide by, only a one-time training cost and a per-dataset sampling cost,
-so Table~\ref{tab:npe1Dtime} reports those directly instead.
-
-\begin{table*}[t]
-\centering
-\caption{Study I: NPE's cost, reported separately from Table~\ref{tab:time1D}
-because it is not an MCMC method. ``Train once'' is paid a single time per
-$J$ and shared across every $p$ and replicate at that $J$; ``sample'' is the
-marginal cost of a new dataset's posterior, the quantity comparable to
-Table~\ref{tab:time1D}'s per-replicate costs.}
-\label{tab:npe1Dtime}
-\begin{tabular}{rrrr}
-\toprule
-$p$ & $J$ & train once (s) & sample (ms) \\
-\midrule
-$10^{-4}$ & 10  & 2.9 & 9.63 \\
-$10^{-4}$ & 50  & 2.7 & 3.59 \\
-$10^{-4}$ & 100 & 0.6 & 1.08 \\
-$10^{-3}$ & 10  & 2.9 & 0.91 \\
-$10^{-3}$ & 50  & 2.7 & 1.38 \\
-$10^{-3}$ & 100 & 0.6 & 1.02 \\
-$10^{-2}$ & 10  & 2.9 & 1.07 \\
-$10^{-2}$ & 50  & 2.7 & 0.87 \\
-$10^{-2}$ & 100 & 0.6 & 0.87 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-NPE's per-dataset cost -- sub-millisecond to about ten milliseconds -- is
-two to three orders of magnitude below even DNN-ABC's already-fast
-$\approx 0.13$s per 100 iterations, itself already $68$--$2381\times$ faster
-than exact ABC-MCMC; against a full $850$-iteration exact ABC-MCMC replicate
-directly (Table~\ref{tab:time1D}'s per-100-iteration cost, scaled up), NPE's
-marginal cost per dataset is faster by a factor of roughly $68{,}000\times$
-at the cheapest tested cell ($p=10^{-2}$, $J=10$) to roughly $2.4$ million$\times$
-at the most expensive ($p=10^{-4}$, $J=100$). This is the amortization
-trade-off the Introduction and Related work describe made concrete: the
-entire training cost for all three $J$'s combined is about $6$ seconds
-(Table~\ref{tab:npe1Dtime}'s ``train once'' column), shared across every $p$
-and every one of the $360$ replicates in Tables~\ref{tab:mse1D}--\ref{tab:cov1D},
-against the hours the same comparison costs exact ABC-MCMC. What that
-amortization buys
-in accuracy and coverage is Tables~\ref{tab:mse1D}--\ref{tab:cov1D}'s
-finding, not this one: NPE is not more accurate for it, but it is not less
-accurate either, and its coverage is the best of the four methods tested
-(Section~\ref{sec:sim1D_coverage}).
-
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.85\linewidth]{Models/1D/results/figures/fig_posterior.png}
@@ -960,19 +888,19 @@ interval for $\hat p$, with binomial Monte Carlo standard error
 ($\sqrt{\hat c(1-\hat c)/R}$, $R=40$). This is a different quantity from
 Table~\ref{tab:fit1D}'s regression coverage; see Section~\ref{sec:sim1D_coverage}.}
 \label{tab:cov1D}
-\begin{tabular}{rrrrrr}
+\begin{tabular}{rrrrr}
 \toprule
-$p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC & NPE \\
+$p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 0.775 (0.066) & 0.825 (0.060) & 0.850 (0.056) & 0.900 (0.047) \\
-$10^{-4}$ & 50  & 0.900 (0.047) & 0.875 (0.052) & 0.900 (0.047) & 0.925 (0.042) \\
-$10^{-4}$ & 100 & 0.925 (0.042) & 0.950 (0.034) & 0.950 (0.034) & 0.975 (0.025) \\
-$10^{-3}$ & 10  & 0.800 (0.063) & 0.875 (0.052) & 0.875 (0.052) & 0.950 (0.034) \\
-$10^{-3}$ & 50  & 0.975 (0.025) & 0.975 (0.025) & 0.925 (0.042) & 0.925 (0.042) \\
-$10^{-3}$ & 100 & 0.950 (0.034) & 0.975 (0.025) & 0.925 (0.042) & 0.975 (0.025) \\
-$10^{-2}$ & 10  & 0.850 (0.056) & 0.875 (0.052) & 0.875 (0.052) & 0.950 (0.034) \\
-$10^{-2}$ & 50  & 1.000 (0.000) & 1.000 (0.000) & 0.925 (0.042) & 0.925 (0.042) \\
-$10^{-2}$ & 100 & 0.950 (0.034) & 1.000 (0.000) & 0.925 (0.042) & 1.000 (0.000) \\
+$10^{-4}$ & 10  & 0.775 (0.066) & 0.825 (0.060) & 0.850 (0.056) \\
+$10^{-4}$ & 50  & 0.900 (0.047) & 0.875 (0.052) & 0.900 (0.047) \\
+$10^{-4}$ & 100 & 0.925 (0.042) & 0.950 (0.034) & 0.950 (0.034) \\
+$10^{-3}$ & 10  & 0.800 (0.063) & 0.875 (0.052) & 0.875 (0.052) \\
+$10^{-3}$ & 50  & 0.975 (0.025) & 0.975 (0.025) & 0.925 (0.042) \\
+$10^{-3}$ & 100 & 0.950 (0.034) & 0.975 (0.025) & 0.925 (0.042) \\
+$10^{-2}$ & 10  & 0.850 (0.056) & 0.875 (0.052) & 0.875 (0.052) \\
+$10^{-2}$ & 50  & 1.000 (0.000) & 1.000 (0.000) & 0.925 (0.042) \\
+$10^{-2}$ & 100 & 0.950 (0.034) & 1.000 (0.000) & 0.925 (0.042) \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1001,25 +929,6 @@ there than either $J$-specific surrogate -- a property of the ABC acceptance
 kernel (the synthetic-likelihood construction of Algorithm~\ref{alg:abcmcmc})
 at this culture count, not of any surrogate, and not explained by the
 $J$-mismatch mechanism above.
-
-NPE's coverage is the best-calibrated of the four methods at nearly every
-$J$: never below $0.900$ anywhere in the table (against GPS-ABC's low of
-$0.825$ and DNN-ABC's $0.850$), at or above the nominal $0.95$ in five of
-nine cells, and closest to nominal in six. This is consistent with, and
-mechanistically explained by, Table~\ref{tab:ci1D}'s finding that NPE's
-credible intervals are also usually the widest of the four: an amortized
-posterior estimator trained directly on simulator draws, with no ABC
-acceptance kernel or tolerance $\epsilon$ standing between the training
-signal and the reported interval, does not inherit the small-$J$ overconfidence
-mechanism identified above for a surrogate plugged into that kernel. This is
-the calibration side of the accuracy-vs-cost trade-off the Introduction and
-Related work raise: on this evidence, NPE is not a weaker method here, and
-its coverage advantage plus negligible per-dataset cost (Table~\ref{tab:npe1Dtime}) argue
-for it specifically where calibrated uncertainty at deployment time matters
-more than squeezing out the last few percent of point accuracy -- while
-GPS-ABC and DNN-ABC remain preferable where an existing ABC-MCMC workflow,
-an explicit tolerance parameter, or a very small simulation budget is the
-binding constraint, as Section~\ref{sec:intro} anticipates.
 
 The remaining gap at $J=10$ is worth being precise about rather than
 explaining away. Split-conformal calibration (Section~\ref{sec:sim1D_calib})
@@ -1505,6 +1414,29 @@ performs ABC on the untransformed statistic, as its own sampler does, whereas
 our pipeline works in $\log_{10}$ throughout; the observation is placed on
 whichever scale the surrogate reports.
 
+\noindent\textbf{Why an amortized estimator is tested here and not in Study I.}
+Table~\ref{tab:abc3D} adds a fourth method, an amortized neural posterior
+estimator (NPE, Section~\ref{sec:intro}'s Related work paragraph), trained
+once on the same $16{,}000$-row budget the surrogates train on and then
+queried directly at each replicate's observation with no ABC-MCMC sampler
+at all. We test it here rather than in Study I for a reason specific to
+this model's structure, not a matter of convenience: Study I has a single
+parameter that is well identified by construction, so it cannot pose the
+question that makes an amortized-vs-surrogate comparison informative in the
+first place -- whether the two approaches behave differently \emph{as a
+function of} how identifiable a parameter is. Study II can, because
+Section~\ref{sec:sim3D_identifiability} already establishes that $p_2$ is
+well identified by the summary statistic while $p_1$ and $\tau$ are not,
+within the same jointly estimated posterior. That contrast, not the choice
+between ABC-MCMC and NPE in the abstract, is what this comparison is
+actually testing, and Study II is the one place in this paper where it can
+be tested at all. It is also, not incidentally, the model that is this
+paper's own extension of \citeauthor{lu2023} rather than a direct
+reproduction of it (Section~\ref{sec:sim3D}), so it is where we test
+questions beyond the surrogate-vs-surrogate comparison Study I is built
+around -- the architecture-family comparison of Section~\ref{sec:sim3D_arch}
+is the other one.
+
 Table~\ref{tab:abc3D} reports parameter recovery over three truth triples with
 sixteen replicates each, $3{,}000$ MCMC iterations and $1{,}000$ burn-in.
 Errors are RMSE on the $\log_{10}$ scale for $p_1,p_2$ and in absolute time
@@ -1517,8 +1449,8 @@ triples, $J=100$, 16 replicates per cell. Errors are $\log_{10}$-scale RMSE for
 $p_1,p_2$ (so $1.0$ means an order of magnitude) and absolute for $\tau$. Two
 Gaussian-process baselines are reported: the strengthened one used throughout,
 and one built to match the reference implementation of \citeauthor{lu2023}
-(isotropic kernel, untransformed inputs and target). NPE (Section~\ref{sec:sim1D_results})
-has no acceptance step, so its rate column reads ``---''.}
+(isotropic kernel, untransformed inputs and target). NPE has no acceptance
+step, so its rate column reads ``---''.}
 \label{tab:abc3D}
 \begin{tabular}{llrrrr}
 \toprule

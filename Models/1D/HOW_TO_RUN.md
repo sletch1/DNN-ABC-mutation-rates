@@ -180,24 +180,15 @@ all of the above without running anything.
 
 ## 6. Why the full run takes hours
 
-The pipeline compares six estimators — MOM, MLE, exact ABC-MCMC, GPS-ABC (the
-paper's Gaussian process), DNN-ABC (this network), and NPE (amortized neural
-posterior estimation via `sbi`, `abc/npe.py`). The exact ABC-MCMC baseline
-re-simulates the branching process cell by cell at every MCMC iteration:
-roughly **340 seconds per 100 iterations** at `p=1e-4, J=100`, against
-**0.135 seconds** for either surrogate and, per-dataset, a few **milliseconds**
-for NPE once it's trained (Table 3b; it isn't an MCMC method, so "per 100
-iterations" doesn't apply to it -- see `run_timing`'s docstring).
+The pipeline compares five estimators — MOM, MLE, exact ABC-MCMC, GPS-ABC (the
+paper's Gaussian process) and DNN-ABC (this network). The exact ABC-MCMC
+baseline re-simulates the branching process cell by cell at every MCMC
+iteration: roughly **340 seconds per 100 iterations** at `p=1e-4, J=100`,
+against **0.135 seconds** for either surrogate.
 
 That ~2500× gap *is* the headline result, so reproducing it means paying the
 cost once. Replicates run in parallel across all your cores, but there are 360
 of them (3 mutation rates x 3 culture counts x 40 replicates).
-
-If you only need to add or retrain NPE and everything else in
-`results/logs/raw_replicates.csv` is already correct, run `abc/add_npe.py`
-instead of the full pipeline: it reuses every already-simulated observation
-and skips the exact-simulator baseline entirely, so it finishes in well
-under a minute rather than hours.
 
 **Concretely: on a 32-core Linux server using 30 workers, the full run takes
 about 7 hours.** On a laptop with 4-8 cores, expect several times that. If step
