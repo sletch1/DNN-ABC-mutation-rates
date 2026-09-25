@@ -195,6 +195,18 @@ about 7 hours.** On a laptop with 4-8 cores, expect several times that. If step
 2 sits at a low task count for a long time, nothing is wrong -- a single slow
 cell is tens of minutes of genuine simulation.
 
+Each worker pins its BLAS libraries (OpenMP/OpenBLAS/MKL, used by the GP fits
+and predictions) to a single thread (`threadpoolctl.threadpool_limits(1)` in
+`_init_worker`), so `--workers N` alone is safe -- you do not need to set
+`OMP_NUM_THREADS`/`OPENBLAS_NUM_THREADS` by hand. Without that pin, N worker
+processes each spinning up their own full-width thread pool can oversubscribe
+the machine by an order of magnitude: every worker shows as "Running" with
+real accumulated CPU time, but `top`'s load average sits near zero because
+every thread is parked waiting on the scheduler rather than computing. If you
+ever see that pattern (workers alive, near-zero load, no task-count progress
+for far longer than a single cell should take), check that this pin is still
+in place before assuming the simulator itself is just slow.
+
 **You very likely do not need to run this.** `results/` already contains the
 committed output of a full run, and §5 lists what is in it. Run the full
 pipeline only if you specifically want to reproduce the timings on your own

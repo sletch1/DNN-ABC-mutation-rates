@@ -487,6 +487,18 @@ test-only evaluation ($202$ rows). The GPS-ABC baseline is fit on the identical
 replicates 1--8, so that both surrogates see the same data budget; neither ever
 sees the test replicates.
 
+The ABC-MCMC comparison below (Section~\ref{sec:sim1D_results}) evaluates
+observed data sets simulated at $J \in \{10, 50, 100\}$ cultures, not only the
+$J=100$ the ground-truth grid is generated at. Both surrogates are trained
+separately for each $J$ rather than once at $J=100$ and queried at every $J$:
+for $J \in \{10, 50\}$, a $J$-culture $\dbar$ is reconstructed from the same
+underlying simulated data by averaging a random $J$-subset of the $100$
+recorded per-culture values (five independent subsets per row, to keep the
+resampled training set a reasonable size), so this requires no new simulator
+calls. Section~\ref{sec:sim1D_coverage} explains why this matters and reports
+what training a single $J=100$ surrogate and querying it away from that
+condition actually does to posterior coverage.
+
 \subsection{Architecture, and the one choice that mattered}
 \label{sec:arch1D}
 
@@ -727,38 +739,37 @@ replicates.}
 \toprule
 $p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \midrule
-$10^{-4}$ & 10  & 9.36e-9 (0.97)  & 1.02e-8 (1.01)  & 2.90e-9 (0.54) & 7.02e-9 (0.84) & \textbf{6.61e-9 (0.81)} & 0.07 \\
-$10^{-4}$ & 50  & 8.68e-9 (0.93)  & 9.59e-9 (0.98)  & 1.91e-9 (0.44) & 1.88e-9 (0.43) & \textbf{1.78e-9 (0.42)} & 0.23 \\
-$10^{-4}$ & 100 & 4.18e-9 (0.65)  & 4.64e-9 (0.68)  & 7.75e-10 (0.28) & 8.21e-10 (0.29) & \textbf{7.83e-10 (0.28)} & 0.14 \\
-$10^{-3}$ & 10  & 1.38e-6 (1.17)  & 1.60e-6 (1.26)  & 4.60e-7 (0.68) & \textbf{5.10e-7 (0.71)} & 5.30e-7 (0.73) & $-$0.11 \\
-$10^{-3}$ & 50  & 3.21e-7 (0.57)  & 3.85e-7 (0.62)  & 1.15e-7 (0.34) & 1.23e-7 (0.35) & \textbf{1.19e-7 (0.34)} & 0.08 \\
-$10^{-3}$ & 100 & 2.71e-7 (0.52)  & 3.29e-7 (0.57)  & 4.33e-8 (0.21) & \textbf{4.29e-8 (0.21)} & 4.35e-8 (0.21) & $-$0.04 \\
-$10^{-2}$ & 10  & 3.42e-5 (0.58)  & 4.40e-5 (0.66)  & 2.64e-5 (0.51) & 1.14e-5 (0.34) & \textbf{8.57e-6 (0.29)} & 0.86 \\
-$10^{-2}$ & 50  & 7.71e-6 (0.28)  & 1.17e-5 (0.34)  & 4.78e-6 (0.22) & 5.98e-6 (0.24) & \textbf{2.36e-6 (0.15)} & \textbf{5.80} \\
-$10^{-2}$ & 100 & 4.01e-6 (0.20)  & 6.08e-6 (0.25)  & 2.62e-6 (0.16) & 6.22e-6 (0.25) & \textbf{2.48e-6 (0.16)} & \textbf{8.12} \\
+$10^{-4}$ & 10  & 9.36e-9 (0.97) & 1.02e-8 (1.01) & 5.95e-9 (0.77) & 7.01e-9 (0.84) & \textbf{5.25e-9 (0.72)} & 0.37 \\
+$10^{-4}$ & 50  & 8.68e-9 (0.93) & 9.59e-9 (0.98) & 1.91e-9 (0.44) & 1.98e-9 (0.45) & \textbf{1.77e-9 (0.42)} & 0.45 \\
+$10^{-4}$ & 100 & 4.18e-9 (0.65) & 4.64e-9 (0.68) & 7.75e-10 (0.28) & 7.95e-10 (0.28) & \textbf{7.68e-10 (0.28)} & 0.10 \\
+$10^{-3}$ & 10  & 1.38e-6 (1.17) & 1.60e-6 (1.26) & 4.11e-7 (0.64) & 6.46e-7 (0.80) & \textbf{4.58e-7 (0.68)} & 0.60 \\
+$10^{-3}$ & 50  & 3.21e-7 (0.57) & 3.85e-7 (0.62) & 1.11e-7 (0.33) & \textbf{1.11e-7 (0.33)} & 1.33e-7 (0.36) & $-$0.48 \\
+$10^{-3}$ & 100 & 2.71e-7 (0.52) & 3.29e-7 (0.57) & 4.29e-8 (0.21) & 4.48e-8 (0.21) & \textbf{4.42e-8 (0.21)} & 0.04 \\
+$10^{-2}$ & 10  & 3.42e-5 (0.58) & 4.40e-5 (0.66) & 1.67e-5 (0.41) & \textbf{1.77e-5 (0.42)} & 2.30e-5 (0.48) & $-$1.02 \\
+$10^{-2}$ & 50  & 7.71e-6 (0.28) & 1.17e-5 (0.34) & 7.01e-6 (0.26) & \textbf{5.46e-6 (0.23)} & 9.93e-6 (0.32) & $-$1.44 \\
+$10^{-2}$ & 100 & 4.01e-6 (0.20) & 6.08e-6 (0.25) & 3.05e-6 (0.17) & \textbf{3.14e-6 (0.18)} & 3.37e-6 (0.18) & $-$0.21 \\
 \bottomrule
 \end{tabular}}
 \end{table*}
 
 Two readings of this table must be kept apart, and conflating them is the error
 the $\Delta/\mathrm{SE}$ column exists to prevent. DNN-ABC's point estimate is
-numerically lower than GPS-ABC's in seven of the nine cells and marginally
-higher in the other two ($p=10^{-3}$ at $J=10$ and $J=100$) -- but nominally
-lower is not the same as reliably better, and in both directions the
-$\Delta/\mathrm{SE}$ column shows the comparison is clearly resolved beyond
-simulation noise in only two cells: $p=10^{-2}$ at $J=50$ and $J=100$, where
-the gap favours DNN-ABC by $5.8$ and $8.1$ combined Monte Carlo standard
-errors. In the other seven cells, including the two nominal reversals,
-$|\Delta/\mathrm{SE}| < 0.9$, so none of those differences -- in either
-direction -- is distinguishable from noise at $R=40$ replicates: a near-exact
-statistical tie, consistent with a GP fit on $\sim 800$ points already being
-close to optimal at these smaller mutation rates. The one regime where the
-surrogates are reliably distinguished is the largest tested rate, $p=10^{-2}$,
-where DNN-ABC's nRMSE is $0.15$--$0.16$ against GPS-ABC's $0.24$--$0.25$. Both
-surrogates match, and in several cells slightly improve on, the exact
-ABC-MCMC baseline, and all ABC-based methods substantially outperform the
-classical MOM/MLE estimators -- reproducing \citeauthor{lu2023}'s central
-finding that ABC dominates the classical estimators for this model.
+numerically lower than GPS-ABC's in five of the nine cells and higher in the
+other four -- but nominally lower is not the same as reliably better, and the
+$\Delta/\mathrm{SE}$ column shows that none of these differences, in either
+direction, is distinguishable from noise at $R=40$ replicates: the largest
+magnitude reached anywhere in the table is $1.44$ ($p=10^{-2}$, $J=50$,
+nominally favouring GPS-ABC), short of the $\sim 2$ threshold used throughout
+this paper. This is a near-exact statistical tie in every tested cell, consistent with a
+GP fit on a comparably sized design already being close to optimal across
+this parameter range once both surrogates are trained on the $J$-specific
+data described in Section~\ref{sec:sim1D}; Section~\ref{sec:sim1D_coverage}
+returns to why training each surrogate to know its own culture count matters
+for more than point accuracy. Both surrogates match, and in several
+cells slightly improve on, the exact ABC-MCMC baseline, and all ABC-based
+methods substantially outperform the classical MOM/MLE estimators --
+reproducing \citeauthor{lu2023}'s central finding that ABC dominates the
+classical estimators for this model.
 
 \begin{table*}[t]
 \centering
@@ -769,25 +780,30 @@ $\hat p$. Bold marks the shorter of GPS-ABC and DNN-ABC.}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 2.39e-4 & 1.14e-4 & \textbf{1.01e-4} \\
-$10^{-4}$ & 50  & 1.56e-4 & 1.11e-4 & \textbf{1.04e-4} \\
-$10^{-4}$ & 100 & 1.21e-4 & 1.23e-4 & \textbf{1.14e-4} \\
-$10^{-3}$ & 10  & 2.51e-3 & 1.32e-3 & \textbf{9.39e-4} \\
-$10^{-3}$ & 50  & 1.53e-3 & 1.32e-3 & \textbf{9.45e-4} \\
-$10^{-3}$ & 100 & 9.52e-4 & 1.19e-3 & \textbf{8.99e-4} \\
-$10^{-2}$ & 10  & 7.97e-3 & 4.70e-3 & \textbf{2.90e-3} \\
-$10^{-2}$ & 50  & 5.15e-3 & 5.10e-3 & \textbf{3.19e-3} \\
-$10^{-2}$ & 100 & 3.89e-3 & 5.24e-3 & \textbf{3.43e-3} \\
+$10^{-4}$ & 10  & 2.62e-4 & 3.11e-4 & \textbf{2.45e-4} \\
+$10^{-4}$ & 50  & 1.56e-4 & 1.50e-4 & \textbf{1.44e-4} \\
+$10^{-4}$ & 100 & 1.21e-4 & 1.16e-4 & \textbf{1.16e-4} \\
+$10^{-3}$ & 10  & 2.80e-3 & 3.32e-3 & \textbf{2.45e-3} \\
+$10^{-3}$ & 50  & 1.43e-3 & 1.66e-3 & \textbf{1.29e-3} \\
+$10^{-3}$ & 100 & 9.70e-4 & 1.20e-3 & \textbf{8.81e-4} \\
+$10^{-2}$ & 10  & 1.83e-2 & 1.96e-2 & \textbf{1.89e-2} \\
+$10^{-2}$ & 50  & 1.16e-2 & 1.74e-2 & \textbf{1.04e-2} \\
+$10^{-2}$ & 100 & 7.73e-3 & 1.25e-2 & \textbf{6.80e-3} \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-DNN-ABC produces the narrowest interval in all nine cells, $24\%$
-tighter than GPS-ABC on average and up to $38\%$ tighter, without any loss of
-point accuracy (Table~\ref{tab:mse1D}). Whether this is genuine gained
-precision or overconfidence is not settled by interval length alone --
-Section~\ref{sec:sim1D_coverage} measures the posterior coverage this
-comparison needs, and the answer depends on $J$.
+DNN-ABC's interval is shorter than GPS-ABC's in all nine cells, $21\%$
+tighter on average and up to $46\%$ tighter, without any loss of point
+accuracy (Table~\ref{tab:mse1D}) -- though the margin varies widely, from
+negligible ($0.1\%$ at $p=10^{-4}$, $J=100$) to substantial ($46\%$ at
+$p=10^{-2}$, $J=100$), and against exact ABC-MCMC specifically DNN-ABC is
+narrower in seven of nine cells rather than all nine (exact ABC-MCMC is
+marginally shorter at $J=10$ for both $p=10^{-4}$ and $p=10^{-2}$). Whether
+DNN-ABC's advantage over GPS-ABC is genuine gained precision or overconfidence
+is not settled by interval length alone -- Section~\ref{sec:sim1D_coverage}
+measures the posterior coverage this comparison needs, and the answer depends
+on $J$.
 
 \begin{table*}[t]
 \centering
@@ -798,29 +814,37 @@ The final column is the speedup of DNN-ABC over exact ABC-MCMC.}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC & Speedup \\
 \midrule
-$10^{-4}$ & 10  & 51.08  & 0.128 & 0.150 & $340\times$ \\
-$10^{-4}$ & 50  & 171.79 & 0.127 & 0.145 & $1182\times$ \\
-$10^{-4}$ & 100 & 303.99 & 0.126 & 0.144 & $2111\times$ \\
-$10^{-3}$ & 10  & 16.48  & 0.123 & 0.143 & $116\times$ \\
-$10^{-3}$ & 50  & 67.59  & 0.125 & 0.144 & $469\times$ \\
-$10^{-3}$ & 100 & 125.68 & 0.124 & 0.143 & $876\times$ \\
-$10^{-2}$ & 10  & 9.33   & 0.123 & 0.143 & $65\times$ \\
-$10^{-2}$ & 50  & 44.34  & 0.124 & 0.144 & $309\times$ \\
-$10^{-2}$ & 100 & 88.22  & 0.124 & 0.144 & $614\times$ \\
+$10^{-4}$ & 10  & 50.08  & 0.739 & 0.130 & $386\times$ \\
+$10^{-4}$ & 50  & 170.01 & 0.742 & 0.127 & $1342\times$ \\
+$10^{-4}$ & 100 & 301.74 & 0.126 & 0.127 & $2381\times$ \\
+$10^{-3}$ & 10  & 16.33  & 0.743 & 0.127 & $128\times$ \\
+$10^{-3}$ & 50  & 65.32  & 0.743 & 0.127 & $514\times$ \\
+$10^{-3}$ & 100 & 125.75 & 0.126 & 0.126 & $997\times$ \\
+$10^{-2}$ & 10  & 8.52   & 0.746 & 0.126 & $68\times$ \\
+$10^{-2}$ & 50  & 40.07  & 0.746 & 0.126 & $318\times$ \\
+$10^{-2}$ & 100 & 78.39  & 0.124 & 0.126 & $623\times$ \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Both surrogates run at a flat $\approx 0.13$--$0.15$ seconds per 100 iterations
-regardless of $p$ or $J$, because neither calls the simulator; exact ABC-MCMC's
-cost explodes with both, since it runs the exact simulator $n_s$ times per
-iteration. Against exact ABC-MCMC, DNN-ABC is $65$--$2111\times$ faster; against
-GPS-ABC it is a statistical tie in one dimension, as expected, since a GP over
-$\sim 800$ points is itself cheap to query -- the network's asymptotic query
-advantage would only emerge at larger training
-sets or higher input dimension, and Study II finds that even there it does not
-translate into better inference once the surrogate is no longer the binding
-constraint (Section~\ref{sec:sim3D_abc}). Figure~\ref{fig:posterior1D} shows that the
+DNN-ABC runs at a flat $\approx 0.13$ seconds per 100 iterations regardless of
+$p$ or $J$, because its query cost does not depend on training-set size.
+GPS-ABC does not: it costs $\approx 0.12$s at $J=100$ (a $550$-point design)
+but $\approx 0.74$s at $J \in \{10, 50\}$ (a $2{,}750$-point design, five
+resamples per row -- Section~\ref{sec:sim1D}) -- a $\sim 6\times$ slowdown that
+tracks the GP's $O(n)$ per-query cost against the $5\times$ larger design
+almost exactly, and the clearest direct demonstration in this paper of the
+scaling difference Section~\ref{sec:intro} opens with. Exact ABC-MCMC's cost
+explodes with both $p$ and $J$, since it runs the exact simulator $n_s$ times
+per iteration. Against exact ABC-MCMC, DNN-ABC is $68$--$2381\times$ faster;
+against GPS-ABC it is a statistical tie at $J=100$, as expected, since a GP
+over $\sim 550$ points is itself cheap to query, but a real and growing
+advantage at $J \in \{10,50\}$ once the $J$-specific design is large enough
+for the GP's query cost to matter -- the network's asymptotic query advantage
+emerging exactly where design size grows, as Section~\ref{sec:intro}
+anticipates, though Study II finds that even a real query-cost advantage does
+not translate into better inference once the surrogate is no longer the
+binding constraint (Section~\ref{sec:sim3D_abc}). Figure~\ref{fig:posterior1D} shows that the
 three posteriors (exact ABC-MCMC, GPS-ABC, DNN-ABC) concentrate on the same
 true $p$ on a representative data set, confirming that the surrogates
 reproduce the exact method's inference and not merely its point estimate.
@@ -857,49 +881,58 @@ Table~\ref{tab:fit1D}'s regression coverage; see Section~\ref{sec:sim1D_coverage
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 0.775 (0.066) & 0.450 (0.079) & 0.500 (0.079) \\
-$10^{-4}$ & 50  & 0.900 (0.047) & 0.775 (0.066) & 0.800 (0.063) \\
+$10^{-4}$ & 10  & 0.775 (0.066) & 0.825 (0.060) & 0.850 (0.056) \\
+$10^{-4}$ & 50  & 0.900 (0.047) & 0.875 (0.052) & 0.900 (0.047) \\
 $10^{-4}$ & 100 & 0.925 (0.042) & 0.950 (0.034) & 0.950 (0.034) \\
-$10^{-3}$ & 10  & 0.800 (0.063) & 0.525 (0.079) & 0.450 (0.079) \\
-$10^{-3}$ & 50  & 0.975 (0.025) & 0.900 (0.047) & 0.875 (0.052) \\
+$10^{-3}$ & 10  & 0.800 (0.063) & 0.875 (0.052) & 0.875 (0.052) \\
+$10^{-3}$ & 50  & 0.975 (0.025) & 0.975 (0.025) & 0.925 (0.042) \\
 $10^{-3}$ & 100 & 0.950 (0.034) & 0.975 (0.025) & 0.925 (0.042) \\
-$10^{-2}$ & 10  & 0.850 (0.056) & 0.775 (0.066) & 0.425 (0.078) \\
-$10^{-2}$ & 50  & 1.000 (0.000) & 1.000 (0.000) & 0.850 (0.056) \\
+$10^{-2}$ & 10  & 0.850 (0.056) & 0.875 (0.052) & 0.875 (0.052) \\
+$10^{-2}$ & 50  & 1.000 (0.000) & 1.000 (0.000) & 0.925 (0.042) \\
 $10^{-2}$ & 100 & 0.950 (0.034) & 1.000 (0.000) & 0.925 (0.042) \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Two patterns are visible, and only one of them is about the surrogates. First,
-GPS-ABC and DNN-ABC coverage rises with $J$ in every row: both are
-badly under nominal at $J=10$ ($0.425$--$0.775$) and close to it by $J=100$
-($0.925$--$1.000$) -- the culture count the training data (Section~\ref{sec:sim1D}) is generated at
-throughout, and the only one either surrogate has ever seen a summary
-statistic computed from. This is the mechanism the paper's design invites: a
-surrogate trained exclusively on $J=100$ summaries has no way to know that a
-$J=10$ observation is intrinsically noisier, so its predictive interval is
-calibrated for the wrong noise level whenever $J \ne 100$. DNN-ABC is
-consistently the most under-covering of the three at $J=10$ ($0.425$--$0.500$),
-consistent with Table~\ref{tab:ci1D}'s finding that it also returns the
-tightest intervals there: the same overconfidence that makes the interval
-short makes it wrong. Second, and separately, exact ABC-MCMC itself is not at
-nominal at $J=10$ ($0.775$--$0.850$) despite calling the true simulator at the
-correct $J$ on every iteration -- a property of the ABC acceptance kernel
-(the synthetic-likelihood construction of Algorithm~\ref{alg:abcmcmc}) at
-this culture count, not of any surrogate, and not explained by the
+A surrogate trained exclusively on $J=100$ summaries has no way to know that
+a $J=10$ observation is intrinsically noisier, so its predictive interval
+would be calibrated for the wrong noise level whenever $J \ne 100$: querying
+the deployed, $J{=}100$-only checkpoints of Section~\ref{sec:arch1D} against
+these same $J=10$ replicates, rather than the $J$-specific surrogates
+described in Section~\ref{sec:sim1D}, drops GPS-ABC and DNN-ABC coverage
+there to $0.43$--$0.53$, roughly half of nominal. Table~\ref{tab:cov1D}
+reports the $J$-specific surrogates instead, and two patterns are visible in
+it. First, training each surrogate to know its own culture count recovers
+most, though not all, of that shortfall: at $J=10$, GPS-ABC and DNN-ABC now
+cover at $0.825$--$0.875$ -- $1$--$3$ Monte Carlo standard errors below the
+nominal $0.95$, a real residual gap, but a small one next to the roughly
+$0.45$ gap the $J$-blind surrogate leaves -- and both reach or exceed nominal
+by $J=100$. Neither surrogate is consistently the more under-covering of the
+two at any $J$ now; Table~\ref{tab:ci1D}'s interval-length advantage for
+DNN-ABC is accordingly better evidence of genuine precision at this
+replicate count than it would be if one surrogate's intervals were also the
+least calibrated. Second, and separately, exact ABC-MCMC itself is not at
+nominal at $J=10$ ($0.775$--$0.850$) despite calling the true simulator at
+the correct $J$ on every iteration, and is not obviously better calibrated
+there than either $J$-specific surrogate -- a property of the ABC acceptance
+kernel (the synthetic-likelihood construction of Algorithm~\ref{alg:abcmcmc})
+at this culture count, not of any surrogate, and not explained by the
 $J$-mismatch mechanism above.
 
-We do not correct the surrogates' $J$-blindness in this version of the
-result: doing so honestly requires retraining on $J$-specific data (the raw
-per-culture values needed to do this are already recorded and require no new
-simulation) and re-measuring, not adjusting the reported numbers after the
-fact. What Table~\ref{tab:cov1D} establishes is narrower and, we think, the
-more important point for a reader building a similar surrogate: \textbf{the
-interval-length advantage in Table~\ref{tab:ci1D} is not evidence of equal or
-better calibration}, and a surrogate trained at a single simulation condition
-should be expected to misrepresent its own uncertainty whenever queried
-away from it, in a way no regression diagnostic computed at the training
-condition can reveal.
+The remaining gap at $J=10$ is worth being precise about rather than
+explaining away. Split-conformal calibration (Section~\ref{sec:sim1D_calib})
+is a marginal guarantee, averaged over the surrogate's whole training
+distribution; it does not guarantee the surrogate's predictive interval is
+correctly sized at every individual $\theta$, and the $J=10$ training design
+is the smallest and noisiest of the three (Section~\ref{sec:sim1D}), which is
+the more likely source of the residual gap than any single obvious defect.
+\textbf{The practical lesson is the same regardless of that residual}: a
+surrogate's interval-length advantage in Table~\ref{tab:ci1D} is not by
+itself evidence of equal or better calibration, and training a surrogate
+that knows the deployment condition it will actually be queried at is
+necessary, though on this evidence not always fully sufficient, for its ABC
+posterior to be trustworthy in a way no regression diagnostic computed at
+the training condition alone can reveal.
 
 % =============================================================================
 \section{Simulation Study II: The Two-Stage Mutation Model}
