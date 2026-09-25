@@ -37,67 +37,33 @@ in Markov Branching Processes}}
 \maketitle
 
 \begin{abstract}
-\citet{lu2023} applied GPS-ABC \citep{meeds2014}, a Gaussian-process surrogate
-for approximate Bayesian computation (ABC), to estimating mutation rates in a
-two-type Markov branching process (MBP). Its central device is a substitution: inside the ABC-MCMC acceptance
-step, an expensive MBP simulator is replaced by a Gaussian process (GP)
-surrogate fit to a small design of simulator outputs. This paper asks whether a
-neural network can perform that same substitution, and, more usefully, when
-doing so actually helps. We develop a heteroscedastic multilayer-perceptron
-surrogate, calibrated by split-conformal prediction \citep{lei2018}, that takes
-the Gaussian process's place inside the same ABC-MCMC sampler with no other
-change to the inference procedure, and we evaluate it in two simulation
-studies.
+Approximate Bayesian computation (ABC) makes likelihood-free inference
+possible for costly stochastic simulators, but its per-iteration cost puts a
+full posterior analysis out of reach once the simulator is slow. A standard
+remedy substitutes a Gaussian-process surrogate for the simulator inside the
+acceptance step of an ABC Markov chain Monte Carlo (MCMC) sampler. We ask
+whether a neural-network surrogate can perform the same substitution, and
+when doing so helps rather than hurts. We build a heteroscedastic
+feedforward surrogate, calibrated by split-conformal prediction, that takes
+the Gaussian process's place inside an otherwise unchanged ABC-MCMC sampler,
+and evaluate it in two simulation studies of a stochastic population-growth
+model.
 
-The first study reproduces the constant-mutation-rate benchmark of
-\citet{lu2023}, replicated with Monte Carlo standard errors reported throughout
-\citep{morris2019}. There the neural surrogate's point-estimation mean squared
-error is statistically indistinguishable from GPS-ABC's in seven of nine
-tested configurations -- nominally lower in five of those seven and higher in
-the other two, neither direction resolved beyond simulation noise -- and at
-the largest tested mutation rate it is better by a margin that clearly exceeds
-that noise (up to $60\%$ lower MSE, a gap of $5.8$--$8.1$ Monte Carlo standard
-errors). The neural surrogate nonetheless returns tighter $95\%$ credible
-intervals in all nine configurations, and its own regression calibration is
-near-exact -- but posterior coverage of those intervals tells a different
-story: both surrogates under-cover at the smallest tested culture count and
-recover toward nominal as the culture count grows to match their training
-data, a genuine limitation we measure directly rather than infer from
-regression diagnostics, all at the same two-to-three-order-of-magnitude
-speedup over exact ABC-MCMC that the Gaussian process already provides.
+In a one-dimensional benchmark, the network matches or exceeds the Gaussian
+process's accuracy and returns tighter credible intervals -- but measuring
+posterior coverage directly, rather than inferring it from the surrogate's
+regression diagnostics, shows both surrogates under-cover once the
+deployment condition departs from the one they were trained at, a general
+pitfall for any surrogate queried away from its design. A second,
+three-parameter study finds the opposite result: once surrogate error stops
+binding, the network confers no advantage, and the comparison is governed by
+which parameters the model can identify at all. A comparison finds no
+benefit from convolutional or recurrent architectures on this input.
 
-The second study turns to the two-stage (piecewise-constant) mutation model, in
-which the mutation probability jumps from $p_1$ to $p_2$ at an unknown time
-$\tau$ and all three parameters are estimated jointly. Here we report a
-deliberately negative result. The neural surrogate fits the response surface to
-within $1.05\times$ its irreducible noise floor -- but so do networks spanning
-three orders of magnitude in size, and downstream the neural and
-Gaussian-process surrogates are statistically tied in seven of nine
-parameter-by-truth comparisons at the two-Monte-Carlo-standard-error level,
-with the other two favouring the Gaussian process. That verdict survived three
-separate corrections to the pipeline -- the mutation-time convention, the
-summary statistic, and the activation selected under it -- each of which
-measurably improved the surrogate without changing the conclusion. We argue
-that this is the expected outcome whenever surrogate error ceases to be the
-binding constraint. What binds instead is the model's intrinsic
-identifiability: $p_2$ is well determined, while $p_1$ and $\tau$ are recovered
-poorly by every method tested. Every method also over-covers its credible
-intervals, most severely for the weakly identified $\tau$, a limitation we
-diagnose as a property of the ABC acceptance kernel rather than a deficiency of
-the surrogate's own predictive calibration, which remains near-exact
-throughout. A further controlled comparison across architecture families --
-feedforward, convolutional, and recurrent surrogates, motivated by where each
-is known to help in the simulation-based-inference literature -- finds that
-neither a convolutional nor a recurrent inductive bias improves on the
-architecture-agnostic feedforward network for this three-input problem, which
-is the outcome the parameters' lack of any real spatial or temporal structure
-predicts.
-
-Taken together, the two studies say when a neural surrogate should be preferred
-to a Gaussian process inside ABC, and what the coverage gap implies for
-deploying conformally calibrated surrogates inside likelihood-free samplers
-more generally. Code, data, and a fully scripted reproduction pipeline are
-available at \url{https://github.com/sletch1/DNN-ABC-mutation-rates}.
+Together, the two studies indicate when a neural surrogate is worth
+deploying inside ABC-MCMC, and why its calibration needs verifying inside
+the sampler rather than assumed from regression diagnostics alone. Code,
+data, and a reproducible pipeline accompany the paper.
 \end{abstract}
 
 \noindent\textbf{Keywords:} approximate Bayesian computation; likelihood-free
@@ -154,9 +120,11 @@ same ABC-MCMC procedure, and if so, under what conditions does it help?}
 A feedforward network carries neither cost. It has no cubic fitting term, and
 its query cost is \emph{flat} in the size of its training set, so it can be
 trained on substantially more simulator output than a GP can afford at a matched
-computational budget; it also extends naturally to higher-dimensional summary
-functions, where a GP's curse of dimensionality is most acute. Neither property
-is free, however. A GP's predictive variance is a direct consequence of the
+computational budget -- an advantage that does not depend on input dimension
+and should, in principle, persist as the parameter and summary-statistic
+dimensions grow past the three tested in Study II below, though this paper
+tests that only at the two scales it reports rather than along a dimension
+sweep. Neither property is free, however. A GP's predictive variance is a direct consequence of the
 Gaussian-process prior and requires no separate calibration step, whereas a
 neural network's predictive uncertainty must be constructed and calibrated
 explicitly if it is to play the same role inside the ABC acceptance kernel. That
