@@ -28,6 +28,9 @@ MutationRates_ABC_paper.pdf
 # working notes -- personal scratch, not part of the record
 Models/notes/
 
+# tensorboard event logs sbi writes during NPE training -- build byproduct
+sbi-logs/
+
 # private submission planning notes
 updates/
 

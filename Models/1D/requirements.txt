@@ -6,6 +6,13 @@
 #   RHEL 9  / Python 3.11 / torch 2.7.1 / numpy 1.26.4
 # Both produce identical training metrics, so these numbers are not
 # platform-specific.
+#
+# sbi (the NPE baseline, abc/npe.py) pulls in pymc/pytensor transitively and
+# pip resolves numpy<2 and scipy<1.13 for that chain even on a stack that
+# otherwise supports numpy 2.x -- installing sbi after the rest of this file
+# will downgrade both. That's expected, not a bug: re-checked the existing
+# surrogate-loading/prediction pipeline against the downgraded versions and
+# it's unaffected.
 numpy>=1.26
 pandas>=2.0
 scipy>=1.11
@@ -13,3 +20,4 @@ matplotlib>=3.7
 scikit-learn>=1.3
 threadpoolctl>=3.1
 torch>=2.0
+sbi>=0.23
