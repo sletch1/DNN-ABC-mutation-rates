@@ -66,13 +66,18 @@ _G = {}
 def _init_worker(ckpt, data_path, cfg):
     import warnings
     warnings.filterwarnings("ignore")
-    # One torch thread per worker. The parallelism here is across replicates
-    # (one process per task), so letting each process also spin up a full
-    # thread pool oversubscribes the machine badly -- on a 32-core node that
-    # would be ~30 processes x 32 threads competing for 32 cores. Matches what
-    # run_experiments_families.py already does.
+    # One thread per worker, for both torch and the BLAS libraries behind
+    # numpy/scipy/sklearn (the GP fits below go through these). The
+    # parallelism here is across replicates (one process per task), so
+    # letting each process also spin up a full thread pool oversubscribes
+    # the machine badly -- on a 32-core node that would be ~30 processes x
+    # 32 threads competing for 32 cores. torch.set_num_threads alone doesn't
+    # cover OpenBLAS/MKL, which is what fit_gp_surrogate_3d below actually
+    # uses. Matches what run_experiments_families.py already does.
     import torch
     torch.set_num_threads(1)
+    import threadpoolctl
+    threadpoolctl.threadpool_limits(1)
     dnn = load_surrogate(ckpt)
     df = pd.read_csv(data_path)
     tr = df[~df["rep"].isin(TEST_REPS)]

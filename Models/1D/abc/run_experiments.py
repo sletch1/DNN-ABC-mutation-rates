@@ -113,9 +113,23 @@ def _init_worker(ckpt_path, gp_by_J, cfg):
     its docstring for why those are fit once, not here), so `_one_replicate`
     can score each replicate against a surrogate that actually knows its
     culture count (Section on posterior coverage / README Section 4.3b).
+
+    Pins each worker's BLAS libraries (OpenMP/OpenBLAS/MKL) to a single
+    thread. Without this, every one of `cfg["workers"]` processes tries to
+    spawn its own full-width BLAS thread pool for the small numpy/GP-predict
+    calls inside `_one_replicate`, oversubscribing the machine's cores by an
+    order of magnitude; observed in practice as a run that looks alive (all
+    workers "Running", real accumulated CPU time) but makes near-zero
+    progress, with `top` showing the whole box sitting near-idle because
+    every thread is parked waiting on the scheduler rather than computing.
+    Process-level parallelism (the Pool) and thread-level parallelism (BLAS)
+    both fighting for the same cores is the bug; since the Pool already
+    supplies all the parallelism this workload needs, threads lose.
     """
     import warnings
     warnings.filterwarnings("ignore")
+    import threadpoolctl
+    threadpoolctl.threadpool_limits(1)
     dnn_by_J = {J: load_surrogate(str(_ckpt_path_for_J(ckpt_path, J))) for J in cfg["J_grid"]}
     _G["dnn_by_J"], _G["gp_by_J"], _G["cfg"] = dnn_by_J, gp_by_J, cfg
 
