@@ -85,25 +85,38 @@ def _ckpt_path_for_J(base_ckpt_path, J):
     return base_ckpt_path.with_name(f"{base_ckpt_path.stem}_J{J}{base_ckpt_path.suffix}")
 
 
-def _init_worker(ckpt_path, data_path, cfg):
-    """Runs once per worker process: load the trained DNN and fit the GP
-    baseline FOR EVERY J IN THE GRID, so `_one_replicate` doesn't redo it per
-    task (the GP's fit is cubic in design size and would otherwise dominate
-    the runtime) and so each replicate is scored against a surrogate that
-    actually knows its culture count (Section on posterior coverage /
-    README Section 4.3b): every surrogate used to be trained once, at J=100,
-    and queried at every J regardless, which is what produced the measured
-    undercoverage at small J.
+def _fit_gps_by_J(data_path, J_grid):
+    """Fit the GPS-ABC baseline once per J, in the main process, to be shared
+    read-only across every worker. The fit is deterministic (fixed seed), so
+    refitting it independently inside each of 30 worker processes -- the
+    previous design, back when only J=100 was ever fit -- was pure redundant
+    work. That redundancy was cheap at a single J=100 fit; it stopped being
+    cheap once J=10/50 were added, since their design is 5x larger
+    (network/train.py's resample_dbar_J, k_resamples=5) and the GP's O(n^3)
+    fitting cost makes that roughly 125x more expensive per fit. 30 workers
+    each independently paying that cost is what made worker startup alone
+    take hours; fitting each J's GP once here and handing it to `_init_worker`
+    removes the 30x multiplier entirely.
     """
-    import warnings
-    warnings.filterwarnings("ignore")
-    dnn_by_J, gp_by_J = {}, {}
-    for J in cfg["J_grid"]:
-        dnn_by_J[J] = load_surrogate(str(_ckpt_path_for_J(ckpt_path, J)))
+    gp_by_J = {}
+    for J in J_grid:
         (x_tr, y_tr), (x_va, y_va), _ = load_splits(data_path, J=(None if J == 100 else J))
         x = np.concatenate([x_tr, x_va])
         y = np.concatenate([y_tr, y_va])
         gp_by_J[J] = fit_gp_surrogate(x, y, budget=None)
+    return gp_by_J
+
+
+def _init_worker(ckpt_path, gp_by_J, cfg):
+    """Runs once per worker process: load the trained DNN for every J in the
+    grid (cheap) and stash the already-fitted GPs from `_fit_gps_by_J` (see
+    its docstring for why those are fit once, not here), so `_one_replicate`
+    can score each replicate against a surrogate that actually knows its
+    culture count (Section on posterior coverage / README Section 4.3b).
+    """
+    import warnings
+    warnings.filterwarnings("ignore")
+    dnn_by_J = {J: load_surrogate(str(_ckpt_path_for_J(ckpt_path, J))) for J in cfg["J_grid"]}
     _G["dnn_by_J"], _G["gp_by_J"], _G["cfg"] = dnn_by_J, gp_by_J, cfg
 
 
@@ -165,12 +178,16 @@ def run_accuracy(cfg, ckpt_path):
     tasks = [(p, J, r) for p in cfg["p_grid"] for J in cfg["J_grid"]
              for r in range(cfg["reps"])]
     n = len(tasks)
+    print(f"fitting GPS-ABC baseline (once per J, shared across workers)...", flush=True)
+    t_gp = time.time()
+    gp_by_J = _fit_gps_by_J(str(DATA), cfg["J_grid"])
+    print(f"  done in {(time.time()-t_gp)/60:.1f}m", flush=True)
     print(f"accuracy: {n} tasks ({len(cfg['p_grid'])}p x {len(cfg['J_grid'])}J x {cfg['reps']} reps) "
           f"on {cfg['workers']} workers", flush=True)
     rows = []
     t0 = time.time()
     with Pool(cfg["workers"], initializer=_init_worker,
-              initargs=(ckpt_path, str(DATA), cfg)) as pool:
+              initargs=(ckpt_path, gp_by_J, cfg)) as pool:
         # imap_unordered so we can log real progress + ETA (pool.map is opaque)
         for i, r in enumerate(pool.imap_unordered(_one_replicate, tasks), 1):
             rows.append(r)
