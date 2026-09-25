@@ -1766,7 +1766,25 @@ near-tie, and every method over-covers its credible intervals -- at $1.000$
 throughout for $\tau$ -- despite held-out predictive calibration that a plain
 regression diagnostic reports as near-exact (Table~\ref{tab:fit3D}). The
 over-coverage is a property of the ABC acceptance kernel built on top of the
-surrogate rather than of the surrogate's own predictions. We take this to be a broader methodological point for anyone deploying a
+surrogate rather than of the surrogate's own predictions.
+
+A related finding, and one we would place beside the surrogate-quality
+result above rather than after it, comes from Section~\ref{sec:sim3D_abc}'s
+amortized-estimator comparison. The identifiability ceiling that stops a
+better surrogate from helping in Study II turns out not to be specific to
+the surrogate-inside-ABC-MCMC design this paper otherwise tests throughout:
+an NPE trained directly on simulator draws, with no surrogate step and no
+acceptance kernel in between, shows the identical asymmetry. It beats every
+surrogate tested, resolved beyond replicate noise in most comparisons, on
+$p_2$, the one parameter the model identifies well -- and it does no better
+than any other method on $p_1$ or $\tau$, the two the model does not. A
+single estimator showing that pattern could be a quirk of the estimator; two
+structurally unrelated ones -- a surrogate substituted into an MCMC kernel,
+and a density estimator trained once on simulation draws with no kernel at
+all -- agreeing on exactly where the ceiling sits is evidence that the
+ceiling belongs to the model rather than to either method.
+
+We take this to be a broader methodological point for anyone deploying a
 conformally calibrated regression surrogate inside a likelihood-free sampler,
 and one that is easily overlooked. Split-conformal calibration
 \citep{lei2018} is a strong, distribution-free guarantee, and
@@ -1913,6 +1931,19 @@ of the model itself, and no better emulator can reach it. The practical
 consequence is a cheap diagnostic that we would encourage as routine: measure
 the noise floor before comparing architectures, because it determines whether
 the comparison can report anything at all.
+
+Section~\ref{sec:sim3D_abc}'s amortized comparison reinforces this reading
+rather than complicating it. An NPE trained directly on simulation draws,
+bypassing the surrogate-inside-MCMC design entirely, shows the identical
+asymmetry: it beats every surrogate on $p_2$, the one well-identified
+parameter, and does no better than any of them on $p_1$ or $\tau$, the two
+that are not. That two structurally different estimators -- one a
+surrogate substituted into an existing sampler, the other trained once on
+simulation draws with no sampler at all -- agree on exactly where the
+ceiling sits is stronger evidence than either alone that the ceiling
+belongs to the model, not the method, and it is this joint result, on the
+two-stage model that is \citeauthor{lu2023}'s own multi-parameter
+contribution, that we take to be this paper's central finding.
 Both the surrogate-substitution framework and the diagnosis of where its
 guarantees do and do not transfer downstream should apply beyond this
 particular mutation-rate model to other ABC procedures built on a
