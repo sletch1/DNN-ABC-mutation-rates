@@ -1,20 +1,8 @@
 """Render the surrogate architecture as results/figures/architecture.svg.
-
-A hand-rolled SVG rather than a plotting library: the diagram is a fixed set of
-labelled boxes and arrows, so emitting the markup directly keeps it crisp at any
-zoom, theme-neutral, and free of a rendering dependency.
-
-The diagram is generated FROM the live config in train.py (ARCH), so it cannot
-drift out of sync with the model that is actually trained -- the layer widths
-and activations below are read, never typed. Layout is computed from the number
-of hidden layers, so adding or removing one re-flows the figure (and its width)
-rather than overflowing it.
-
-Deliberately the same design as the 3-D package's diagram, so the two studies
-illustrate alike.
-
-Usage:
-    python gen_architecture_svg.py
+Hand-rolled SVG (crisp at any zoom, no rendering dependency) generated FROM
+train.py's live ARCH config, so it can't drift out of sync with what's
+actually trained. Layout is computed from the hidden-layer count, so adding
+or removing one re-flows the figure instead of overflowing it.
 """
 
 import sys
@@ -28,8 +16,7 @@ for _d in (_ROOT, _ROOT / "network"):
 from train import ARCH
 from paths import FIG_DIR
 
-# The constant-rate study has exactly one input by construction: the mutation
-# rate on a log scale. There is no feature list in model.py to read it from.
+# One input by construction: the mutation rate on a log scale.
 N_IN, IN_LABEL = 1, "log&#8321;&#8320; p"
 
 # --- geometry ---------------------------------------------------------------
@@ -61,17 +48,14 @@ def text(x, y, s, size=13, fill=INK, weight="400", anchor="middle", spacing=None
 
 def box(x, y, w, h, fill, edge, ink, title, sub="", sub2=""):
     """A rounded block with a soft shadow, a bold title and up to two sub-lines."""
-    # The shadow is a second rect rather than an SVG filter: filters survive
-    # browsers but not every SVG-to-PDF converter, and this does.
+    # Shadow is a second rect, not an SVG filter: survives SVG-to-PDF conversion.
     parts = [f'<rect x="{x+1.5:.1f}" y="{y+3:.1f}" width="{w}" height="{h}" rx="11" '
              f'fill="#0f172a" opacity="0.05"/>',
              f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="11" '
              f'fill="{fill}" stroke="{edge}" stroke-width="1.4"/>']
     cx = x + w / 2
     lines = [l for l in (sub, sub2) if l]
-    # Centre the title/sub-line stack as a block, so one- and two-line boxes
-    # both sit optically centred.
-    y0 = y + h / 2 - 5 * len(lines) + 5
+    y0 = y + h / 2 - 5 * len(lines) + 5  # centers the title/sub-line stack as a block
     parts.append(text(cx, y0, title, size=14, fill=ink, weight="600"))
     for i, line in enumerate(lines):
         parts.append(text(cx, y0 + 18 + i * 15, line, size=11, fill=MUTED))
@@ -97,21 +81,15 @@ def dim_label(x, y, s):
 
 
 def main():
-    # `hidden_dims` is this package's key for the trunk widths; `activation` is
-    # one name for every hidden layer here (the 3-D package allows one per
-    # layer, so accept a sequence too rather than assuming a string).
     hidden = list(ARCH.get("hidden_dims", ()))
     _act = ARCH.get("activation", "gelu")
-    acts = [_act] * len(hidden) if isinstance(_act, str) else list(_act)
+    acts = [_act] * len(hidden) if isinstance(_act, str) else list(_act)  # accept one name or a per-layer sequence
     if len(acts) != len(hidden):
         raise ValueError(f"{len(acts)} activations for {len(hidden)} hidden layers")
     acts = [a.upper() for a in acts]
-    # The figure says "no BatchNorm" in its footer, so do not let that caption
-    # outlive the config it describes.
     if ARCH.get("use_bn"):
-        raise ValueError("ARCH now uses BatchNorm; the diagram's footer is stale")
+        raise ValueError("ARCH now uses BatchNorm; the diagram's footer is stale")  # footer says "no BatchNorm"
 
-    # Width follows the block count, so the title never overruns the canvas.
     body_w = BOX_W * (1 + len(hidden)) + HEAD_W + CAL_W + GAP * (len(hidden) + 2)
     W = body_w + 2 * PAD
     H = 372
@@ -153,9 +131,7 @@ def main():
     y_mean, y_var = spine - HEAD_DY, spine + HEAD_DY
     parts.append(curve(x, spine, xh, y_mean))
     parts.append(curve(x, spine, xh, y_var))
-    # Tucked against the box and left-aligned: mid-gap it would sit on top of
-    # the fan-out curves.
-    parts.append(text(x + 12, spine - 18, str(prev), size=10, fill=MUTED,
+    parts.append(text(x + 12, spine - 18, str(prev), size=10, fill=MUTED,  # left-aligned: mid-gap sits on the fan-out curves
                       anchor="start", spacing="0.4"))
     parts.append(box(xh, y_mean - HEAD_H / 2, HEAD_W, HEAD_H, OUT_FILL, OUT_EDGE, OUT_INK,
                      "mean", "&#956;(x) = log&#8321;&#8320; d&#772;"))

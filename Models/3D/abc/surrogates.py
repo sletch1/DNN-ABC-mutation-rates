@@ -1,45 +1,25 @@
-"""Unified surrogate interface for the 3-D two-stage ABC-MCMC loop.
-
-Every surrogate honours the same contract the sampler needs:
-
-    predict(X) -> (mean, sd)
-
-`X` is [log10 p1, log10 p2, tau] -- one length-3 point or an (N, 3) array -- and
-the return is the predicted log10(d_bar) together with a predictive standard
-deviation on that same log scale. The sampler feeds that sd straight into the
-acceptance probability, exactly as GPS-ABC does with its GP variance, so a
-surrogate whose uncertainty is wrong produces a wrong posterior even if its mean
-is perfect.
+"""Unified surrogate interface for the 3-D two-stage ABC-MCMC loop: every
+surrogate exposes `predict(X) -> (mean, sd)` of log10(d_bar) for X =
+[log10 p1, log10 p2, tau]. The sampler feeds sd straight into the acceptance
+probability, so a surrogate whose uncertainty is wrong gives a wrong
+posterior even with a perfect mean.
 
 Three backends:
+- DNNSurrogate3D: trained heteroscedastic MLP, learns from all ~10,000 rows;
+  forward pass is O(1) in training-set size.
+- GPSurrogate3D: GPS-ABC baseline, capped at a small space-filling `budget`
+  (default 300) -- not an artificial handicap, GP fitting is O(n^3) and this
+  is the wall the paper itself hit. The real comparison: "DNN with all the
+  data" vs. "GP with as much as a GP can take."
+- GPSurrogate3DReference: same baseline built to match the professor's
+  demoGPS_fluc_exp2.m (isotropic kernel, raw inputs/target) rather than to be
+  strong -- reported alongside GPSurrogate3D so the strengthened version
+  doesn't overstate what the published baseline achieves.
 
-- DNNSurrogate3D : the trained heteroscedastic MLP (this project's method). It
-  learns from ALL ~10,000 training rows, and its forward pass is O(1) in the
-  training-set size, so query cost does not grow with the data budget.
-
-- GPSurrogate3D  : the GPS-ABC baseline -- an sklearn GaussianProcessRegressor,
-  deliberately capped at a small space-filling `budget` (default 300). The cap is
-  not an artificial handicap: GP fitting is O(n^3) in the number of design points
-  and every prediction is O(n), which is the wall the paper itself hit (it could
-  afford ~1,500 design points in its 4-D study). The head-to-head is therefore
-  "DNN with all the data" vs "GP with as much as a GP can take", which is the
-  real operational choice.
-
-- GPSurrogate3DReference : the same baseline built to match the professor's
-  ../matlab/demoGPS_fluc_exp2.m rather than to be strong -- isotropic kernel,
-  raw inputs, raw target. GPSurrogate3D is better than the paper's GP on every
-  one of those axes, so reporting only it overstates what the published baseline
-  achieves; both are reported.
-
-SCALES. Each surrogate carries a `scale` attribute, "log10" or "raw", naming the
-scale its predictions live on; abc_mcmc.py puts the observation on that scale
-before scoring. This is not bookkeeping -- the reference does ABC on the raw
-statistic while we do it in log10, and conflating the two silently yields a wrong
-posterior.
-
-INPUTS. The DNN is trained on the three raw parameters (log10 p1, log10 p2,
-tau) -- exactly what the sampler proposes, with nothing derived in between. The
-reference GP converts back to natural rates inside its own predict().
+Each surrogate carries a `scale` attribute ("log10" or "raw"); abc_mcmc.py
+puts the observation on that scale before scoring -- the reference does ABC
+on the raw statistic while ours works in log10, and conflating the two
+silently yields a wrong posterior.
 """
 
 from __future__ import annotations
@@ -61,16 +41,9 @@ def _as_matrix(X, ncol=3):
 
 
 class DNNSurrogate3D:
-    """Wraps a trained heteroscedastic MLP behind `predict(X) -> (mean, sd)`.
-
-    Reports on the log10 scale (see `scale` below), which is what the sampler
-    assumes by default.
-
-    Args:
-        model, x_scaler, y_scaler: as produced by network/train.py.
-        sd_scale: the split-conformal multiplier applied to the predictive sd.
-        raw_inputs: retained for call-site compatibility; inputs are always
-            the 3-column [log10 p1, log10 p2, tau].
+    """Wraps a trained heteroscedastic MLP behind `predict(X) -> (mean, sd)`,
+    on the log10 scale (the sampler's default). `sd_scale` is the split-
+    conformal multiplier; `raw_inputs` kept for call-site compatibility only.
     """
 
     scale = "log10"
@@ -98,12 +71,9 @@ class DNNSurrogate3D:
 
 
 class GPSurrogate3D:
-    """The GPS-ABC baseline: same contract, backed by a fitted sklearn GP.
-
+    """GPS-ABC baseline: same contract, backed by a fitted sklearn GP.
     Strengthened relative to the professor's reference (anisotropic kernel,
-    log-scaled inputs, learned noise); see GPSurrogate3DReference for the
-    faithful version and for what the differences cost.
-    """
+    log-scaled inputs, learned noise) -- see GPSurrogate3DReference."""
 
     scale = "log10"
 
@@ -120,38 +90,24 @@ class GPSurrogate3D:
 
 
 class GPSurrogate3DReference:
-    """The GPS-ABC baseline built to match the professor's `demoGPS_fluc_exp2.m`.
+    """GPS-ABC baseline built to match `demoGPS_fluc_exp2.m` rather than to be
+    strong: raw rates (p1, p2, tau) as inputs (not log10), raw statistic
+    S = mean sqrt(X/Z) as target (not log10(d_bar)), and an ISOTROPIC
+    squared-exponential kernel (one length scale for all three inputs,
+    initialised at kparams0=[1,1], sigma0=0.02) vs. GPSurrogate3D's
+    anisotropic one.
 
-    `GPSurrogate3D` above is a deliberately *strengthened* GP: anisotropic RBF,
-    log-scaled inputs, a learned white-noise term. The reference implementation is
-    weaker on every one of those axes, and reporting only the strengthened version
-    overstates what the paper's actual baseline achieves. This class is the
-    reference, so the manuscript can report both.
+    Reports on the RAW scale (`scale = "raw"`) -- ABC_fluc_exp1.m scores
+    `obs = mean(sqrt(X./Z))` against raw predictions, and the sampler honours
+    that convention. (An earlier version converted to log10 by the delta
+    method instead: wrong, since the reference GP's homoscedastic raw-scale
+    noise makes the implied log-scale sd explode where the statistic is
+    small -- do not reintroduce that.)
 
-    Three faithful differences (see ../matlab/demoGPS_fluc_exp2.m):
-      - inputs are the RAW rates (p1, p2, tau), not their log10;
-      - the target is the RAW statistic S = mean sqrt(X/Z), not log10(d_bar);
-      - the kernel is ISOTROPIC squared-exponential (one length scale for all
-        three inputs), initialised at kparams0 = [1, 1] with sigma0 = 0.02.
-
-    SCALE. This surrogate reports on the RAW scale (`scale = "raw"`), and the
-    sampler honours that -- it is not a wrapper detail, it is the reference's own
-    convention. ABC_fluc_exp1.m computes `obs = mean(sqrt(X./Z))` and scores it with
-    `normpdf(obs, sim, eps)`: observation, prediction and tolerance all live on the
-    raw statistic. Our own pipeline works in log10 throughout, which is a further
-    departure from the reference worth stating alongside the kernel differences.
-
-    An earlier version of this class converted to log10 by the delta method so it
-    could reuse the log-scale sampler unchanged. That was wrong and is recorded
-    here so it is not reintroduced: the reference GP's noise is homoscedastic on
-    the raw scale, so where the statistic is small the implied log-scale sd
-    explodes (sd_raw / (mean_raw ln10) reached ~1e6), turning an R^2 = 0.71
-    surrogate into apparent garbage. The failure was in the transform, not the GP.
-
-    Its genuine weakness is narrower and worth reporting honestly: on the raw
-    scale it reaches R^2 ~= 0.71 against ~0.99 for an otherwise identical
-    anisotropic kernel. One shared length scale cannot serve inputs whose ranges
-    differ by ~200x (p1, p2 span ~0.05 while tau spans ~9.8).
+    Genuine weakness, reported honestly: R^2 ~= 0.71 on the raw scale vs.
+    ~0.99 for an otherwise-identical anisotropic kernel -- one shared length
+    scale can't serve inputs whose ranges differ by ~200x (p1/p2 span ~0.05,
+    tau spans ~9.8).
     """
 
     scale = "raw"
@@ -161,12 +117,8 @@ class GPSurrogate3DReference:
         self.budget = budget
 
     def predict(self, X):
-        """`X` arrives as (log10 p1, log10 p2, tau) -- the sampler's coordinates.
-
-        The reference GP was fit on the RAW rates, so the first two columns are
-        exponentiated back here. Doing it inside predict keeps the sampler ignorant
-        of the difference and keeps the fit faithful to demoGPS_fluc_exp2.m.
-        """
+        """`X` arrives as (log10 p1, log10 p2, tau), the sampler's coordinates;
+        exponentiate the first two back since the reference GP was fit on raw rates."""
         X = _as_matrix(X, 3).astype(float)
         Xr = np.column_stack([10.0 ** X[:, 0], 10.0 ** X[:, 1], X[:, 2]])
         mean, sd = self.gpr.predict(Xr, return_std=True)
@@ -176,15 +128,10 @@ class GPSurrogate3DReference:
 
 
 def _spacefilling_indices(X, budget, seed=0):
-    """Pick ~budget rows spread across the input box (greedy farthest-point).
-
-    Emulates the Latin-hypercube design the paper used to make a small GP viable:
-    keep coverage of the (log10 p1, log10 p2, tau) box rather than a random
-    subsample, which would clump. Columns are standardized first so no axis
-    dominates the distance.
-
-    `d2` holds each row's squared distance to its NEAREST already-chosen point;
-    after adding a point, one elementwise minimum updates it, which is far
+    """Pick ~budget rows spread across the input box (greedy farthest-point),
+    emulating the Latin-hypercube design the paper used. Columns standardized
+    first so no axis dominates distance. `d2` tracks each row's squared
+    distance to its nearest chosen point, updated by elementwise min -- far
     cheaper than recomputing all pairwise distances each round.
     """
     X = np.asarray(X, dtype=float)
@@ -203,16 +150,11 @@ def _spacefilling_indices(X, budget, seed=0):
 
 
 def fit_gp_surrogate_3d(X_train, y_train, budget=300, seed: int = 0):
-    """Fit the GPS-ABC baseline on a space-filling subset of the two-stage data.
-
-    Faithful to the paper, the GP is fit on replicate-level rows so its
-    WhiteKernel learns the true replicate noise -- that is where its predictive
-    variance comes from in the acceptance step. An anisotropic RBF (one
-    length-scale per input) lets it adapt to the very different scales of
-    log10(p1), log10(p2) and tau.
-
-    `budget=None` uses every supplied row; that is slow and is meant only for the
-    surrogate-quality ablation, not for the ABC comparison.
+    """Fit the GPS-ABC baseline on a space-filling subset. Fit on
+    replicate-level rows (faithful to the paper) so WhiteKernel learns real
+    replicate noise; anisotropic RBF adapts to log10(p1)/log10(p2)/tau's very
+    different scales. budget=None uses every row -- slow, for the surrogate-
+    quality ablation only, not the ABC comparison.
     """
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import ConstantKernel, RBF, WhiteKernel
@@ -233,24 +175,14 @@ def fit_gp_surrogate_3d(X_train, y_train, budget=300, seed: int = 0):
 
 
 def fit_gp_surrogate_3d_reference(p1, p2, tau, S, budget=300, seed: int = 0):
-    """Fit the GPS-ABC baseline exactly as `../matlab/demoGPS_fluc_exp2.m` does.
-
-    Unlike `fit_gp_surrogate_3d`, this takes the RAW rates and the RAW statistic:
-
-        p1, p2 : mutation probabilities on the natural scale (NOT log10)
-        tau    : transition time
-        S      : mean sqrt(X/Z) per row, on the natural scale (NOT log10)
-
-    MATLAB's `fitrgp(..., 'KernelFunction', 'squaredexponential',
-    'KernelParameters', [1, 1], 'Sigma', 0.02)` is an ISOTROPIC squared exponential
-    -- kparams0 is (length scale, signal sd) and Sigma the noise sd -- with all
-    three fitted by MLE from those starting values. The sklearn equivalent is a
-    scalar-length-scale RBF times a constant, plus a white-noise term started at
-    sigma0^2. `normalize_y=False` because the reference does not centre its target.
-
-    The space-filling budget is kept from our pipeline rather than the reference's
-    full 11 x 11 x 9 factorial, so that this GP and the strengthened one are given
-    the same data budget and the comparison isolates the model, not the design.
+    """Fit the GPS-ABC baseline as `../matlab/demoGPS_fluc_exp2.m` does: RAW
+    rates (p1, p2 natural scale, not log10) and RAW statistic S=mean sqrt(X/Z)
+    as target. MATLAB's isotropic squared-exponential kernel (kparams0=[1,1],
+    Sigma=0.02) maps to a scalar-length-scale RBF*constant + white-noise
+    term; normalize_y=False since the reference doesn't centre its target.
+    Keeps our space-filling budget rather than the reference's full 11x11x9
+    factorial, so this GP and the strengthened one share a data budget and
+    the comparison isolates the model, not the design.
     """
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import ConstantKernel, RBF, WhiteKernel

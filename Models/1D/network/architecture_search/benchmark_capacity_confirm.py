@@ -1,29 +1,14 @@
-"""Does architecture size matter downstream, at the scale Table 1 actually uses?
+"""Does architecture size matter downstream, at Table 1's actual scale?
+benchmark_capacity.py checks curve-fit; this runs every candidate size
+through the real ABC-MCMC comparison, at the paper's own replicate count/MCSE
+rigor, in two stages (named to match run_all.py):
+  STAGE 1 (quick): cheap screen (2 reps, 1 cell) to catch anything broken.
+  STAGE 2 (full):  paper settings (40 reps, full p x J grid) for survivors,
+                   with Delta/SE against the deployed 128-64 per cell.
+Exact-simulator ABC-MCMC is excluded (its behavior can't depend on surrogate
+architecture); GPS-ABC is the fixed reference at both stages.
 
-benchmark_capacity.py answers the curve-fit half of this question (does the
-response function itself need a 128-64 network?). This answers the harder,
-more expensive half properly: run every candidate size through the ACTUAL
-ABC-MCMC comparison the surrogate is used for, at the same replicate count and
-Monte Carlo rigor as Table 1 in the paper, rather than a cheaper stand-in.
-
-Two stages, named for and matching run_all.py's own vocabulary exactly:
-  STAGE 1 (quick):  --quick settings (2 replicates, one (p,J) cell) -- a cheap
-                     screen to catch anything catastrophically broken before
-                     paying for the expensive stage.
-  STAGE 2 (full):   the paper's own Table 1 settings (40 replicates, the full
-                     p x J grid, 600 MCMC iterations) for every candidate that
-                     survives the screen, with Monte Carlo standard errors
-                     attached to every comparison exactly as Section on
-                     simulation design and reporting does throughout the paper
-                     (Delta/SE against the deployed 128-64, not just a nominal
-                     ranking).
-
-The exact-simulator ABC-MCMC baseline is excluded throughout: its behaviour
-cannot depend on the surrogate's architecture, so recomputing it per candidate
-would only add runtime, not information. GPS-ABC is included at both stages as
-the fixed reference point.
-
-Run: python benchmark_capacity_confirm.py   (writes results/logs/benchmark_capacity_confirm.md)
+Run: python benchmark_capacity_confirm.py (writes results/logs/benchmark_capacity_confirm.md)
 """
 import sys, time, warnings
 from pathlib import Path
@@ -52,9 +37,7 @@ QUICK = dict(reps=2,  nmcmc=120, burnin=40,  p_grid=[1e-2],
 FULL  = dict(reps=40, nmcmc=600, burnin=250, p_grid=[1e-4, 1e-3, 1e-2],
             J_grid=[10, 50, 100],  workers=10)
 
-# The six sizes from the pasted table -- the deployed network down to a
-# single 8-unit layer. No linear control here; that candidate was already an
-# unambiguous loser in the prior capacity sweep and isn't worth re-testing.
+# No linear control here: unambiguous loser in the prior capacity sweep, not worth re-testing.
 CANDIDATES = {
     "128-64 [deployed]": (128, 64),
     "64-32":             (64, 32),
@@ -151,9 +134,7 @@ def main():
     print("\nQuick screen, sorted by MSE:")
     print(quick_df.to_string(index=False), flush=True)
 
-    # Promising = not a clear, order-of-magnitude outlier on the quick screen.
-    # With reps=2 at a single cell this is a coarse filter by design; anything
-    # within ~2x of the best quick MSE moves on to the full confirm.
+    # Coarse filter by design (reps=2, 1 cell): anything within 2x of best moves on.
     best_quick = quick_df.quick_mse.min()
     promising = quick_df[quick_df.quick_mse <= 2.0 * best_quick]["name"].tolist()
     print(f"\nPromising (within 2x of best quick MSE {best_quick:.3e}): {promising}\n", flush=True)
@@ -181,9 +162,7 @@ def main():
     print("="*90)
     print(full_df.drop(columns="cells").to_string(index=False))
 
-    # Delta/SE of every candidate against the deployed network, per cell,
-    # exactly as Table 1 in the manuscript reports it -- a nominal ranking
-    # alone can't say whether a gap is real at this replicate count.
+    # Delta/SE per cell, as the manuscript's Table 1 reports it -- ranking alone can't say if a gap is real.
     deployed = "128-64 [deployed]"
 
     def dnn_only(cells):

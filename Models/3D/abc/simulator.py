@@ -1,76 +1,30 @@
-"""Two-stage-mutation Markov branching process (MBP) simulator.
+"""Two-stage-mutation Markov branching process simulator (JTB paper's Study
+2 / Section 3.2; port of `../matlab/mut2stage_bMBP.m`). Mutation probability
+is a step function: p(t) = p1 for t<=tau, p2 for tau<t<=tp. Free parameters:
+(p1, p2, tau); `a` fixed at 1, `delta` fixed at 1 (threaded through as an
+optional arg for the paper's 4-D extension, but see mut_time below).
 
-This is the model the JTB paper (Lu, Zhu & Wu 2023, Section 3.2 / Study 2)
-actually uses for its multi-parameter study, and the model the professor's
-MATLAB reference `../matlab/mut2stage_bMBP.m` implements. The mutation
-probability is a step function of time:
-
-    p(t) = p1  for 0 < t <= tau
-           p2  for tau < t <= tp
-
-Free parameters of the 3-D study: (p1, p2, tau). The division rate `a` is fixed
-at 1 (it is never a parameter in the paper), and the mutant relative growth rate
-`delta` is fixed at 1 (the professor's two-stage MATLAB has no delta argument at
-all). `delta` is still threaded through the slow simulator as an optional
-argument so the same code extends to the paper's 4-D (p1, p2, tau, delta) case
-without a rewrite -- see `mut_time` below for the one restriction.
-
-Superseded model: the previous 3-D package (`../3D/`) varied (p, a, delta) under
-a CONSTANT mutation rate. That is a different model, not a reparameterization,
-and its `a` axis was analytically non-identifiable.
-
-Contents
---------
-- mut2stage_slow : exact, cell-by-cell simulation (port of mut2stage_bMBP.m).
+- mut2stage_slow : exact cell-by-cell simulation.
 - mut2stage_fast : Algorithm-4-style fast simulator, extended to two stages.
 - fluc_exp_2stage: J parallel cultures -> (Z_vec, X_vec).
-- summary_stat   : d_bar = mean_i sqrt(X_i / Z_i), the paper's ABC statistic.
+- summary_stat   : d_bar = mean_i sqrt(X_i/Z_i), the paper's ABC statistic.
 
-Both simulators reduce EXACTLY to the constant-rate model when p1 == p2 (or
-when tau <= 0 / tau >= tp), which `tests/validate_simulator.py` checks against
-the existing constant-rate simulator.
+Both simulators reduce exactly to the constant-rate model when p1==p2 (or
+tau<=0/tau>=tp); checked in tests/validate_simulator.py.
 
-The `mut_time` convention (IMPORTANT -- open question for the professor)
------------------------------------------------------------------------
-A cell born at time `t_birth` (its parent's division time) divides at its own
-time `t_div`. Which of the two times indexes the step function p(t)?
+**mut_time convention.** A cell born at `t_birth` divides at `t_div`; which
+time indexes p(t)? "parent" uses t_birth (what the paper writes, and the only
+convention the fast simulator and delta!=1 can support). "offspring" uses
+t_div (mut2stage_bMBP.m's live code path). Defaults to "offspring": the
+shipped ground truth carries no provenance record, but simulating its design
+points under both conventions shows all 60 most-discriminating points fit
+"offspring" far better (mean |error| 0.0054 vs 0.0400 log10 units, t=+11.3),
+matching the R generator's default and the paper's Algorithm 3. This package
+previously defaulted to "parent" while the data was generated under
+"offspring" -- do not revert without regenerating the data to match.
 
-- mut_time="parent"   : p is evaluated at `t_birth`, i.e. at the division event
-  that actually creates the (possibly mutated) daughter. This is the model as
-  written in the paper, it is what the *commented-out* lines 23-24 of
-  mut2stage_bMBP.m do, and it is the only convention the fast simulator can
-  implement (Algorithm 4 seeds a mutant clone at its arrival/birth time). It is
-  also the only one that composes with `delta`: with delta != 1 a cell's
-  lifetime distribution depends on whether it is a mutant, so mutation status
-  must be drawn BEFORE its division time.
-
-- mut_time="offspring": p is evaluated at `t_div`, the daughter's own future
-  division time. This is what the *live* lines 25-26 of mut2stage_bMBP.m do.
-
-We default to "offspring", and that default is now settled by evidence rather
-than argument. The shipped ground truth data/slow_data_3D.csv carries no record
-of how it was generated, so the convention was recovered empirically: simulating
-at the CSV's own design points under both conventions, all 60 of the most
-discriminating points sit closer to "offspring" (mean |error| 0.0054 vs 0.0400
-in log10 units, paired t = +11.3). That agrees with the live lines 25-26 of
-mut2stage_bMBP.m, with the R generator's own default, and with Algorithm 3 of
-the paper, which indexes p(t) by the offspring's accumulated lifetime T.
-`tests/validate_simulator.py` reruns that check and measures the gap: 10.1% in
-d_bar at the most discriminating design points, 2.9-7.4% at the three truths the
-ABC tables use.
-
-This previously defaulted to "parent" while the ground truth was generated under
-"offspring" -- surrogates trained on one model, observations drawn from another.
-Do not change it back without regenerating the data to match.
-
-"parent" is retained because it is the only convention the fast simulator can
-implement and the only one that composes with delta != 1 (with delta != 1 a
-cell's lifetime depends on its mutation status, so that status must be drawn
-before the lifetime, which "offspring" cannot do).
-
-R's rgeom(n, prob) counts failures before the first success (support {0,1,...});
-numpy.random.geometric counts trials until the first success (support {1,2,...}),
-so we use np.random.geometric(prob) - 1 to match R/MATLAB exactly.
+Note: R's rgeom counts failures before success (support {0,1,...}); numpy's
+geometric counts trials to success (support {1,2,...}) -- hence `- 1` below.
 """
 
 from __future__ import annotations
@@ -86,29 +40,15 @@ DEFAULT_MUT_TIME = "offspring"
 def mut2stage_slow(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
                    delta: float = 1.0, mut_time: str = DEFAULT_MUT_TIME):
     """Exact cell-by-cell two-stage simulation. Returns (Z, X) at time `tp`.
+    tau is the jumping time between stages ("jmpt" in MATLAB), tp is the
+    checking/plating time ("chkt"). delta must be 1.0 when
+    mut_time="offspring" (see module docstring). Cost grows like exp(a*tp):
+    tp=10 gives ~2.2e4 cells/culture (cheap), tp=20 gives ~5e8 (not).
 
-    Args:
-        Z0: initial population size (1 in the paper and in the MATLAB reference).
-        a: rate of the exponential lifetime of a non-mutant cell.
-        p1: mutation probability during stage 1 (t <= tau).
-        p2: mutation probability during stage 2 (t > tau).
-        tau: the jumping time separating the two stages ("jmpt" in MATLAB).
-        tp: the checking/plating time ("chkt" in MATLAB).
-        rng: numpy Generator.
-        delta: mutant relative growth rate; mutant lifetimes are exp(a*delta).
-            Must be 1.0 when mut_time="offspring" (see the module docstring).
-        mut_time: "parent" or "offspring" -- which time indexes p(t).
-
-    Cost grows like exp(a*tp), so this is only practical for modest `tp`
-    (t0=10 gives ~2.2e4 cells/culture and is cheap; t0=20 gives ~5e8 and is not).
-
-    Like the MATLAB original, one pass of the `while` loop processes an entire
-    generation as a vectorized batch over every currently-live lineage: each
-    surviving cell splits into 2 offspring (`np.repeat(..., 2)` duplicates the
-    parent state to both children), each child independently becomes/stays a
-    mutant, each child's own division time is its parent's plus a fresh
-    exponential, and any child whose division time has passed `tp` exits and is
-    counted into Z (and into X if it is a mutant).
+    Each `while` pass processes one generation as a vectorized batch: every
+    surviving cell splits into 2 (`np.repeat(..., 2)`), each child becomes/
+    stays mutant, draws a fresh exponential division time, and exits into Z
+    (and X if mutant) once past `tp`.
     """
     if mut_time not in ("parent", "offspring"):
         raise ValueError(f"mut_time must be 'parent' or 'offspring', got {mut_time!r}")
@@ -135,9 +75,7 @@ def mut2stage_slow(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
         parent_mut = np.repeat(mvec_last, 2)
 
         if mut_time == "parent":
-            # p evaluated at the birth time (= the parent's division time), so
-            # mutation status is known before the lifetime is drawn and `delta`
-            # can modulate that lifetime. Matches the paper and the fast sim.
+            # p at birth time: mutation status known before lifetime is drawn, so delta can modulate it.
             birth = np.repeat(dtvec_last, 2)
             mu = np.where(birth <= tau, p1, p2)
             prob = (1 - mu) * parent_mut + mu   # mutant parent -> mutant child w.p. 1
@@ -145,9 +83,7 @@ def mut2stage_slow(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
             rate_vec = np.where(mvec == 1, a * delta, a)
             dtvec = birth + rng.exponential(1.0 / rate_vec)
         else:
-            # p evaluated at the offspring's OWN division time, so that time must
-            # be drawn first (hence delta is not available here). Bit-for-bit the
-            # live lines 25-26 of mut2stage_bMBP.m.
+            # p at offspring's own division time (delta unavailable here); matches mut2stage_bMBP.m's live code.
             dtvec = np.repeat(dtvec_last, 2) + rng.exponential(1.0 / a, size=2 * n_continue)
             mu = np.where(dtvec <= tau, p1, p2)
             prob = (1 - mu) * parent_mut + mu
@@ -167,44 +103,24 @@ def mut2stage_slow(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
 def mut2stage_fast(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
                    delta: float = 1.0, stochastic_m: bool = False):
     """Fast two-stage simulator. Returns (Z, X). O(#mutants) per culture.
+    The extension the paper's footnote calls "easily extended" but never
+    uploaded; makes the paper's own Study 2 regime (p~1e-9, tp=20) reachable
+    at all -- the exact simulator there needs ~5e8 cells/culture.
 
-    This is the extension the paper's footnote calls "easily extended" but never
-    uploaded; it is what makes the paper's own Study 2 regime (p ~ 1e-9,
-    tp = 20) reachable at all -- the exact simulator there needs ~5e8 cells per
-    culture.
+    Draws total population Z from the Yule size law, then seeds mutations at
+    arrival times from the Yule arrival CDF F(t) = (exp(a*t)-1)/(exp(a*tp)-1).
+    Two stages only change seeding: M1 = round(Z*p1*F(tau)) arrivals in
+    [0,tau], M2 = round(Z*p2*(1-F(tau))) in (tau,tp], each clone contributing
+    1 + geometric(exp(-a*delta*(tp-t_m))) cells. p1==p2 recovers the original
+    (constant-rate) algorithm. Necessarily uses the "parent"/birth-time
+    convention: a clone is seeded at its arrival time.
 
-    The constant-rate Algorithm 4 draws the total population `Z` from the Yule
-    size law, seeds `round(Z*p)` mutations at arrival times from the Yule
-    arrival CDF
-
-        F(t) = (exp(a*t) - 1) / (exp(a*tp) - 1),   t in [0, tp],
-
-    and grows each mutant clone as its own Yule process over the remaining time.
-    Two stages change only the seeding step: a mutation opportunity landing at
-    time t carries probability p1 if t <= tau and p2 otherwise, and the fraction
-    of opportunities falling in stage 1 is exactly F(tau). So
-
-        M1 = round(Z * p1 * F(tau)),      arrival times ~ F restricted to [0, tau]
-        M2 = round(Z * p2 * (1 - F(tau))), arrival times ~ F restricted to (tau, tp]
-
-    and each clone contributes 1 + geometric(exp(-a*delta*(tp - t_m))) cells.
-    Setting p1 == p2 recovers round(Z*p1*F) + round(Z*p1*(1-F)) ~= round(Z*p),
-    i.e. the original algorithm.
-
-    Note this simulator necessarily uses the "parent"/birth-time convention: a
-    clone is seeded at its arrival time, which IS the mutation event's time.
-
-    Args:
-        stochastic_m: if False (default, faithful to the uploaded R/MATLAB), the
-            mutation counts are the deterministic `round(Z * p * F)`. That is a
-            poor approximation when Z*p = O(1) (the paper's regime: Z ~ 5e8,
-            p ~ 1e-9, so Z*p ~ 0.5 rounds to 0 or 1 deterministically), so set
-            True to draw M1, M2 ~ Binomial instead.
+    stochastic_m=False (default, faithful to R/MATLAB) uses deterministic
+    round(Z*p*F), a poor approximation when Z*p=O(1) (the paper's regime:
+    Z~5e8, p~1e-9); set True to draw M1/M2 ~ Binomial instead.
     """
     Z0 = int(Z0)
-    # Yule population size at tp, started from Z0 ancestors: a sum of Z0
-    # geometrics with success probability exp(-a*tp) (R's rgeom support {0,1,...}).
-    Z = int((rng.geometric(np.exp(-a * tp), size=Z0) - 1).sum())
+    Z = int((rng.geometric(np.exp(-a * tp), size=Z0) - 1).sum())  # Yule size: sum of Z0 geometrics
     if Z <= 0:
         return Z, 0
 
@@ -226,11 +142,9 @@ def mut2stage_fast(Z0, a, p1, p2, tau, tp, rng: np.random.Generator,
     for M, u_lo, u_hi in ((M1, 0.0, F_tau), (M2, F_tau, 1.0)):
         if M <= 0 or u_hi <= u_lo:
             continue
-        # inverse-CDF sampling of F restricted to the stage's u-interval
-        u = u_lo + rng.random(M) * (u_hi - u_lo)
+        u = u_lo + rng.random(M) * (u_hi - u_lo)  # inverse-CDF sampling, restricted to this stage
         arrtime = np.log1p(u * expm1_tp) / a
-        # each seeded mutant grows as a Yule process over the remaining time
-        clones = rng.geometric(np.exp(-(a * delta) * (tp - arrtime))) - 1
+        clones = rng.geometric(np.exp(-(a * delta) * (tp - arrtime))) - 1  # Yule growth over remaining time
         X += int(clones.sum() + M)
 
     return Z, min(X, Z)
@@ -257,28 +171,15 @@ def fluc_exp_2stage(Z0, a, p1, p2, tau, tp, J, rng: np.random.Generator,
     return Z_vec, X_vec
 
 
-# The paper uses DIFFERENT summary statistics for its two studies, and this is the
-# single place that records which one this pipeline is running.
-#
-#   root=2  sqrt(X/Z)      -- the constant-rate (1-D) statistic, chosen in Fig. 1
-#                             of Lu, Zhu & Wu (2023) over p_hat_MOM and
-#                             mean log(Y/Z).
-#   root=4  (X/Z)^(1/4)    -- what the paper switches to for the TWO-STAGE model
-#                             (Sec. 2.2: "For this setup, we use the fourth root
-#                             of X/Z as the summary statistic"), to keep the
-#                             response curve "smooth and non-flat" once the
-#                             mutation rate is piecewise constant. Algorithm 1
-#                             uses the fourth root throughout.
-#
-# This module models the two-stage process, so the paper's choice here is root=4.
+# The paper uses a different summary-statistic root per study: root=2
+# (sqrt(X/Z)) for constant-rate (1-D, Fig. 1 of Lu/Zhu/Wu 2023); root=4
+# ((X/Z)^(1/4)) for the two-stage model this module simulates (Sec. 2.2:
+# keeps the response curve "smooth and non-flat" under piecewise-constant p).
 SUMMARY_ROOT = 4
 
 
 def summary_stat(Z_vec, X_vec, root: int = SUMMARY_ROOT) -> float:
-    """d_bar = mean_i (X_i / Z_i)^(1/root); extinct cultures (Z_i=0) contribute 0.
-
-    See SUMMARY_ROOT above for which root the paper uses where.
-    """
+    """d_bar = mean_i (X_i/Z_i)^(1/root); extinct cultures (Z_i=0) contribute 0."""
     Z_vec = np.asarray(Z_vec, dtype=float)
     X_vec = np.asarray(X_vec, dtype=float)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -289,12 +190,8 @@ def summary_stat(Z_vec, X_vec, root: int = SUMMARY_ROOT) -> float:
 
 def solve_tp(Z0, a, p, c: float = 20.0) -> float:
     """Constant-rate plating time: root of Z0*(exp(a t) - exp(a t (1-2p))) - c.
-
-    Retained only for the degenerate p1 == p2 cross-checks against the
-    constant-rate package. The two-stage study fixes tp (= 20 in the paper's
-    Study 2, = 10 for the exact-simulator design here) rather than solving it;
-    see the manuscript's Study II.
-    """
+    Retained only for degenerate p1==p2 cross-checks; the two-stage study
+    fixes tp (20 in the paper's Study 2, 10 here) rather than solving it."""
     from scipy.optimize import brentq
     f = lambda t: Z0 * (np.exp(a * t) - np.exp(a * t * (1 - 2 * p))) - c
     lo, hi = 1.0, 30.0

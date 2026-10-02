@@ -1,34 +1,20 @@
-"""Validation for the two-stage simulator, and the provenance of the ground truth.
+"""Validation for the two-stage simulator and the ground truth's provenance.
+Checks three claims abc/simulator.py's docstrings make:
 
-`abc/simulator.py` makes three claims in its docstrings that had no code behind
-them until this file existed. Each is checked here:
+  1. DEGENERACY: both simulators reduce exactly to the constant-rate model
+     when tau>=tp (stage 1/p1 only) or tau<=0 (stage 2/p2 only). Checked
+     against Models/1D/abc/simulator.py, an independent port, so agreement
+     is real evidence, not a tautology.
+  2. CONVENTION GAP: mut_time="parent" vs. "offspring" differ by "3-10% in
+     d_bar" (quoted in the README/manuscript) -- measured here, not asserted.
+  3. PROVENANCE: which convention generated data/slow_data_3D.csv. The CSV
+     records none and no generation log survives, so the only way to know is
+     to measure -- this is exactly the bug (surrogates trained on one
+     convention, observations drawn from the other) this test exists to catch.
 
-  1. DEGENERACY. Both two-stage simulators reduce EXACTLY to the constant-rate
-     model when the whole interval falls in one stage -- tau >= tp leaves every
-     division in stage 1 (rate p1), tau <= 0 leaves every division in stage 2
-     (rate p2). Checked against the independent constant-rate implementation in
-     Models/1D/abc/simulator.py, which was ported from the professor's
-     mut_bMBP.m rather than from the two-stage code, so agreement is real
-     evidence and not a tautology.
+Nothing here writes to data/ -- every check simulates fresh and only reads the CSV.
 
-  2. THE CONVENTION GAP. `mut_time="parent"` and `mut_time="offspring"` differ by
-     "3-10% in d_bar" -- a figure quoted in the 3-D README and the manuscript.
-     This measures it rather than asserting it. The measurement is noisy in
-     --quick mode, so it is reported with wide bounds and is not a pass/fail
-     gate on the exact figure; the full run is what the documented range cites.
-
-  3. PROVENANCE. Which convention generated data/slow_data_3D.csv. The CSV records
-     none, and no generation log survives on stat86 (both server 3-D datasets are
-     the retired (p, a, delta) study), so the only way to know is to measure.
-     This matters because training the surrogates on one convention while drawing
-     observations from the other is exactly the bug this test was written after.
-
-Nothing here writes to data/. Every check simulates fresh runs and only ever
-READS the ground-truth CSV.
-
-Usage:
-    python tests/validate_simulator.py            # all checks, ~4 minutes
-    python tests/validate_simulator.py --quick    # ~1 minute, noisier estimates
+Usage: python tests/validate_simulator.py [--quick]  (full ~4min, quick ~1min/noisier)
 """
 from __future__ import annotations
 
@@ -82,13 +68,9 @@ def _welch_t(a, b):
 
 def test_degeneracy(n_sims, tp=6.0, a=1.0, p=5e-3):
     """tau >= tp must behave as constant rate p1; tau <= 0 as constant rate p2.
-
-    Compared against the 1-D constant-rate simulator, an independent port.
-    """
+    Compared against the 1-D constant-rate simulator, an independent port."""
     print("\n1. DEGENERACY to the constant-rate model")
-    # The 1-D constant-rate module is also called `simulator`, so it is loaded by
-    # path rather than by name -- importing it normally would collide with the
-    # two-stage module already imported above.
+    # Loaded by path, not name: the 1-D module is also called `simulator` and would collide.
     import importlib.util
     spec = importlib.util.spec_from_file_location("sim1d", _ONE_D / "simulator.py")
     sim1d = importlib.util.module_from_spec(spec)
@@ -106,15 +88,12 @@ def test_degeneracy(n_sims, tp=6.0, a=1.0, p=5e-3):
         return np.array([z for z, _ in out]), np.array([x for _, x in out])
 
     OFF = 1e-12          # "off" rate for the stage that must not fire
-    # For mut_time="offspring" the step function is indexed by the child's OWN
-    # division time, which is unbounded above -- so tau must exceed any division
-    # time that can occur, not merely tp, or late-dividing cells fall into stage 2
-    # and the reduction is not exact. tp + 50 puts that probability at ~e^-50.
+    # offspring's p(t) is indexed by the child's own (unbounded) division time,
+    # so tau must exceed any division time that can occur, not merely tp. tp+50 -> ~e^-50 escape prob.
     FAR = tp + 50.0
 
-    # (a) The PARENT branch consumes its random numbers in the same order as the
-    # 1-D simulator (binomial, then exponential), so with a shared seed the two
-    # must agree BIT FOR BIT. That is a far stronger statement than any t-test.
+    # Parent branch consumes RNG in the same order as the 1-D simulator, so with a
+    # shared seed the two must agree bit-for-bit -- stronger than any t-test.
     for label, tau, p1, p2 in (("tau >= tp -> stage 1 only (p1)", FAR, p, OFF),
                                ("tau <= 0  -> stage 2 only (p2)", -1.0, OFF, p)):
         cZ, cX = run_const(20260908, n_sims)
@@ -124,9 +103,8 @@ def test_degeneracy(n_sims, tp=6.0, a=1.0, p=5e-3):
               f"identical on all {n_sims} paired runs "
               f"(mean X {cX.mean():.2f}, mean Z {cZ.mean():.1f})")
 
-    # (b) The OFFSPRING branch draws the child's division time BEFORE its mutation
-    # status, so it consumes the RNG in a different order and cannot be compared
-    # path-by-path. It is compared in distribution instead, on independent seeds.
+    # Offspring branch draws division time before mutation status, so it uses a
+    # different RNG order -- compared in distribution instead, on independent seeds.
     for label, tau, p1, p2 in (("tau >> tp -> stage 1 only (p1)", FAR, p, OFF),
                                ("tau <= 0  -> stage 2 only (p2)", -1.0, OFF, p)):
         cZ, cX = run_const(11, 4 * n_sims)
@@ -155,12 +133,10 @@ def _job(args):
 
 
 def test_convention(csv_path, n_design, n_rep, workers):
-    """Measure the parent/offspring gap and identify the CSV's own convention.
-
-    Only design points where p1 and p2 differ appreciably carry signal: when
-    p1 == p2 the two conventions are identical by construction. Points are ranked
-    by |log10 p1 - log10 p2| weighted toward a mid-range tau, and the top
-    `n_design` are used.
+    """Measure the parent/offspring gap and identify the CSV's own
+    convention. Only points where p1/p2 differ appreciably carry signal
+    (identical by construction when p1==p2), so points are ranked by
+    |log10 p1 - log10 p2| weighted toward mid-range tau, top `n_design` used.
     """
     print("\n2/3. CONVENTION GAP and ground-truth provenance")
     if not Path(csv_path).exists():
@@ -194,14 +170,11 @@ def test_convention(csv_path, n_design, n_rep, workers):
     par_err, off_err, gaps = map(np.asarray, (par_err, off_err, gaps))
 
     gap_pct = 100 * (10 ** gaps.mean() - 1)
-    # This is a MEASUREMENT, not a correctness property, and it is a noisy one:
-    # --quick uses few design points and few replicates, and the estimate has
-    # ranged over roughly 8-12% across runs (the full run, with 60 points and 24
-    # replicates, settles near 10%). Asserting the documented "3-10%" band here
-    # produced false failures that aborted the whole pipeline. The bounds below
-    # are therefore deliberately wide: they catch a real bug (the two conventions
-    # collapsing to identical, or diverging wildly) without failing on noise.
-    # The number itself is printed either way -- read it, do not gate on it.
+    # A measurement, not a correctness property, and a noisy one (--quick ranged
+    # 8-12% across runs; full run settles near 10%). Asserting the documented
+    # "3-10%" band produced false failures, so these bounds are deliberately wide:
+    # catch a real bug (conventions collapsing or diverging wildly) without
+    # failing on noise. The number is printed either way -- read it, don't gate on it.
     check("convention gap is measurable and of the documented magnitude",
           1.0 <= gap_pct <= 25.0,
           f"measured {gap_pct:.1f}% at the {n_design} most discriminating design "

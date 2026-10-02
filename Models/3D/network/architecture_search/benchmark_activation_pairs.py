@@ -1,49 +1,25 @@
-"""All 100 ordered activation pairs for the deployed two-layer surrogate.
+"""All 100 ordered activation pairs for the deployed two-layer surrogate:
+benchmark_activations.py varies one activation shared by both layers, this
+relaxes it to a different activation per layer (10x10 combinations), asking
+whether a mixed assignment fits better than any single activation throughout.
 
-`benchmark_activations.py` varies a single activation used in both hidden
-layers. This script relaxes that: the 64-unit layer and the 32-unit layer may
-use DIFFERENT activations, giving 10 x 10 = 100 ordered combinations. The
-motivating question is whether a mixed assignment -- say a smooth unbounded
-function on the wide layer and a saturating one on the narrow layer -- fits the
-response surface better than any single activation used throughout.
+Two-stage design, not a leaderboard: taking the min of 100 noisy
+measurements is the winner's curse (measures luckiest seed, not best
+config), the same error this project criticises elsewhere. So selection and
+evaluation never share a seed:
+  STAGE 1 (screen): all 100 pairs, `--screen-seeds` seeds, ranks candidates
+                    -- used only to choose who advances, never reported.
+  STAGE 2 (confirm): top `--finalists` plus two fixed references (incumbent
+                    gelu/gelu, best homogeneous pair), refit on FRESH seeds
+                    (100, 101, ...) -- an unbiased accuracy estimate.
 
-WHY THIS NEEDS A TWO-STAGE DESIGN, AND NOT A LEADERBOARD
---------------------------------------------------------
-Taking the best of 100 noisy measurements is not a measurement of the best
-configuration; it is a measurement of which configuration got the luckiest
-seeds. With 100 candidates and a per-fit standard deviation of the order of the
-between-candidate spread, the minimum of the 100 is biased downward and will
-not reproduce -- the winner's curse. Reporting that minimum as "the best
-activation pair" is precisely the error this project criticises elsewhere
-(see the architecture-family comparison, where 46 of 54 comparisons are ties).
+If stage-2 spread doesn't clear the across-seed sd, the 100 pairs are
+indistinguishable and the activation should be chosen on other grounds
+(smoothness, dead-unit robustness). The shrinkage between each finalist's
+stage-1 and stage-2 MSE is printed regardless -- large positive shrinkage
+across the board is direct evidence stage-1 rankings were seed noise.
 
-So selection and evaluation are separated, and they never share a seed:
-
-  STAGE 1 (screen).   All 100 pairs, `--screen-seeds` seeds each, seeds
-                      0, 1, ... Ranks candidates. Its numbers are used ONLY to
-                      choose who advances; none are reported as results.
-
-  STAGE 2 (confirm).  The top `--finalists` pairs from stage 1, plus two
-                      reference points that always advance -- the incumbent
-                      (gelu, gelu) and the best homogeneous pair -- are re-fit
-                      on `--confirm-seeds` FRESH seeds (100, 101, ...). Because
-                      these seeds played no part in selection, stage-2 numbers
-                      are an unbiased estimate of each candidate's accuracy.
-
-The verdict compares the stage-2 spread against the across-seed standard
-deviation. If the spread does not clear it, the honest conclusion is that the
-100 pairs are indistinguishable on this surface, and the activation should be
-chosen on grounds other than measured accuracy: smoothness of the surrogate in
-its inputs (which matters if the sampler is later made gradient-based) and
-robustness to dead units in a network this small.
-
-A further diagnostic is printed regardless: the shrinkage between each
-finalist's stage-1 and stage-2 MSE. Large positive shrinkage across the board
-is direct evidence that stage-1 rankings were seed noise.
-
-Usage:
-    python benchmark_activation_pairs.py                       # full run
-    python benchmark_activation_pairs.py --screen-seeds 1 --finalists 5
+Usage: python benchmark_activation_pairs.py [--screen-seeds 1] [--finalists 5]
 """
 
 import argparse

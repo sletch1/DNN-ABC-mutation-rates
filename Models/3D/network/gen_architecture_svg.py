@@ -1,17 +1,8 @@
 """Render the surrogate architecture as results/figures/architecture.svg.
-
-A hand-rolled SVG rather than a plotting library: the diagram is a fixed set of
-labelled boxes and arrows, so emitting the markup directly keeps it crisp at any
-zoom, theme-neutral, and free of a rendering dependency.
-
-The diagram is generated FROM the live config in train.py (ARCH),
-so it cannot drift out of sync with the model that is actually trained.
-
-Layout is computed from the number of hidden layers, so adding or removing a
-layer in ARCH re-flows the figure (and its width) rather than overflowing it.
-
-Usage:
-    python gen_architecture_svg.py
+Hand-rolled SVG (crisp at any zoom, no rendering dependency) generated FROM
+train.py's live ARCH config, so it can't drift out of sync with what's
+actually trained. Layout is computed from the hidden-layer count, so adding
+or removing one re-flows the figure instead of overflowing it.
 """
 
 import sys
@@ -55,17 +46,14 @@ def text(x, y, s, size=13, fill=INK, weight="400", anchor="middle", spacing=None
 
 def box(x, y, w, h, fill, edge, ink, title, sub="", sub2=""):
     """A rounded block with a soft shadow, a bold title and up to two sub-lines."""
-    # The shadow is a second rect rather than an SVG filter: filters survive
-    # browsers but not every SVG-to-PDF converter, and this does.
+    # Shadow is a second rect, not an SVG filter: survives SVG-to-PDF conversion.
     parts = [f'<rect x="{x+1.5:.1f}" y="{y+3:.1f}" width="{w}" height="{h}" rx="11" '
              f'fill="#0f172a" opacity="0.05"/>',
              f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="11" '
              f'fill="{fill}" stroke="{edge}" stroke-width="1.4"/>']
     cx = x + w / 2
     lines = [l for l in (sub, sub2) if l]
-    # Centre the title/sub-line stack as a block, so one- and two-line boxes
-    # both sit optically centred.
-    y0 = y + h / 2 - 5 * len(lines) + 5
+    y0 = y + h / 2 - 5 * len(lines) + 5  # centers the title/sub-line stack as a block
     parts.append(text(cx, y0, title, size=14, fill=ink, weight="600"))
     for i, line in enumerate(lines):
         parts.append(text(cx, y0 + 18 + i * 15, line, size=11, fill=MUTED))
@@ -93,11 +81,7 @@ def dim_label(x, y, s):
 def main():
     feats = FEATURES_RAW
     hidden = list(ARCH.get("hidden", ()))
-    # `activation` is either one name for every hidden layer ("gelu") or a
-    # sequence giving one per layer (["gelu", "tanh"], which is what the deployed
-    # config uses). Normalise to one label per layer so the diagram shows the
-    # activation each layer actually has rather than assuming they are the same.
-    _act = ARCH.get("activation", "gelu")
+    _act = ARCH.get("activation", "gelu")  # one name, or a per-layer sequence (the deployed config uses the latter)
     acts = [_act] * len(hidden) if isinstance(_act, str) else list(_act)
     if len(acts) != len(hidden):
         raise ValueError(f"{len(acts)} activations for {len(hidden)} hidden layers")
@@ -146,9 +130,7 @@ def main():
     y_mean, y_var = spine - HEAD_DY, spine + HEAD_DY
     parts.append(curve(x, spine, xh, y_mean))
     parts.append(curve(x, spine, xh, y_var))
-    # Tucked against the box and left-aligned: mid-gap it would sit on top of
-    # the fan-out curves.
-    parts.append(text(x + 10, spine - 13, str(prev_h), size=10, fill=MUTED,
+    parts.append(text(x + 10, spine - 13, str(prev_h), size=10, fill=MUTED,  # left-aligned: mid-gap sits on the fan-out curves
                       anchor="start", spacing="0.4"))
     parts.append(box(xh, y_mean - HEAD_H / 2, HEAD_W, HEAD_H, OUT_FILL, OUT_EDGE, OUT_INK,
                      "mean", "&#956;(x) = log&#8321;&#8320; S&#770;"))

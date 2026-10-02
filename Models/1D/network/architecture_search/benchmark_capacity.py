@@ -1,25 +1,12 @@
-"""Does the deployed 128-64 network need to be that large?
+"""Does the deployed 128-64 network need to be that large? benchmark_arch.py
+never swept width/depth below 128-64 -- this holds activation (GELU) and
+no-BatchNorm fixed and shrinks the network, measuring:
+  1. Mean-curve MSE vs. the GP baseline, 3 seeds, mean +/- sd.
+  2. Downstream ABC-MCMC accuracy/CI-length on the paper's p x J grid, one
+     representative seed per candidate (exact-simulator baseline skipped --
+     its behavior can't depend on surrogate size).
 
-The width/depth of Table 1 (benchmark_arch.py) was never itself swept -- every
-candidate there differs in activation and BatchNorm, not in size below 128-64.
-This asks the orthogonal question directly: holding activation (GELU) and the
-no-BatchNorm choice fixed, how far can the network shrink before mean-curve fit
-quality actually degrades, and does that degradation survive into the
-downstream ABC-MCMC comparison the surrogate is actually used for?
-
-Two things are measured for each candidate width, mirroring the two capacity
-diagnostics used for the two-stage model in Study II (README/manuscript
-Section on why the 3-D surrogate is small):
-  1. Mean-curve MSE against the GP baseline, averaged over 3 random seeds
-     (the same convention as the activation ablation in benchmark_arch.py's
-     docstring), reported as mean +/- sd across seeds.
-  2. Downstream ABC-MCMC accuracy (MSE of p-hat) and precision (95% credible
-     interval length) on the paper's p x J grid, using one representative
-     seed per candidate. The expensive EXACT-simulator ABC-MCMC baseline is
-     skipped here: its behaviour cannot depend on the surrogate's size, so
-     recomputing it for every candidate would only add runtime, not signal.
-
-Run: python benchmark_capacity.py   (writes results/logs/benchmark_capacity.md)
+Run: python benchmark_capacity.py (writes results/logs/benchmark_capacity.md)
 """
 import sys
 import time
@@ -54,9 +41,7 @@ P_GRID = [1e-4, 1e-3, 1e-2]
 J_GRID = [10, 50, 100]
 WORKERS = 10
 
-# The deployed size plus a ladder shrinking it in both width and depth, down to
-# a linear control (zero hidden layers) so the comparison brackets "no network
-# at all" the same way Table capacity3D does for the two-stage model.
+# Deployed size plus a shrinking ladder down to a linear control (brackets "no network at all").
 CANDIDATES = {
     "128-64 [deployed]": (128, 64),
     "64-32":             (64, 32),
@@ -142,9 +127,7 @@ def main():
             seed_surrs.append(surr)
         mean_mse, sd_mse = float(np.mean(curve_mses)), float(np.std(curve_mses, ddof=1))
 
-        # Representative seed for the downstream check: whichever seed's
-        # curve fit is closest to the across-seed mean, so the downstream
-        # number is not cherry-picked from the best or worst run.
+        # Seed closest to the across-seed mean, so the downstream check isn't cherry-picked.
         rep_idx = int(np.argmin(np.abs(np.array(curve_mses) - mean_mse)))
         t0 = time.time()
         abc_mse, abc_cilen = downstream_check(seed_surrs[rep_idx], gp)

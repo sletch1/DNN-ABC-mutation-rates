@@ -1,31 +1,13 @@
-"""Does 3-D surrogate size matter downstream, at the scale Table 1 actually uses?
-
-benchmark_round2.py (network/architecture_search/) already answers the
-CURVE-FIT half of this question for this package -- it walked the same
-width/depth ladder down from 256-128-64 to a linear control and reported
-mean-curve MSE against the irreducible noise floor, which is where the
-deployed 64-32 shape comes from. It never re-ran the actual downstream
-ABC-MCMC comparison for the smaller candidates, so it could not say whether a
-curve-fit difference (or the lack of one) survives into the task the
-surrogate is actually used for. This closes that gap, mirroring exactly the
-two-stage design applied to the 1-D package's own capacity question
-(Models/1D/network/architecture_search/benchmark_capacity_confirm.py):
-
-  STAGE 1 (quick):  this project's own --quick settings (reps=2, nmcmc=300,
-                     burnin=100) across all 3 truth triples -- a cheap screen
-                     to catch anything catastrophically broken.
-  STAGE 2 (full):   the paper's own Table 1 settings (reps=16, nmcmc=3000,
-                     burnin=1000), for every candidate that survives the
-                     screen, with Monte Carlo standard errors on rmse_log
-                     (mcse.py's own mcse_rmse, the same SE the paper's mcse.md
-                     uses) attached to every comparison against the deployed
-                     64-32.
-
-The exact-simulator ABC-MCMC baseline is excluded throughout, as it already
-is by default in this package's paper-scale run: its behaviour cannot depend
-on the surrogate's architecture, so recomputing it per candidate would only
-add runtime, not information. GPS-ABC is fit once and shared across every
-candidate, as the fixed reference point.
+"""Does 3-D surrogate size matter downstream, at Table 1's actual scale?
+benchmark_round2.py already checks curve-fit (mean-curve MSE vs. the
+irreducible noise floor, where the deployed 64-32 shape comes from) but
+never re-ran the downstream ABC-MCMC comparison for smaller candidates.
+Mirrors the 1-D package's own capacity-confirm design, in two stages:
+  STAGE 1 (quick): --quick settings (reps=2, nmcmc=300) across all 3 truths, cheap screen.
+  STAGE 2 (full): Table 1's settings (reps=16, nmcmc=3000) for survivors,
+                  with MCSEs (mcse.py's mcse_rmse) against the deployed 64-32.
+Exact-simulator ABC-MCMC excluded (its behavior can't depend on architecture);
+GPS-ABC fit once, shared as the fixed reference.
 
 Run: python run_experiments_capacity.py
 Writes: results/logs/benchmark_capacity_confirm.md
@@ -66,8 +48,7 @@ GP_BUDGET = 300
 QUICK = dict(reps=2,  nmcmc=300,  burnin=100,  workers=6)
 FULL  = dict(reps=16, nmcmc=3000, burnin=1000, workers=10)
 
-# The same width/depth ladder as benchmark_round2.py, minus the linear
-# control (already an unambiguous loser there -- not worth re-testing).
+# Same ladder as benchmark_round2.py, minus the linear control (unambiguous loser there).
 CANDIDATES = {
     "256-128-64":        (256, 128, 64),
     "128-64":            (128, 64),

@@ -1,36 +1,20 @@
-"""Architecture search for the 3-D two-stage surrogate.
+"""Architecture search for the 3-D two-stage surrogate. The 1-D study found
+BatchNorm (not activation) was what mattered (removing it cut error ~11x) --
+this re-runs a controlled comparison on the two-stage data rather than
+assuming that transfers, writing results/logs/benchmark_arch.md.
 
-WHY THIS EXISTS. The 1-D study found that the architecture choice which actually
-mattered was not the activation but the presence of BatchNorm (removing it cut
-error ~11x). Rather than assume that lesson transfers, this script re-runs a
-controlled comparison on the two-stage data and writes the numbers to
-results/logs/benchmark_arch.md, so every architectural claim in model.py and in
-the manuscript is backed by a run in this repo.
+Compares, each averaged over `--seeds` seeds: capacity (width/depth, plain
+vs. residual MLP), activation (gelu/silu/relu/tanh), normalisation (none vs.
+LayerNorm; BatchNorm not offered, see model.py). Split by replicate: train
+1-5, val 6-8 (early stopping), test 9-10.
 
-WHAT IS COMPARED, each averaged over `--seeds` random seeds:
-  - capacity:      hidden-layer widths and depths, plain MLP vs residual MLP
-  - activation:    gelu / silu / relu / tanh
-  - normalisation: none vs LayerNorm  (BatchNorm is not offered -- see model.py)
+Metrics: mse_mean (vs. the held-out design-point mean, replicate noise
+averaged out -- the number that matters, comparable to the 1-D study's
+"mean-curve MSE"); mse_obs (vs. individual replicates, never reaches zero);
+nll (scores the variance head too); cover95 (fraction inside mean+-1.96*sd --
+useless in ABC if far from 0.95, since the acceptance step consumes it).
 
-SPLIT. By replicate, so every design point appears in every split and no
-parameter combination leaks between them:
-    train = reps 1-5, val = reps 6-8 (early stopping), test = reps 9-10.
-
-METRICS.
-  mse_mean : MSE of the predicted mean against the held-out DESIGN-POINT MEAN of
-             log10(d_bar). This is the number that matters for the surrogate's
-             job -- it measures the fitted surface, with replicate noise averaged
-             out, and is directly comparable to the 1-D study's "mean-curve MSE".
-  mse_obs  : MSE against individual held-out replicates (includes irreducible
-             noise, so it can never approach zero).
-  nll      : Gaussian NLL on held-out replicates -- scores the variance head too.
-  cover95  : fraction of held-out replicates inside mean +- 1.96*sd. A model can
-             have a good mean and still be useless in ABC if this is far from
-             0.95, because the acceptance step consumes the predictive variance.
-
-Usage:
-    python benchmark_arch.py                 # full sweep, 3 seeds
-    python benchmark_arch.py --seeds 1 --quick
+Usage: python benchmark_arch.py [--seeds 1] [--quick]
 """
 
 import argparse
@@ -74,11 +58,8 @@ def _t(a, col=False):
 
 def train_one(spec, tr, va, seed=0, epochs=600, patience=40, warmup=40, bs=256):
     """Fit one architecture. Returns (model, x_scaler, y_scaler, epochs_run).
-
-    The loss switches from MSE to Gaussian NLL after `warmup` epochs: letting the
-    mean head settle first stops the variance head from explaining away a
-    badly-fit mean by simply inflating sigma, which is the classic failure mode
-    of training a heteroscedastic net from scratch.
+    Loss switches from MSE to Gaussian NLL after `warmup` epochs -- settling
+    the mean first stops the variance head masking a badly-fit mean.
     """
     torch.manual_seed(seed); np.random.seed(seed)
     (Xtr, ytr, _), (Xva, yva, _) = tr, va
@@ -160,11 +141,8 @@ def main():
     if args.quick:
         variants = variants[:3]
 
-    # Irreducible floor: the test target is itself a 2-replicate mean, so it
-    # carries sampling noise E[sigma^2]/n_test_reps that NO model can predict
-    # away. Every mse_mean below must be read against this number -- if the best
-    # architecture sits at ~1x the floor, the comparison is saturated and the
-    # differences between rows are noise, not skill.
+    # Irreducible floor: test target is a 2-rep mean, carries E[sigma^2]/n_test_reps
+    # sampling noise no model can predict away -- every mse_mean below is read against it.
     _df = pd.read_csv(DATA); _y = np.log10(summary_from_cultures(_df))
     _vw = _df.assign(y=_y).groupby("design")["y"].var(ddof=1).mean()
     _nte = _df[_df["rep"].isin(TEST_REPS)].groupby("design").size().mean()

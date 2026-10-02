@@ -1,32 +1,16 @@
 """Reproduce Table 1 (MSE), Table 2 (95% interval length) and Table 3 (compute
-time) from Lu, Zhu & Wu (2023) -- adding a DNN-ABC column alongside the paper's
-MOM/MLE, ABC-MCMC and GPS-ABC columns.
+time) from Lu, Zhu & Wu (2023), adding a DNN-ABC column.
 
-Experimental design (constant-mutation-rate, 1-D):
-  truth  = exact/slow simulator (Algorithm 2), matching the DNN's training data.
-  grid   = p in {1e-4, 1e-3, 1e-2}, J in {10, 50, 100}  (paper's slow-sim regime).
-  For each (p, J) and each replicate:
-     - simulate observed fluctuation data at p (slow sim), form obs = mean sqrt(X/Z),
-     - estimate p with: MOM, MLE, ABC-MCMC (slow sim inside the loop),
-       GPS-ABC (GP surrogate), DNN-ABC (our heteroscedastic MLP surrogate).
-  Aggregate over replicates:
-     Table 1 -> MSE and sqrt(MSE)/p ; Table 2 -> mean 95% interval length.
-  Table 3 (timing) is a separate single-process pass timing each method's
-  seconds / 100 MCMC iterations.
+For each (p, J) in {1e-4,1e-3,1e-2} x {10,50,100} and each replicate: simulate
+observed data (exact simulator), estimate p with MOM, MLE, ABC-MCMC (exact
+sim in the loop), GPS-ABC (GP surrogate), DNN-ABC (our MLP surrogate), then
+aggregate errors/interval-lengths per cell. All ABC-MCMC methods share the
+same sampler/prior/proposal/eps -- only how the summary statistic is obtained
+differs. See mcse.py for whether each table entry is signal or replicate
+noise. `Pool`: replicates run in parallel, each seeded from its own
+(p, J, rep), so results don't depend on core count.
 
-All ABC-MCMC methods share the same sampler, prior, proposal and eps, so the
-only thing that changes across the ABC columns is how the summary statistic
-(and its uncertainty) is obtained: brute-force simulation vs. GP vs. DNN.
-
-Usage (defaults are a feasible local scale; crank up for the paper's scale):
-    python run_experiments.py --reps 8 --nmcmc 600 --burnin 250 --ns 8
-
-This is the Monte Carlo simulation study itself: many independent data sets
-generated from a KNOWN true p, every estimator applied to each, errors
-aggregated per cell. See mcse.py for the Monte Carlo standard errors that
-say how much of each table entry is signal rather than replicate noise.
-`Pool` below is plumbing only -- replicates run in parallel across cores,
-each seeded from its own (p, J, rep), so results don't depend on core count.
+Usage: python run_experiments.py --reps 8 --nmcmc 600 --burnin 250 --ns 8
 """
 
 import argparse
@@ -53,27 +37,16 @@ from abc_mcmc import run_abc_mcmc, point_and_interval
 from surrogates import fit_gp_surrogate
 from train import load_surrogate, load_splits, run as train_run
 from paths import DATA, RESULTS, TABLE_DIR, FIG_DIR, MODEL_DIR, LOG_DIR
-# Prior bounded to [-5,-1.5]: keeps the ABC-MCMC baseline's *slow* simulator
-# calls feasible. Extending toward p=1e-8 lets chains wander into the
-# exponential-cost region (tp ~ log(1/p), population ~ e^{a*tp}), where one
-# slow-sim call can take minutes; the upper bound only needs to clear the
-# largest tested p with real margin. The paper likewise uses a bounded prior
-# ([-5,-1]) for the slow regime; the surrogates are trained on [-8,-1.46] and
-# only queried in-range.
-#
-# The upper bound was -2.0 until it was found to coincide EXACTLY with
-# log10(1e-2), the largest tested p: the prior forbade the sampler from
-# proposing theta above the true value there, so every method's 95% credible
-# interval measured ~0% posterior coverage at that cell specifically -- not a
-# defect of any one estimator, but a structural artifact of the grid (see
-# aggregate_coverage's docstring, and the manuscript's discussion of it).
-# ground-truth data was extended to log10(p) in [-8, -1.46] (RCode/extendSlowData_1D.R)
-# and the prior moved to -1.5, giving every tested p, including 1e-2, real
-# headroom (0.5 log10-units) from the boundary rather than sitting on it.
+# Lower bound -5: extending toward p=1e-8 lets the exact-simulator baseline
+# wander into exponential-cost territory (one call can take minutes). Upper
+# bound -1.5, not -2.0: -2.0 exactly coincided with log10(1e-2), the largest
+# tested p, so the prior forbade proposing theta above the truth there and
+# every method measured ~0% coverage at that cell (grid artifact, not an
+# estimator defect -- see aggregate_coverage's docstring). -1.5 gives every
+# tested p real headroom from the boundary.
 PRIOR_RANGE = (-5.0, -1.5)
 
-# Per-worker cache for the fitted surrogates, populated by _init_worker.
-_G = {}
+_G = {}  # per-worker cache for the fitted surrogates, populated by _init_worker
 
 
 def _ckpt_path_for_J(base_ckpt_path, J):
@@ -86,17 +59,10 @@ def _ckpt_path_for_J(base_ckpt_path, J):
 
 
 def _fit_gps_by_J(data_path, J_grid):
-    """Fit the GPS-ABC baseline once per J, in the main process, to be shared
-    read-only across every worker. The fit is deterministic (fixed seed), so
-    refitting it independently inside each of 30 worker processes -- the
-    previous design, back when only J=100 was ever fit -- was pure redundant
-    work. That redundancy was cheap at a single J=100 fit; it stopped being
-    cheap once J=10/50 were added, since their design is 5x larger
-    (network/train.py's resample_dbar_J, k_resamples=5) and the GP's O(n^3)
-    fitting cost makes that roughly 125x more expensive per fit. 30 workers
-    each independently paying that cost is what made worker startup alone
-    take hours; fitting each J's GP once here and handing it to `_init_worker`
-    removes the 30x multiplier entirely.
+    """Fit the GPS-ABC baseline once per J, in the main process, shared
+    read-only across every worker. Refitting independently per worker used to
+    make startup alone take hours (30 workers x O(n^3) GP fit each); fitting
+    once here and handing it to `_init_worker` removes that multiplier.
     """
     gp_by_J = {}
     for J in J_grid:
@@ -108,23 +74,16 @@ def _fit_gps_by_J(data_path, J_grid):
 
 
 def _init_worker(ckpt_path, gp_by_J, cfg):
-    """Runs once per worker process: load the trained DNN for every J in the
-    grid (cheap) and stash the already-fitted GPs from `_fit_gps_by_J` (see
-    its docstring for why those are fit once, not here), so `_one_replicate`
-    can score each replicate against a surrogate that actually knows its
-    culture count (Section on posterior coverage / README Section 4.3b).
+    """Runs once per worker: load the DNN for every J (cheap) and stash the
+    already-fitted GPs from `_fit_gps_by_J`, so `_one_replicate` can score
+    each replicate against a surrogate that knows its culture count.
 
-    Pins each worker's BLAS libraries (OpenMP/OpenBLAS/MKL) to a single
-    thread. Without this, every one of `cfg["workers"]` processes tries to
-    spawn its own full-width BLAS thread pool for the small numpy/GP-predict
-    calls inside `_one_replicate`, oversubscribing the machine's cores by an
-    order of magnitude; observed in practice as a run that looks alive (all
-    workers "Running", real accumulated CPU time) but makes near-zero
-    progress, with `top` showing the whole box sitting near-idle because
-    every thread is parked waiting on the scheduler rather than computing.
-    Process-level parallelism (the Pool) and thread-level parallelism (BLAS)
-    both fighting for the same cores is the bug; since the Pool already
-    supplies all the parallelism this workload needs, threads lose.
+    Also pins BLAS (OpenMP/OpenBLAS/MKL) to 1 thread per worker -- otherwise
+    every worker spawns its own full-width BLAS thread pool for small
+    numpy/GP calls, oversubscribing the machine (looks "Running" with real
+    CPU time but makes near-zero progress; process- and thread-level
+    parallelism fighting for the same cores). The Pool already supplies all
+    the parallelism needed, so threads lose.
     """
     import warnings
     warnings.filterwarnings("ignore")
@@ -239,20 +198,11 @@ def aggregate_tables(df, cfg):
 
 def aggregate_coverage(df, cfg):
     """Empirical POSTERIOR coverage of the 95% ABC credible interval, per (p,
-    J) cell, for the three ABC backends (MOM/MLE have no interval).
-
-    This is the number the manuscript's "no loss of coverage" claim (Section
-    sec:sim1D_calib) needs and never previously measured: that section reports
-    the surrogate's own REGRESSION coverage on held-out data (does the
-    predicted mean +/- z*sd bracket the true log10(d_bar) 95% of the time?),
-    which says nothing about whether the downstream ABC posterior's credible
-    interval actually brackets the true p 95% of the time. The two are
-    different random variables and can diverge; this function measures the one
-    that matters for the interval-length comparison in Table 2.
-
-    Binomial MCSE (mcse_prop = sqrt(p_hat*(1-p_hat)/n)) is attached per cell so
-    a departure from nominal 0.95 can be judged against sampling noise at this
-    replicate count rather than read off as if it were exact.
+    J) cell, for the three ABC backends. Distinct from the surrogate's own
+    REGRESSION coverage on held-out data (does mean +/- z*sd bracket the true
+    log10(d_bar)?) -- the two are different random variables and can diverge;
+    this measures the one that matters for Table 2. Binomial MCSE attached
+    per cell so a departure from 0.95 can be judged against sampling noise.
     """
     methods = ["ABC-MCMC", "GPS-ABC", "DNN-ABC"]
     rows = []
@@ -325,9 +275,8 @@ def fmt_table1(t1, methods=("MOM", "MLE", "ABC-MCMC", "GPS-ABC", "DNN-ABC")):
 
 def fmt_coverage(tcov, methods=("ABC-MCMC", "GPS-ABC", "DNN-ABC")):
     """Posterior coverage table: does the 95% ABC credible interval actually
-    bracket the true p 95% of the time? (Section sec:sim1D_calib's coverage
-    claim is about the surrogate's regression coverage, a different quantity --
-    see aggregate_coverage's docstring.)"""
+    bracket the true p? (A different quantity than regression coverage -- see
+    aggregate_coverage's docstring.)"""
     lines = ["| p | J | R | " + " | ".join(f"{m} cov (MCSE)" for m in methods) + " |",
              "|---|---|---|" + "|".join(["---"] * len(methods)) + "|"]
     for _, r in tcov.iterrows():

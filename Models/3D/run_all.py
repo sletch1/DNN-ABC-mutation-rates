@@ -1,16 +1,7 @@
-"""Run the whole 3-D two-stage pipeline: press Run in an IDE (Spyder, VS Code, PyCharm, IDLE).
-
-There are no command-line arguments to type. The script asks, in the console,
-which run you want, and then does everything: trains the surrogate, validates
-the simulator, runs the estimator comparison, computes Monte Carlo standard
-errors, and regenerates every figure.
-
-Everything runs with whatever interpreter the IDE is using (the one printed at
-startup), so the packages in requirements.txt need to be installed in that
-environment. If any are missing the script offers to install them for you.
-
-If you do run this from a terminal and want to skip the question, pass --quick,
---full or --with-sim.
+"""Run the whole 3-D two-stage pipeline: press Run in an IDE, or pass
+--quick/--full/--with-sim from a terminal. Asks which run, installs missing
+packages if needed, then trains the surrogate, validates the simulator, runs
+the estimator comparison, computes MCSEs, and regenerates every figure.
 """
 
 import os
@@ -37,13 +28,17 @@ Which run do you want?
   [1] Quick  - a smoke test, roughly 1.5 minutes. Confirms the pipeline works
                end to end. Its numbers are noisy: do not read results off it.
 
-  [2] Full   - the reported settings: 16 replicates, a few minutes. This is
-               what produced the results in results/.
+  [2] Full   - the reported settings without the exact-simulator baseline:
+               16 replicates, a few minutes. Reproduces every method in
+               results/ except the ABC-MCMC (exact) row/column.
 
-  [3] Full + exact-simulator ABC baseline - hours, and not needed. The reported
-               results were produced without it (results/logs/experiment_config.json
-               records "with_sim": false), because this study compares the two
-               surrogates to each other rather than to the exact sampler.
+  [3] Full + exact-simulator ABC baseline - several hours (measured: ~4.2h on
+               a 14-core laptop, 10 workers). Reproduces the ABC-MCMC (exact)
+               row in TABLES.md/paper Table 9; costly because it calls the
+               true simulator every MCMC iteration. To backfill it onto an
+               existing run instead of rerunning everything, use
+               abc/add_exact.py (run_all.py doesn't do this, unlike
+               abc/add_npe.py for NPE).
 """
 
 
@@ -62,8 +57,6 @@ def ask_mode():
         try:
             answer = input("Enter 1, 2 or 3 [1]: ").strip()
         except (EOFError, OSError):
-            # No console to ask on (piped, or run by a scheduler). Quick is the
-            # safe default: it cannot burn hours by accident.
             print("(no input available -- defaulting to the quick run)", flush=True)
             return True, False
         if answer in ("", "1"):
@@ -105,16 +98,10 @@ def run(label, script, args=()):
     cmd = [PY, str(HERE / script), *[str(a) for a in args]]
     print("  " + " ".join(cmd), flush=True)
 
-    # Unbuffered, so progress appears live rather than in one lump at the end.
-    # Line-by-line print() keeps it visible in Spyder's console, which does not
-    # show a subprocess's raw output stream.
-    #
-    # Thread count is capped rather than left at PyTorch's default (one thread
-    # per core). These networks are tiny -- a few thousand parameters -- so on
-    # a many-core shared machine the default causes thread-spawn overhead to
-    # dominate actual compute: on a 32-core server this made a 30-second
-    # training step take 10+ minutes at 800%+ CPU. A handful of threads is
-    # enough for a model this size regardless of how many cores are present.
+    # Unbuffered so progress prints live instead of in one lump at the end.
+    # Thread count capped: these networks are tiny, so PyTorch's default of
+    # one thread/core causes thread-spawn overhead to dominate on a many-core
+    # machine (measured: a 30s training step became 10+ min at 800%+ CPU).
     n_threads = str(min(4, os.cpu_count() or 1))
     env = dict(os.environ, PYTHONUNBUFFERED="1",
                OMP_NUM_THREADS=n_threads, MKL_NUM_THREADS=n_threads)
@@ -154,10 +141,8 @@ def main():
     t0 = time.time()
     run("[1/4] Training the surrogate (~30 seconds)",
         "network/train.py", ["--data", "data/slow_data_3D.csv", "--seed", 0])
-    # Sanity checks before the comparison: that the two-stage simulator reduces
-    # to the constant-rate one in both limits, and that the ground truth's
-    # mutation-time convention is the one the pipeline assumes. Cheap, and it
-    # fails loudly rather than producing quietly wrong tables.
+    # Cheap sanity checks (simulator reduces correctly, mutation-time convention
+    # matches the ground truth) -- fails loudly rather than producing wrong tables.
     run("[1b/4] Validating the simulator and the ground truth",
         "tests/validate_simulator.py", ["--quick"])
     run("[2/4] Estimator comparison: parameter recovery",

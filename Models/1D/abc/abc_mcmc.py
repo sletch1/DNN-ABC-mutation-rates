@@ -1,29 +1,13 @@
-"""ABC-MCMC for the constant-mutation-rate fluctuation model.
+"""ABC-MCMC for the constant-mutation-rate model, ported from
+../matlab/ABC_fluc_exp1_rev.m. Metropolis-Hastings over theta = log10(p);
+`log_like` is the ABC kernel (how close the predicted summary statistic is
+to the observed one), not a true likelihood -- that's intractable here.
 
-Metropolis-Hastings sampler over theta = log10(p), ported from
-../matlab/ABC_fluc_exp1_rev.m. Three backends share one sampler:
-
-- backend="sim" : ABC-MCMC. At each iteration, run the (slow) simulator at
-  theta and theta_can, form the summary statistic, and score it against the
-  observed statistic with a Gaussian ABC kernel of width eps (Eq. 2/3).
-- backend="dnn" / "gp" : surrogate ABC (our DNN-ABC / the paper's GPS-ABC).
-  The surrogate returns (mean, sd) for the summary statistic. Instead of
-  Monte-Carlo drawing sim ~ N(mean, sd) then scoring with N(obs; sim, eps)
-  (MATLAB lines 57-63), we use the exact convolution:
-      p(obs | theta) = N(obs; mean(theta), sqrt(eps^2 + sd(theta)^2)),
-  so the surrogate's *predictive uncertainty* sd(theta) widens the likelihood
-  exactly where the surrogate is unsure -- this is the calibrated-uncertainty
-  wiring the GP got for free (target #5 in dnn_improvement.md), with no MC noise.
-
-Prior: truncated shifted exponential on `range` with rate `lam` (paper: rate 2).
-Proposal: truncated normal, sd `s`, bounds `range` (paper: s=0.15).
-
-This is an ordinary Metropolis-Hastings sampler with one twist, which is the
-whole point of ABC: `log_like` is not log p(data | theta) -- that's
-intractable here -- but the ABC kernel, a Gaussian density scoring how close
-the model's predicted summary statistic sits to the observed one. `log_q` is
-the Hastings correction, needed because a truncated-normal proposal is
-asymmetric near the boundary.
+Three backends: "sim" runs the real simulator each iteration and scores it
+against obs with a Gaussian ABC kernel of width eps. "dnn"/"gp" use a
+surrogate's (mean, sd) directly via the exact convolution
+`N(obs; mean, sqrt(eps^2 + sd^2))` instead of Monte Carlo sampling it, so the
+surrogate's predictive uncertainty widens the likelihood with no added noise.
 """
 
 from __future__ import annotations
@@ -67,9 +51,7 @@ def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
         rng = np.random.default_rng()
     lo, hi = prior_range
 
-    # The ABC likelihood is evaluated on the log10(d_bar) scale for ALL backends,
-    # because that is the scale the surrogates are trained and calibrated on
-    # (homoscedastic, symmetric). The observed statistic is transformed to match.
+    # All backends work on log10(d_bar): the scale the surrogates are trained/calibrated on.
     LOG_FLOOR = -6.0  # log10 floor for the (rare) all-extinct summary of 0
     obs_log = np.log10(max(obs, 10.0 ** LOG_FLOOR))
 
@@ -89,17 +71,14 @@ def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
             return _log10_floor(vals)  # ns simulated summary stats on log10 scale
 
         if sim_method == "kernel":
-            # Faithful to the paper (Eq. 3): average the Gaussian ABC kernel over
-            # ns fresh simulator replicates. Exact but needs large ns to mix.
+            # Paper's Eq. 3: average the Gaussian ABC kernel over ns fresh sims. Needs large ns to mix.
             def log_like(theta):
                 sims = summary_at(theta)
                 return np.log(np.mean(norm.pdf(obs_log, loc=sims, scale=eps)) + 1e-300)
         else:
-            # Synthetic-likelihood ABC (Wood 2010): estimate the summary stat's
-            # mean and variance from ns pilot sims, score obs against
-            # N(mean_sim, sqrt(eps^2 + var_sim)). Same mean+variance likelihood
-            # form the surrogates use -- here paid for by brute-force simulation,
-            # there predicted instantly. Mixes smoothly at modest ns.
+            # Synthetic-likelihood ABC (Wood 2010): mean/var from ns pilot sims,
+            # score obs against N(mean_sim, sqrt(eps^2+var_sim)) -- same form the
+            # surrogates use, just paid for by simulation instead of predicted.
             def log_like(theta):
                 sims = summary_at(theta)
                 m = float(np.mean(sims))
@@ -121,9 +100,6 @@ def run_abc_mcmc(obs, backend, n_mcmc=1000, theta_init=None, s=0.15,
     lp_cur = _log_prior(theta_init, lam, lo, hi)
     n_accept = 0
 
-    # Metropolis-Hastings loop: propose, form the log acceptance ratio
-    # (likelihood + prior + Hastings terms), accept with probability
-    # min(1, alpha) -- compared on the log scale against a uniform draw.
     for i in range(1, n_mcmc):
         theta = samples[i - 1]
         theta_can = _trunc_norm_sample(theta, s, lo, hi, rng)

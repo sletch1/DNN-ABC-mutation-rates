@@ -1,31 +1,18 @@
-"""Reproduce the result tables for the 3-D two-stage model, with a DNN-ABC column.
+"""Reproduce the result tables for the 3-D two-stage model, with a DNN-ABC
+column. For each true (p1, p2, tau) and each replicate: simulate observed
+data with the exact simulator, estimate with ABC-MCMC (exact sim in the
+loop, expensive truth), GPS-ABC (GP, small space-filling budget), DNN-ABC
+(our MLP, trained on all rows) -- no MOM/MLE here, unlike 1-D, since those
+assume a single rate and can't identify 3 parameters -- then aggregate.
 
-DESIGN. For each true parameter triple (p1, p2, tau) and each replicate:
-  1. simulate an observed fluctuation experiment with the exact two-stage
-     simulator (J cultures) and reduce it to obs = mean_i sqrt(X_i / Z_i);
-  2. estimate the parameters with each method:
-       ABC-MCMC   - exact simulator inside the MCMC loop (the expensive truth).
+A single scalar carries uneven information: corr(log d_bar, ·) = 0.74 for
+p2, 0.40 for p1, 0.14 for tau. So p2 should recover well and p1/tau poorly
+(the paper reports the same, not a sampler bug), hence per-parameter nRMSE
+and interval width rather than one aggregate score. `ess` is reported
+alongside acceptance since a chain can accept healthily while barely moving
+in weakly-identified directions.
 
-     The constant-rate MOM/MLE baselines of the 1-D study have no counterpart
-     here: they assume a single mutation rate and cannot identify (p1, p2, tau)
-     individually, so this study compares the surrogate methods only.
-       GPS-ABC    - GP surrogate capped at a small space-filling budget.
-       DNN-ABC    - this project's heteroscedastic MLP, trained on all rows.
-  3. aggregate over replicates.
-
-WHAT TO EXPECT, and why the tables are shaped this way. On this model a single
-scalar summary carries very uneven information about the three parameters: on
-the ground truth, corr(log d_bar, log p2) = 0.74 but only 0.40 for p1 and 0.14
-for tau. So p2 should be recovered well and p1/tau poorly, with wide and
-possibly multimodal marginals. That is not a bug in the sampler -- the paper
-reports the same behaviour and names it as the model's known weakness -- so the
-tables report per-parameter nRMSE and interval width separately rather than a
-single aggregate score that would hide it. `ess` is reported alongside
-acceptance because a chain can accept healthily and still barely move in the
-weakly identified directions.
-
-Usage:
-    python run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --ns 4 --workers 8
+Usage: python run_experiments.py --reps 16 --nmcmc 3000 --burnin 1000 --ns 4 --workers 8
 """
 
 import argparse
@@ -52,8 +39,7 @@ from train import (load_surrogate, run as train_run, TEST_REPS,
 from npe import train_npe, npe_summary
 from paths import DATA, RESULTS, TABLE_DIR, MODEL_DIR, LOG_DIR
 
-# Truth triples: a low/high p2 pair crossed with an early/late switch, chosen
-# inside the ground-truth design box so no surrogate is queried out of range.
+# Low/high p2 pair x early/late switch, inside the design box so no surrogate is queried out of range.
 TRUTHS = [
     (1e-4, 1e-2, 3.0),   # big jump, early switch
     (1e-4, 1e-2, 7.0),   # big jump, late switch
@@ -67,14 +53,9 @@ _G = {}
 def _init_worker(ckpt, data_path, npe_posterior, cfg):
     import warnings
     warnings.filterwarnings("ignore")
-    # One thread per worker, for both torch and the BLAS libraries behind
-    # numpy/scipy/sklearn (the GP fits below go through these). The
-    # parallelism here is across replicates (one process per task), so
-    # letting each process also spin up a full thread pool oversubscribes
-    # the machine badly -- on a 32-core node that would be ~30 processes x
-    # 32 threads competing for 32 cores. torch.set_num_threads alone doesn't
-    # cover OpenBLAS/MKL, which is what fit_gp_surrogate_3d below actually
-    # uses. Matches what run_experiments_families.py already does.
+    # One thread per worker (torch + OpenBLAS/MKL behind the GP fits below) --
+    # parallelism is across replicates (one process/task), so a full thread
+    # pool per process would oversubscribe the machine badly.
     import torch
     torch.set_num_threads(1)
     import threadpoolctl
@@ -83,20 +64,12 @@ def _init_worker(ckpt, data_path, npe_posterior, cfg):
     df = pd.read_csv(data_path)
     tr = df[~df["rep"].isin(TEST_REPS)]
     X = np.column_stack([np.log10(tr.p1), np.log10(tr.p2), tr.tau])
-    # Every surrogate must see the SAME summary statistic the DNN is trained on --
-    # recomputed from the stored per-culture d_i, so switching SUMMARY_ROOT moves
-    # all three backends together and never silently compares different targets.
-    S = summary_from_cultures(tr)
+    S = summary_from_cultures(tr)  # same statistic the DNN trains on, so all backends compare the same target
     gp = fit_gp_surrogate_3d(X, np.log10(S), budget=cfg["gp_budget"])
-    # The faithful reference baseline (../matlab/demoGPS_fluc_exp2.m): raw rates
-    # in, raw statistic out, isotropic kernel. Fit from the same rows and the same
-    # budget as `gp`, so the two differ only in the model, not the data they saw.
+    # Faithful reference (demoGPS_fluc_exp2.m): raw rates/statistic, isotropic kernel, same rows/budget as `gp`.
     gp_ref = fit_gp_surrogate_3d_reference(tr.p1, tr.p2, tr.tau, S,
                                            budget=cfg["gp_budget"])
-    # NPE (npe.py) is trained once in main(), before the Pool starts, exactly
-    # like GPS-ABC/GPS-ABC-ref's fits here are trained once per worker rather
-    # than redundantly across every replicate -- see npe.py's docstring for
-    # why it isn't plugged into ABC-MCMC the way the other three are.
+    # NPE trained once in main() before the Pool starts -- see npe.py's docstring for why it's not in ABC-MCMC.
     _G.update(dnn=dnn, gp=gp, gp_ref=gp_ref, npe=npe_posterior, cfg=cfg)
 
 
@@ -137,14 +110,10 @@ def _one_replicate(task):
         out[f"{name}_ess_p2"] = ess(s[cfg["burnin"]:, 1])
         out[f"{name}_ess_tau"] = ess(s[cfg["burnin"]:, 2])
 
-    # NPE: no chain, no acceptance step, no burn-in -- direct posterior
-    # samples at this replicate's observation, reusing `summarize` exactly
-    # as the MCMC backends do (see npe.py's docstring). `_secs` is the
-    # sampling cost alone, comparable to the MCMC backends' per-replicate
-    # cost; `_acc` has no meaning here so is left as 1.0 (every draw is
-    # used). ESS on i.i.d. posterior samples is expected to run close to
-    # the sample count itself, unlike the MCMC backends' autocorrelated
-    # chains -- a legitimate point of contrast, not a schema mismatch.
+    # NPE: no chain/acceptance/burn-in, direct posterior samples, reusing
+    # `summarize` like the MCMC backends (npe.py). `_acc` is meaningless
+    # here (left at 1.0); ESS is expected near the sample count itself since
+    # draws are i.i.d, unlike the MCMC backends' autocorrelated chains.
     t0 = time.time()
     npe_seed = int(rng.integers(2 ** 63 - 1))
     npe_samples_summary = npe_summary(_G["npe"], obs, rng_seed=npe_seed)
@@ -174,11 +143,8 @@ def aggregate(df, cfg):
                 for k, tv in (("p1", p1), ("p2", p2), ("tau", tau)):
                     est = sub[f"{m}_{k}"].to_numpy(float)
                     est = est[np.isfinite(est)]
-                    # For a weakly identified parameter the posterior mean sits
-                    # wherever the prior puts its mass, so natural-scale nRMSE
-                    # explodes and conveys nothing. rmse_log -- RMSE in log10
-                    # units for p1/p2 -- stays interpretable: 1.0 means "off by
-                    # an order of magnitude on average".
+                    # nRMSE explodes for a weakly identified parameter (posterior mean sits
+                    # wherever the prior puts mass); rmse_log in log10 units stays interpretable.
                     if k in ("p1", "p2"):
                         rmse_log = float(np.sqrt(np.mean(
                             (np.log10(np.maximum(est, 1e-300)) - np.log10(tv)) ** 2))) if len(est) else np.nan

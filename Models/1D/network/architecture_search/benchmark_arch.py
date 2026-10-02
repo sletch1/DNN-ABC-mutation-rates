@@ -1,15 +1,11 @@
 """Head-to-head: can a DNN beat the GP on mean-curve fit for the 1-D response?
 
-Metric = MEAN-CURVE MSE: how close each model's prediction is to the *denoised*
-response curve (empirical mean of log10(d_bar) over all 10 replicates at each of
-the 101 p grid points). This is the right target because per-test-point MSE is
-dominated by irreducible replicate noise (std ~0.10) -- both models sit at that
-floor, so it cannot discriminate mean-function fit quality.
+Metric = mean-curve MSE against the *denoised* curve (mean of log10(d_bar)
+over all 10 replicates per p grid point), not per-point MSE, which is
+dominated by irreducible replicate noise and can't discriminate fit quality.
+Models train on reps 1-6, same as the deployed surrogate. Lower is better.
 
-Models only train on reps 1-6 (same as the deployed surrogate); the "truth" is
-the best available estimate of the mean curve (all 10 reps). Lower is better.
-
-Run: python benchmark_arch.py   (writes results/benchmark_arch.md)
+Run: python benchmark_arch.py (writes results/benchmark_arch.md)
 """
 import sys
 import warnings
@@ -125,8 +121,7 @@ def main():
             ms = np.stack([m.predict(x)[0] for m in members])
             sds = np.stack([m.predict(x)[1] for m in members])
             mbar = ms.mean(0)
-            # predictive var = mean(var) + var(means)  (deep-ensemble rule)
-            sd = np.sqrt((sds ** 2).mean(0) + ms.var(0))
+            sd = np.sqrt((sds ** 2).mean(0) + ms.var(0))  # deep-ensemble rule: mean(var) + var(means)
             return mbar, sd
         rows.append((f"DNN ENSEMBLE x5: {label}", curve_mse(ens_pred, x_true, y_true)))
 

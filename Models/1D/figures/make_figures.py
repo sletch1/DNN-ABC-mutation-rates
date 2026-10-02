@@ -1,24 +1,12 @@
-"""Generate the professor-facing figures for the README.
+"""Generate the README figures. Pure visualization -- every number plotted
+was already computed by train.py/run_experiments.py/mcse.py. Run after
+run_experiments.py (needs surrogate_1d.pt, raw_replicates.csv, table1_mse.csv,
+table3_timing.csv). Produces:
 
-Uses only cheap operations (trained surrogate predictions, the pre-computed
-raw_replicates.csv, and a few short surrogate-ABC chains), so it adds no
-meaningful load. Produces:
-
-  fig_uncertainty.png      - DNN heteroscedastic sd vs GP homoscedastic sd vs
-                             the empirical replicate noise (target #5 evidence)
-  fig_table1_mse.png       - nRMSE = sqrt(MSE)/p by method, one panel per p
-  fig_posterior.png        - posterior densities of p from the three ABC methods
-                             for one representative case, vs the truth
-  fig_timing.png           - seconds/100 MCMC iterations (log scale), DNN vs rest
-
-Run after run_experiments.py (needs results/surrogate_1d.pt, raw_replicates.csv,
-table1_mse.csv, table3_timing.csv).
-
-Purely visualization, no new statistical content --
-every number plotted here was already computed by train.py / run_experiments.py
-/ mcse.py. Safe to skim; useful mainly to see what "the DNN's predictive sd
-tracks the true input-dependent noise while the GP's doesn't" (fig_uncertainty)
-or "the three ABC posteriors agree" (fig_posterior) actually look like.
+  fig_uncertainty.png  DNN heteroscedastic sd vs GP homoscedastic sd vs empirical replicate noise
+  fig_table1_mse.png   nRMSE = sqrt(MSE)/p by method, one panel per p
+  fig_posterior.png    posterior densities of p, three ABC methods vs. truth
+  fig_timing.png       seconds/100 MCMC iterations (log scale), DNN vs rest
 """
 
 import sys
@@ -54,9 +42,8 @@ METHOD_COLORS = {"MOM": "#9e9e9e", "MLE": "#607d8b", "ABC-MCMC": "#e53935",
 
 
 def _load():
-    """Load the trained DNN checkpoint and refit the GP baseline (same
-    training data both surrogates saw), plus the raw ground-truth
-    DataFrame -- the three objects every figure function below needs."""
+    """Load the trained DNN, refit the GP baseline on the same data, and
+    load the raw ground truth -- the three objects every figure needs."""
     dnn = load_surrogate(MODEL_DIR / "surrogate_1d.pt")
     df = pd.read_csv(DATA)
     tr = df[df["rep"].isin([1, 2, 3, 4, 5, 6, 7, 8])]
@@ -172,12 +159,8 @@ def fig_timing():
 
 
 def main():
-    # --quick exists because fig_posterior runs the EXACT simulator inside its
-    # ABC-MCMC chain (backend="sim", ns=10) at J=100 for 1500 iterations. That is
-    # by far the most expensive thing in this script -- on a laptop it dominates
-    # the whole pipeline -- and without this flag a "quick" smoke test of
-    # the full pipeline still paid for it in full, taking ~12 minutes instead of ~3.
-    # The shrunk chain is for checking the pipeline runs, not for reading results.
+    # --quick shrinks fig_posterior's exact-simulator chain, by far the most
+    # expensive thing here (~12min -> ~3min); for pipeline checks, not results.
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true",
                     help="shrink the posterior figure's exact-simulator chain "

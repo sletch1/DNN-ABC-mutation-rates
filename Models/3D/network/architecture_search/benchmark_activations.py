@@ -1,43 +1,20 @@
 """Controlled comparison of activation functions for the two-stage surrogate.
+Everything else held fixed (deployed 64-32 funnel MLP, Gaussian-NLL
+objective, split-by-replicate data, optimizer/schedule/early-stopping), only
+activation varies, across the three families that behave differently on a
+smooth regression surface: piecewise-linear (relu/leakyrelu/prelu), smooth
+saturating (tanh/elu/selu), smooth unbounded (softplus/gelu/silu/mish).
+These span what matters here: smoothness (differentiability, matters if the
+sampler goes gradient-based), a live negative region (relu can strand units
+permanently -- inputs are standardized, so ~half of pre-activations are
+negative), and stable gradients for the coupled variance head.
 
-WHAT THIS ANSWERS. Every other choice is held fixed -- the deployed 64-32 funnel
-MLP, the same Gaussian-NLL objective, the same split-by-replicate data, the same
-optimizer, schedule and early-stopping rule -- and only the activation varies.
-Ten candidates are compared, spanning the three families that behave differently
-on a smooth regression surface:
+Each row is mean +/- sd over `--seeds` seeds, scored against the irreducible
+noise floor -- a difference is only real if large relative to that seed
+spread. Expected outcome is mostly ties; the script prints an explicit
+verdict on whether the ranking is resolved or seed noise.
 
-    piecewise-linear   relu, leakyrelu, prelu
-    smooth saturating  tanh, elu, selu
-    smooth unbounded   softplus, gelu, silu, mish
-
-WHY THESE TEN, for this surface specifically. The target E[log10 d_bar | theta]
-is a smooth, non-linear function of three standardized parameters (a linear fit
-reaches R^2 = 0.37, quadratic-with-interactions 0.965), fitted by a small
-network in which each unit is a large fraction of total capacity. Three
-properties therefore matter, and the ten span them:
-  - Smoothness. A piecewise-linear activation approximates a smooth surface with
-    kinks, and makes the surrogate non-differentiable in its inputs -- which
-    matters if the sampler is ever made gradient-based (HMC/NUTS).
-  - A live negative region. Inputs are standardized, so about half of all
-    pre-activations are negative; relu discards that half outright and can
-    strand units permanently (the dead-unit failure mode), which is costlier
-    here than in a wide network.
-  - Stable gradients for the variance head. Gaussian NLL couples the mean and
-    log-variance heads, so an activation that destabilises training shows up as
-    a miscalibrated sigma, not just a worse mean.
-
-HOW TO READ THE OUTPUT -- this is the important part. Every row is reported as a
-mean over `--seeds` random seeds together with the standard deviation ACROSS
-those seeds, and scored against the irreducible noise floor (the held-out target
-is a 2-replicate mean, so it carries E[sigma^2]/2 of noise that no model can
-predict away). A difference between two rows is only real if it is large
-relative to that seed spread. On this surface the expected outcome is that most
-candidates tie: the script prints an explicit verdict saying whether the ranking
-is resolved or is seed noise, rather than leaving the reader to assume the top
-row is meaningfully best.
-
-Usage:
-    python benchmark_activations.py --seeds 5
+Usage: python benchmark_activations.py --seeds 5
 """
 
 import argparse

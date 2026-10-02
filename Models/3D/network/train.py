@@ -1,52 +1,25 @@
-"""Train the heteroscedastic surrogate for the 3-D two-stage model.
+"""Train the heteroscedastic surrogate for the 3-D two-stage model:
+(log10 p1, log10 p2, tau) -> (mean, predictive sd) of log10(summary stat).
 
-    (log10 p1, log10 p2, tau)  ->  ( mean log10(summary stat), predictive sd )
+Ground truth: data/slow_data_3D.csv, a 2000-point Latin hypercube, 10
+replicates each (20,000 rows, J=100, tp=10, a=1). Split by replicate: train
+= reps 1-5, val = 6-8 (early stop + conformal calibration), test = 9-10.
 
-Ground truth: data/slow_data_3D.csv -- the exact cell-by-cell two-stage
-simulator over a 2000-point Latin hypercube in (log10 p1, log10 p2, tau) with 10
-replicates each (20,000 rows, J = 100, tp = 10, a = 1).
+Architecture kept small: benchmark_arch.py/benchmark_round2.py measured the
+irreducible noise floor (held-out target is a 2-replicate mean, so it
+carries E[sigma^2]/2 of unpredictable sampling noise, floor mse_mean=1.39e-3)
+and found capacity isn't the binding constraint above ~700 parameters -- a
+722-param network matches a 42,562-param one within 6%, though a linear
+control is 25x the floor (so a network IS needed). 64-32 is the default:
+comfortably at the floor, with headroom for later design changes; chosen for
+parsimony, not speed (query cost is dominated by Python/PyTorch overhead, so
+59x fewer parameters buys only ~29% less latency).
 
-SPLIT, by replicate, so every design point appears in every split and no
-parameter combination leaks across them:
-    train = reps 1-5 (10,000 rows)   fit the weights
-    val   = reps 6-8 ( 6,000 rows)   early stopping + conformal calibration
-    test  = reps 9-10 ( 4,000 rows)  held out, reported only
+After training, a split-conformal scale factor rescales the predictive sd so
+the 95% interval has valid empirical coverage -- what the ABC acceptance
+step's consumed variance actually needs to be trustworthy.
 
-WHY THE ARCHITECTURE IS SMALL. The architecture search
-(architecture_search/benchmark_arch.py, then benchmark_round2.py) measured the
-data's IRREDUCIBLE NOISE FLOOR: because the held-out target is itself a
-2-replicate mean, it carries E[sigma^2]/2 of sampling noise that no model can
-predict away. That floor is mse_mean = 1.39e-3, i.e. a maximum achievable
-R^2 of 0.99528. Measured against it (2 seeds each):
-
-    256-128-64  42,562 par   1.08x floor   R^2 0.99491   56 us/query
-    128-64       9,026 par   1.12x floor   R^2 0.99472   43 us/query
-    64-32        2,466 par   1.13x floor   R^2 0.99467   41 us/query
-    32-16          722 par   1.14x floor   R^2 0.99460   40 us/query
-    8-4             86 par   1.23x floor   R^2 0.99419   39 us/query
-    linear          10 par  24.77x floor   R^2 0.88300   29 us/query
-
-Two things follow. First, a network IS needed: the linear control is 25x the
-floor. Second, capacity is NOT the binding constraint anywhere above ~700
-parameters -- a 722-parameter network matches a 42,562-parameter one to within
-6%, and every one of them is within 25% of a perfect model. Activation choice,
-LayerNorm, and residual depth were likewise ties in round 1.
-
-So the model is chosen small, but the honest reason is parsimony rather than
-speed: query latency here is dominated by Python/PyTorch call overhead, not by
-arithmetic, so 59x fewer parameters buys only ~29% less latency (56 -> 40 us).
-64-32 is taken as the default -- comfortably at the floor, with some headroom if
-the design is later widened (bigger parameter ranges, or a 4-D extension with
-delta) without becoming an oversized model for the surface it fits.
-
-CALIBRATION. After training, a single split-conformal scale factor rescales the
-predictive sd so the 95% interval has valid empirical coverage on held-out data.
-This is what makes the surrogate's uncertainty trustworthy inside the ABC
-acceptance step, which consumes that variance directly.
-
-Usage:
-    python train.py                       # uses paths.DATA
-    python train.py --data ../data/slow_data_3D.csv --seed 0
+Usage: python train.py [--data ../data/slow_data_3D.csv] [--seed 0]
 """
 
 import argparse
@@ -72,51 +45,22 @@ ALPHA = 0.05
 Z_975 = 1.959964
 TRAIN_REPS, VAL_REPS, TEST_REPS = {1, 2, 3, 4, 5}, {6, 7, 8}, {9, 10}
 
-# Selected by architecture_search/benchmark_round2.py: the smallest hidden shape
-# still at the noise floor. Widen only if the design or the parameter ranges
-# change enough to make the surface harder.
-# Activation chosen by architecture_search/benchmark_activation_select.py
-# (write-up: results/logs/benchmark_activation_select.md, and the manuscript's
-# activation subsection). All 100 ordered pairs were screened, then ten
-# finalists refit on fifteen FRESH seeds, with selection made on the VALIDATION
-# split -- test is scored once, for the winner only, so the number the paper
-# quotes is not the number the activation was chosen on. (The two earlier
-# scripts, benchmark_activations.py and benchmark_activation_pairs.py, both
-# scored candidates on test; they are kept as the record of that earlier pass
-# but are superseded by this one for the deployment decision.)
-#
-# gelu -> tanh is the best point estimate on the validation split (val MSE
-# 2.980e-04; test 3.666e-04 = 1.062x the irreducible floor), and only three of
-# the ten finalists lie within 2 SE of it -- so under the paper's fourth-root
-# statistic the comparison resolves rather more than it did before.
-#
-# It also removes a tension worth recording. Under the earlier sqrt(X/Z) target
-# the best point estimate was mish -> relu, which sat AGAINST the structural
-# criteria fixed in advance: ReLU in the narrow second layer is neither smooth in
-# the inputs nor free of the dead-unit failure mode. The manuscript had to note
-# that and pick anyway. With SUMMARY_ROOT = 4 the leaderboard and the structural
-# argument agree -- gelu and tanh are both smooth and both dead-unit-free -- so
-# the choice no longer needs a caveat.
+# Shape from benchmark_round2.py (smallest still at the noise floor).
+# Activation from benchmark_activation_select.py: all 100 ordered pairs
+# screened, ten finalists refit on 15 fresh seeds, selected on VALIDATION
+# (test scored once, for the winner only). gelu->tanh is the best point
+# estimate (val MSE 2.980e-04, test 1.062x floor) and both are smooth,
+# dead-unit-free activations, matching the structural criteria fixed in
+# advance (write-up: results/logs/benchmark_activation_select.md).
 ARCH = dict(kind="mlp", hidden=(64, 32), activation=["gelu", "tanh"])
 
 def summary_from_cultures(df, root=None):
-    """The summary statistic at `root`, recomputed EXACTLY from the stored d_i.
-
-    The ground-truth CSV stores every per-culture d_i = sqrt(X_i / Z_i) alongside
-    the aggregate d_bar, which makes the paper's other root recoverable without
-    re-simulating anything:
-
-        (X_i / Z_i)^(1/root) = d_i^(2/root)
-
-    so root=2 reproduces the stored d_bar exactly (verified in tests), and root=4
-    -- the statistic the paper actually uses for the two-stage model -- is just
-    mean_i sqrt(d_i). The data/ CSVs are read-only here and are never rewritten;
-    switching roots costs one pass over columns that are already on disk.
-
-    Safe at both ends of the range: d_i = 0 (a culture with no mutants, 10.9% of
-    3-D cultures) and d_i = 1 (an all-mutant culture, 262 of them) both map to
-    themselves under any root, unlike log-based alternatives which are undefined
-    at d_i = 1.
+    """Summary statistic at `root`, recomputed exactly from the stored
+    per-culture d_i = sqrt(X_i/Z_i): (X_i/Z_i)^(1/root) = d_i^(2/root), so
+    root=2 reproduces the stored d_bar exactly and root=4 (what the paper
+    uses for the two-stage model) is mean_i sqrt(d_i) -- no re-simulation
+    needed. Safe at d_i=0 and d_i=1 (map to themselves under any root),
+    unlike log-based alternatives undefined at d_i=1.
     """
     if root is None:
         root = SUMMARY_ROOT
@@ -144,11 +88,9 @@ def _t(a, col=False):
 
 def train_model(Xtr, ytr, Xva, yva, arch=None, epochs=800, patience=50, warmup=50,
                 bs=256, seed=0):
-    """Fit the model. Returns (model, x_scaler, y_scaler).
-
-    The loss switches from plain MSE to Gaussian NLL after `warmup` epochs.
-    Training both heads from scratch under NLL lets the variance head explain a
-    badly-fit mean by inflating sigma; settling the mean first avoids that.
+    """Fit the model. Returns (model, x_scaler, y_scaler). Loss switches from
+    MSE to Gaussian NLL after `warmup` epochs -- under NLL from scratch the
+    variance head can mask a badly-fit mean by inflating sigma.
     """
     torch.manual_seed(seed); np.random.seed(seed)
     arch = arch or ARCH
@@ -189,12 +131,8 @@ def train_model(Xtr, ytr, Xva, yva, arch=None, epochs=800, patience=50, warmup=5
 
 
 def calibrate_conformal(surr, Xva, yva):
-    """Split-conformal scale so mean +- 1.96*(sd*scale) has >= 95% coverage.
-
-    Uses the finite-sample-corrected level ceil((n+1)(1-alpha))/n on the
-    normalized residuals |y - mean| / sd, which guarantees marginal coverage
-    >= 1-alpha for exchangeable calibration/test points.
-    """
+    """Split-conformal scale so mean +- 1.96*(sd*scale) has >= 95% coverage,
+    via the finite-sample-corrected level ceil((n+1)(1-alpha))/n."""
     mean, sd = surr.predict(Xva)
     r = np.abs(yva - mean) / np.maximum(sd, 1e-9)
     n = len(r)
@@ -204,11 +142,9 @@ def calibrate_conformal(surr, Xva, yva):
 
 def evaluate(surr, X, y, design, label, var_within=None):
     """Metrics for one split; `mse_mean` averages replicates per design point.
-
-    The irreducible floor is SPLIT-SPECIFIC: it is E[sigma^2]/r where r is the
-    number of replicates that split contributes per design point (5 / 3 / 2 for
-    train / val / test). Scoring every split against the test floor would make
-    train and val look artificially superhuman, so each is compared to its own.
+    The irreducible floor is split-specific (E[sigma^2]/r, r=5/3/2 reps for
+    train/val/test) -- scoring every split against the test floor would make
+    train/val look artificially superhuman.
     """
     mean, sd = surr.predict(X)
     g = pd.DataFrame({"design": design, "y": y, "m": mean}).groupby("design").mean()
@@ -231,10 +167,8 @@ def evaluate(surr, X, y, design, label, var_within=None):
 
 def make_plots(surr, splits, csv_path, outdir):
     """Parity on the held-out test set, plus slices of the fitted surface.
-
-    The surface is 3-D and cannot be drawn directly, so the second figure takes
-    fixed-tau slices and, within each, plots the fit against log10(p2) for a few
-    values of p1 -- reading the surface one axis at a time.
+    The surface is 3-D and can't be drawn directly, so the second figure
+    takes fixed-tau slices and plots the fit vs. log10(p2) per p1.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -285,8 +219,7 @@ def run(csv_path=None, seed=0, arch=None):
     print(f"train n={len(ytr)}  val n={len(yva)}  test n={len(yte)}  "
           f"features={FEATURES_RAW}")
 
-    # The irreducible floor must be computed on the SAME statistic the model is
-    # trained on, or the reported "x floor" is against the wrong baseline.
+    # Floor must use the SAME statistic the model trains on, or "x floor" is wrong.
     df = pd.read_csv(csv_path); yy = np.log10(summary_from_cultures(df))
     var_within = float(df.assign(y=yy).groupby("design")["y"].var(ddof=1).mean())
     n_te = df[df["rep"].isin(TEST_REPS)].groupby("design").size().mean()
@@ -299,10 +232,7 @@ def run(csv_path=None, seed=0, arch=None):
     surr.sd_scale = sd_scale
     print(f"conformal sd_scale = {sd_scale:.4f}")
 
-    # sd_scale and summary_root live in the checkpoint and in simulator.py, but the
-    # README and manuscript quote both, so mirror them here: the metrics file should
-    # be readable on its own without unpickling a .pt to find out which statistic
-    # and which calibration these numbers belong to.
+    # Mirrored here (not just in the .pt/simulator.py) so metrics.json is readable standalone.
     metrics = {"var_within": var_within,
                "summary_root": SUMMARY_ROOT,
                "sd_scale": float(sd_scale),

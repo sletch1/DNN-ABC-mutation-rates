@@ -1,48 +1,26 @@
 """Full ABC-MCMC recovery evaluation for the three new surrogate families
-(CNN1D, RNN, LSTM), run through the EXACT SAME sampler used for GPS-ABC and
-DNN-ABC(MLP) in `run_experiments.py`.
+(CNN1D, RNN, LSTM), through the exact same sampler as GPS-ABC/DNN-ABC(MLP)
+in run_experiments.py. This is a thin script because `run_abc_mcmc(...,
+backend="dnn", surrogate=...)` only calls `surrogate.predict(theta) ->
+(mean, sd)` -- wrapping any model_families.py checkpoint (all return
+(mean, logvar)) in a DNNSurrogate3D runs the identical sampler/acceptance/
+prior/proposal as the deployed MLP, nothing reimplemented.
 
-WHY THIS IS A THIN SCRIPT. `abc_mcmc.py`'s `run_abc_mcmc(..., backend="dnn",
-surrogate=...)` does not know or care what architecture produced the surrogate
--- it only calls `surrogate.predict(theta) -> (mean, sd)`, exactly the contract
-`surrogates.DNNSurrogate3D` already implements around any model whose
-`forward()` returns `(mean, logvar)`. Since every class in
-`network/model_families.py` returns exactly that, wrapping a CNN1D/RNN/LSTM
-checkpoint in a `DNNSurrogate3D` and calling `run_abc_mcmc(backend="dnn", ...)`
-runs precisely the same sampler, same acceptance rule, same prior, same
-proposal as the deployed MLP -- nothing about the sampler is reimplemented
-here.
+GPS-ABC and DNN-ABC(MLP) are NOT rerun -- reused verbatim from
+table1_recovery.csv/raw_replicates.csv, so MCSEs against the new families are
+apples-to-apples without burning time or risking drift. Config (truths,
+reps=16, nmcmc=3000, burnin=1000, eps=0.005, J=100, mut_time) is loaded
+verbatim from experiment_config.json, not restated, so the two scripts can't
+silently disagree. Every replicate uses the identical per-task seed formula
+from run_experiments.py, so every family and GPS-ABC/DNN-ABC(MLP) score
+against the same simulated observations per (truth, rep) cell.
 
-WHAT IS REUSED, NOT RECOMPUTED. GPS-ABC and DNN-ABC(MLP) are NOT rerun. Their
-numbers are read verbatim from `results/tables/table1_recovery.csv` (aggregate)
-and `results/logs/raw_replicates.csv` (per-replicate, needed for apples-to-apples
-Monte Carlo SEs against the new families). Re-running them would burn time for
-no benefit and risks a spurious drift from the numbers already cited elsewhere.
+Outputs (results/arch_families/, nothing existing touched):
+  raw_replicates_families.csv   per-replicate summaries, new families only
+  table_families_recovery.csv   same columns as table1_recovery.csv, GPS-ABC/DNN-ABC/MOM/MLE reused + new families computed
+  mcse_families.md / .csv       MCSEs vs. GPS-ABC and DNN-ABC(MLP), same style as results/tables/mcse.md
 
-WHAT IS IDENTICAL TO `run_experiments.py`. The exact config in
-`results/logs/experiment_config.json` is loaded and used verbatim: the 3 truth
-triples, `reps=16`, `nmcmc=3000`, `burnin=1000`, `eps=0.005`, `J=100`, and the
-mutation-time convention (now `"offspring"` -- see abc/simulator.py). Reading it
-from the config file rather than restating it here is deliberate: this table's
-GPS-ABC and DNN-ABC rows are reused verbatim from `table1_recovery.csv`, so if
-the two scripts could disagree about the convention the table would silently mix
-results from two different models. Each replicate's observed dataset is generated with the
-IDENTICAL per-task seed formula `hash((round(p1,12), round(p2,12), round(tau,3),
-J, rep))` used in `run_experiments.py: _one_replicate` -- so every architecture
-family, GPS-ABC and DNN-ABC(MLP) alike, is scored against the SAME simulated
-observations per (truth, replicate) cell. `ns`/`gp_budget` are not needed here
-(no exact-simulator or GP backend is run by this script).
-
-OUTPUTS (all under results/arch_families/, nothing existing is touched):
-  - raw_replicates_families.csv   per-replicate posterior summaries, new families only
-  - table_families_recovery.csv   aggregated table, SAME COLUMNS as table1_recovery.csv,
-                                   containing GPS-ABC/DNN-ABC/MOM/MLE (reused verbatim)
-                                   plus CNN1D-ABC/RNN-ABC/LSTM-ABC (computed here)
-  - mcse_families.md / .csv       Monte Carlo SEs in the same style as results/tables/mcse.md,
-                                   comparing each new family against GPS-ABC and DNN-ABC(MLP)
-
-Usage:
-    python run_experiments_families.py
+Usage: python run_experiments_families.py
 """
 
 import json
@@ -80,10 +58,8 @@ _G = {}
 
 def load_family_surrogate(ckpt_path):
     """Rebuild a DNNSurrogate3D around a saved CNN1D/RNN/LSTM checkpoint.
-
-    Parallel to `train.py: load_surrogate`, but dispatches through
-    `model_families.build_family` (kind + spec saved by
-    `benchmark_families.py`) instead of `model.build`.
+    Parallel to train.py's load_surrogate, but dispatches through
+    model_families.build_family instead of model.build.
     """
     ckpt = torch.load(ckpt_path, weights_only=False)
     model = build_family(ckpt["kind"], in_dim=3, **ckpt["spec"])
@@ -98,12 +74,9 @@ def load_family_surrogate(ckpt_path):
 def _init_worker(ckpts, cfg):
     import warnings
     warnings.filterwarnings("ignore")
-    # Each worker is its own process under multiprocessing.Pool; letting torch
-    # use its default multi-threaded matmul inside every worker causes massive
-    # thread-contention overhead on tiny tensors (observed firsthand training
-    # the new families: >600 CPU-minutes for a few seconds of wall-clock-worthy
-    # arithmetic). One torch thread per process, parallelism from the process
-    # pool instead, is the correct division of labour here.
+    # One torch thread per process: default multi-threaded matmul on tiny
+    # tensors caused massive contention (>600 CPU-min observed for a few
+    # seconds of real work) when every worker also spun up its own threads.
     torch.set_num_threads(1)
     surrs = {kind: load_family_surrogate(path) for kind, path in ckpts.items()}
     _G.update(surrs=surrs, cfg=cfg)
@@ -113,9 +86,7 @@ def _one_replicate_family(task):
     kind, p1, p2, tau, J, rep = task
     cfg = _G["cfg"]
     method = FAMILY_LABELS[kind]
-    # IDENTICAL seed formula to run_experiments.py: every method (old and new)
-    # is scored against the same simulated observation per (truth, rep) cell.
-    seed = abs(hash((round(p1, 12), round(p2, 12), round(tau, 3), J, rep))) % (2 ** 31)
+    seed = abs(hash((round(p1, 12), round(p2, 12), round(tau, 3), J, rep))) % (2 ** 31)  # identical formula to run_experiments.py
     rng = np.random.default_rng(seed)
 
     Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True,
@@ -200,9 +171,7 @@ def main():
     raw.to_csv(ARCH_FAMILIES_DIR / "raw_replicates_families.csv", index=False)
     tab_new = aggregate_families(raw)
 
-    # Reuse (never recompute) GPS-ABC / DNN-ABC(MLP) / MOM / MLE straight from
-    # the existing, already-verified table.
-    tab_existing = pd.read_csv(TABLE_DIR / "table1_recovery.csv")
+    tab_existing = pd.read_csv(TABLE_DIR / "table1_recovery.csv")  # reused, never recomputed
     tab = pd.concat([tab_existing, tab_new], ignore_index=True, sort=False)
     tab.to_csv(ARCH_FAMILIES_DIR / "table_families_recovery.csv", index=False)
 

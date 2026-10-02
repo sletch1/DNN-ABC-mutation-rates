@@ -1,21 +1,13 @@
 """Add the NPE baseline to an already-completed 3-D accuracy sweep, without
-rerunning GPS-ABC / GPS-ABC-ref / DNN-ABC (and, if present, exact ABC-MCMC).
+rerunning GPS-ABC/GPS-ABC-ref/DNN-ABC (and exact ABC-MCMC if present). Every
+row already stores `obs` from the original run, so there's no cost benefit
+to re-simulating -- only a correctness risk (a chance to introduce a
+discrepancy in columns that are already valid).
 
-Same rationale as the 1-D study's add_npe.py: every row in
-`results/logs/raw_replicates.csv` already stores `obs`, the observed summary
-statistic NPE needs, from the original run's simulation. NPE trains in
-seconds and samples a posterior in milliseconds (Table 3b-equivalent for
-this study), so there is no cost benefit to re-simulating -- only a
-correctness benefit to *not* re-simulating, since every other column in the
-file is already valid and re-deriving it a second time is a chance to
-introduce a discrepancy for no reason.
+Usage: python add_npe.py
 
-Usage:
-    python add_npe.py
-
-Reads and overwrites results/logs/raw_replicates.csv (adding NPE columns)
-and regenerates table1_recovery.csv and TABLES.md via the same aggregate()
-function run_experiments.py uses.
+Reads and overwrites raw_replicates.csv (adding NPE columns), regenerates
+table1_recovery.csv/TABLES.md via run_experiments.py's aggregate().
 """
 
 import json
@@ -41,9 +33,6 @@ def main():
     cfg_path = LOG_DIR / "experiment_config.json"
     df = pd.read_csv(raw_path)
     cfg = json.loads(cfg_path.read_text())
-    # aggregate() reads cfg["truths"]/["J_grid"]/["with_sim"] as lists of
-    # plain floats/ints; json round-trips TRUTHS as lists already, so no
-    # conversion needed beyond what json.loads already gives back.
 
     print("training NPE...")
     posterior = train_npe(str(DATA))

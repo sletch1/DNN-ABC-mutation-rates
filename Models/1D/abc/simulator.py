@@ -1,24 +1,15 @@
-"""Two-type Markov branching process (MBP) simulator for fluctuation experiments.
+"""Two-type Markov branching process simulator, constant-mutation-rate model
+(paper's Section 2.2 / Algorithms 2 & 4). Port of RCode/funMBP.R and the
+MATLAB equivalents.
 
-Direct Python port of NN_ABC/RCode/funMBP.R (the current, bug-fixed source of
-truth) and the MATLAB equivalents. Constant-mutation-rate model, matching the
-paper's Section 2.2 / Algorithms 2 & 4.
+- mut_bmbp_slow : Algorithm 2, exact cell-by-cell simulation (ground truth).
+- mut_bmbp_fast : Algorithm 4, fast approximate simulator (Yule/geometric shortcuts).
+- fluc_exp      : J parallel cultures -> (Z_vec, X_vec).
+- solve_tp      : plating time tp such that E[viable cells] hits c.
+- summary_stat  : d_bar = mean_i sqrt(X_i/Z_i), the ABC summary statistic.
 
-- mut_bmbp_slow  : Algorithm 2, exact cell-by-cell simulation (ground truth).
-- mut_bmbp_fast  : Algorithm 4, fast approximate simulator (Yule/geometric shortcuts).
-- fluc_exp       : J parallel cultures -> (Z_vec, X_vec).
-- solve_tp       : plating time tp such that E[viable cells] hits c (=20 by default).
-- summary_stat   : d_bar = mean_i sqrt(X_i / Z_i), the paper's ABC summary statistic.
-
-R's rgeom(n, prob) counts failures before the first success (support {0,1,2,...});
-numpy.random.geometric counts trials until the first success (support {1,2,...}),
-so we use np.random.geometric(prob) - 1 to match R exactly.
-
-This is the data-generating mechanism whose intractable likelihood motivates
-ABC: drawing (Z, X) at any p is easy, writing p(Z, X | p) in closed form is
-not. `summary_stat` is the deliberate data reduction all inference here runs
-through -- the S(X) in ABC's K_epsilon(S_obs, S(theta)) -- rather than the
-full (Z_1..Z_J, X_1..X_J) vector.
+Note: R's rgeom counts failures before success (support {0,1,...}); numpy's
+geometric counts trials to success (support {1,2,...}) -- hence `- 1` below.
 """
 
 from __future__ import annotations
@@ -50,18 +41,13 @@ def solve_tp(Z0: float, a: float, p: float, c: float = 20.0) -> float:
 
 
 def mut_bmbp_slow(Z0, a, delta, p, tp, rng: np.random.Generator):
-    """Algorithm 2 -- exact, literal cell-by-cell simulation.
+    """Algorithm 2 -- exact cell-by-cell simulation. Returns (Z, X): total
+    viable and mutant cells at time tp. Cost grows like exp(a*tp).
 
-    Returns (Z, X): total viable cells and mutant cells at time tp.
-    Cost grows like exp(a*tp), so this is only practical for larger p.
-
-    One pass of the `while` loop is one generation, processed as a batch over
-    all live lineages at once (mathematically identical to recursing cell by
-    cell, just far faster): each lineage splits in two, each child is drawn
-    as a mutant with probability p (or 1 if its parent already was --
-    mutation is irreversible), each child's division time is drawn
-    exponentially and added to its parent's, and any lineage passing `tp`
-    exits and is counted into Z (and X if mutant).
+    Each `while` pass is one generation, batched over all live lineages: each
+    splits in two, each child is mutant w.p. p (or 1 if its parent already
+    was -- irreversible), division times are drawn exponentially, and
+    lineages passing `tp` exit and get counted into Z (and X if mutant).
     """
     Z0 = int(Z0)
     Z = 0
@@ -91,14 +77,9 @@ def mut_bmbp_slow(Z0, a, delta, p, tp, rng: np.random.Generator):
 
 
 def mut_bmbp_fast(Z0, a, delta, p, tp, rng: np.random.Generator):
-    """Algorithm 4 -- fast approximate simulator (Zheng 2002 shortcuts).
-
-    Returns (Z, X), drawn in a handful of vector ops rather than generation
-    by generation, using known results for a Yule (pure-birth) process:
-    Z is a sum of Z0 geometrics; the Z*p mutation arrival times come from the
-    Yule arrival law by inverse CDF; each mutant clone's final size is another
-    geometric over its remaining time. Valid in the large-Z regime only --
-    use `mut_bmbp_slow` when exactness matters.
+    """Algorithm 4 -- fast approximate simulator (Zheng 2002 shortcuts), using
+    closed-form Yule-process results instead of generation-by-generation
+    simulation. Valid in the large-Z regime only; use `mut_bmbp_slow` for exactness.
     """
     Z0 = int(Z0)
     # Z = sum of Z0 geometrics with success prob exp(-a*tp); R rgeom support {0,1,...}

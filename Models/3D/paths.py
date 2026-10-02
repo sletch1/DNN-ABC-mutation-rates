@@ -1,12 +1,5 @@
-"""Central path definitions for the 3-D two-stage surrogate package.
-
-Every module resolves data/results locations from here, so the layout can move
-without hunting down hard-coded relative paths. Import via the small sys.path
-shim at the top of each runnable script (see scripts in network/, abc/, figures/).
-
-Mirrors Models/1D/paths.py; the dataset is kept self-contained inside this
-package at 3D/data/slow_data_3D.csv.
-"""
+"""Central path definitions. Every script imports names from here (`DATA`,
+`MODEL_DIR`, ...) instead of hard-coding folder paths. Mirrors Models/1D/paths.py."""
 
 from pathlib import Path
 

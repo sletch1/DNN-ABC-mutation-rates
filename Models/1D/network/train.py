@@ -1,33 +1,14 @@
 """Train the heteroscedastic MLP surrogate for the 1-D constant-mutation-rate
-case: log10(p) -> ( mean log10(d_bar), predictive variance ).
+case: log10(p) -> (mean, predictive variance) of log10(d_bar).
 
-Ground truth: data/slow_data_1D.csv (exact/slow simulator, Algorithm 2), 110
-log-spaced p in log10(p) in [-8,-1.46], 10 replicates each (1100 rows). The
-original 101 points spanned [-8,-2]; 9 more were appended
-(RCode/extendSlowData_1D.R) so the ABC-MCMC prior's upper bound could move
-off of p=1e-2 -- see PRIOR_RANGE's comment in abc/run_experiments.py.
+Ground truth: data/slow_data_1D.csv, 110 log-spaced p (10 reps each). Split
+by replicate, no leakage: train = reps 1-6, val = 7-8 (early stop + conformal
+calibration), test = 9-10. After training, the predictive sd is rescaled by a
+single split-conformal factor so the 95% interval has valid empirical
+coverage -- this is what makes the surrogate's uncertainty trustworthy inside
+the ABC-MCMC acceptance step.
 
-Splits by replicate so every p grid point appears in every split with no leakage:
-  train = reps 1-6, val = reps 7-8 (early stopping + conformal calibration),
-  test = reps 9-10 (held out).
-
-After training we calibrate the predictive std by a single conformal scale factor
-so the 95% predictive interval has valid empirical coverage -- this is what makes
-the surrogate's uncertainty trustworthy inside the ABC-MCMC acceptance step.
-
-Usage:
-    python train.py --data ./data/slow_data_1D.csv --outdir ./results
-
-Terminology, if the ML vocabulary is unfamiliar:
-  - "Adam" / "gradient descent" -- iterative numerical maximization of the
-    likelihood; same role as Newton-Raphson or Fisher scoring, but using
-    first derivatives with an adaptive step size instead of the Hessian.
-  - "Epoch" -- one pass over the training data.
-  - "Early stopping" on a held-out split -- complexity control, playing the
-    role cross-validation plays for a tuning parameter.
-  - "Split-conformal calibration" -- a distribution-free finite-sample
-    correction (Lei et al. 2018) to the predictive sd, so mean +/- 1.96*sd
-    really achieves 95% coverage even if the Normal assumption is imperfect.
+Usage: python train.py --data ./data/slow_data_1D.csv --outdir ./results
 """
 
 import argparse
@@ -53,51 +34,27 @@ from paths import DATA, MODEL_DIR, FIG_DIR, RESULTS
 
 ALPHA = 0.05
 Z_975 = 1.959964
-# Larger calibration set (3 reps = 303 pts) makes split-conformal coverage transfer
-# reliably to the test reps; weights are fit on reps 1-5, calibration/early-stop on 6-8.
 TRAIN_REPS, VAL_REPS, TEST_REPS = {1, 2, 3, 4, 5}, {6, 7, 8}, {9, 10}
 DEFAULT_DATA = str(DATA)
 
-# Activation/normalization selected by benchmark_arch.py: a smooth activation
-# (GELU) with NO BatchNorm and no dropout gives the best mean-curve fit for
-# this smooth 1-D response -- within ~1% of the GP (a statistical tie), vs the
-# original ReLU+BatchNorm design which was ~10x worse (badly biased at the
-# domain edges).
-#
-# Width/depth selected by benchmark_capacity.py + benchmark_capacity_confirm.py:
-# a capacity sweep from the original 128-64 (8,642 params) down to a linear
-# control found 32-16 (626 params, 14x smaller) the best curve fit of every
-# size tried, and confirmed at Table 1's own scale (40 reps, full p x J grid,
-# Monte Carlo SEs attached) that the downstream task the surrogate is actually
-# used for is statistically flat across that whole range -- 32-16 is the best
-# point estimate on both accuracy and interval length there too, though that
-# specific edge over 128-64 was not itself resolved (max |Delta/SE| = 0.53
-# across 9 cells; see results/logs/benchmark_capacity_confirm.md). Deployed
-# at 32-16 on that basis: no measurable cost, 14x fewer parameters.
+# Selected by benchmark_arch.py (GELU, no BatchNorm/dropout: ~10x better fit
+# than the original ReLU+BatchNorm, which was badly biased at the domain
+# edges) and benchmark_capacity.py/benchmark_capacity_confirm.py (32-16 is
+# 14x smaller than the original 128-64 with no measurable accuracy cost,
+# confirmed at Table 1's own scale -- see results/logs/benchmark_capacity_confirm.md).
 ARCH = dict(hidden_dims=(32, 16), activation="gelu", use_bn=False, dropout=0.0)
 
 
 def resample_dbar_J(df, J, k_resamples=5, seed=0):
-    """Reconstruct what a J-culture experiment's d_bar would have looked like,
-    from the SAME simulated data, by averaging a random subset of J of the
-    100 stored per-culture values (d_1..d_100) instead of all 100.
+    """Reconstruct a J-culture d_bar by averaging a random J-subset of the
+    100 stored per-culture values, instead of resimulating. Fixes the
+    surrogate's J-blindness (README §4.3b): every row was generated at
+    J=100, so a surrogate trained on the stored `d_bar` column has only ever
+    seen J=100 noise and is miscalibrated at smaller J.
 
-    This is the fix for the surrogate's J-blindness (Section on posterior
-    coverage in the manuscript / README Section 4.3b): every row in the
-    ground-truth CSV was generated at J=100, so a surrogate trained on the
-    stored `d_bar` column has only ever seen J=100 noise, and its predictive
-    interval is miscalibrated whenever it's queried at a smaller J -- exactly
-    the mechanism that produced the measured undercoverage. No new simulation
-    is needed to fix this: the culture-level values are already recorded, so
-    a J-culture experiment can be reconstructed by subsampling.
-
-    `k_resamples` independent random J-subsets are drawn per row (different
-    subsets, same underlying data) to keep the training-set size comparable
-    across J despite the subsampling -- one subsample per row would leave the
-    J=10 training set as noisy as the phenomenon it's trying to learn.
-    Returns one d_bar_J value per (row, resample), so the output has
-    len(df) * k_resamples entries, in row-major order (all k resamples of row
-    0, then all k of row 1, ...).
+    `k_resamples` independent subsets per row keep the training-set size
+    comparable across J despite the subsampling. Returns len(df)*k_resamples
+    values, row-major (all k resamples of row 0, then row 1, ...).
     """
     d_cols = [c for c in df.columns if c.startswith("d_") and c != "d_bar"]
     D = df[d_cols].to_numpy()  # (n_rows, 100)
@@ -113,14 +70,9 @@ def resample_dbar_J(df, J, k_resamples=5, seed=0):
 
 
 def load_splits(csv_path, J=None, k_resamples=5, seed=0):
-    """Read the ground-truth CSV and split by replicate. Returns three
-    (x, y) pairs of log10(p) and log10(d_bar), for train/val/test.
-
-    J=None (the default) uses the stored d_bar column as-is -- every row was
-    simulated at J=100, so this is the J=100 surrogate. J=10 or J=50 instead
-    reconstructs a J-culture d_bar from the per-culture columns
-    (resample_dbar_J) and repeats x accordingly, so a J-specific surrogate can
-    be trained on the SAME underlying simulated data without new simulation.
+    """Read the ground-truth CSV, split by replicate into (x, y) pairs of
+    log10(p)/log10(d_bar) for train/val/test. J=None uses the stored
+    J=100 d_bar column as-is; J=10/50 reconstructs via `resample_dbar_J`.
     """
     df = pd.read_csv(csv_path)
     assert df["a"].nunique() == 1 and df["delta"].nunique() == 1, "expected the 1D file"
@@ -132,9 +84,7 @@ def load_splits(csv_path, J=None, k_resamples=5, seed=0):
         rep_expanded = rep
     else:
         x_base = np.log10(df["p"].to_numpy())
-        # Same log10 floor abc_mcmc.py uses for the (rare) all-extinct summary
-        # of 0, so a J-subsample that happens to draw only extinct cultures
-        # doesn't produce -inf.
+        # Same log10 floor abc_mcmc.py uses, so an all-extinct J-subsample doesn't produce -inf.
         y_base = np.log10(np.maximum(resample_dbar_J(df, J, k_resamples, seed), 1e-6))
         x = np.repeat(x_base, k_resamples)
         y = y_base
@@ -157,12 +107,9 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
     """Fit a HeteroscedasticMLP on (x_train, y_train), early-stopping on
     (x_val, y_val). Returns the model plus the two fitted Standardizers.
 
-    Two details specific to this model:
-      - **Warmup**: the first `warmup` epochs fit the mean head alone under
-        MSE. Under the joint NLL an ill-fit mean can be masked by simply
-        inflating the predicted variance, so the mean gets a head start.
-      - **Early stopping**: keep the weights from the best validation-NLL
-        epoch, and stop once `patience` epochs pass with no improvement.
+    First `warmup` epochs fit the mean head alone under MSE -- under the
+    joint NLL an ill-fit mean can otherwise be masked by inflating the
+    predicted variance instead. Keeps the best validation-NLL weights.
     """
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -174,10 +121,7 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
 
     model = HeteroscedasticMLP(**ARCH)
     opt = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
-    # Halve the step size when validation loss stalls: large steps early,
-    # fine-tuning later, without hand-picking a decay schedule.
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=0.5, patience=15)
-    # Yields shuffled mini-batches of 32 rows per epoch.
     loader = DataLoader(TensorDataset(xt_tr, yt_tr), batch_size=32, shuffle=True)
 
     best_val, best_state, since = float("inf"), None, 0
@@ -187,7 +131,7 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
             opt.zero_grad()
             mean, logvar = model(xb)
             if epoch < warmup:
-                loss = torch.nn.functional.mse_loss(mean, yb)  # stabilize the mean head first
+                loss = torch.nn.functional.mse_loss(mean, yb)
             else:
                 loss = gaussian_nll(mean, logvar, yb)
             loss.backward()
@@ -201,8 +145,7 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
 
         if epoch >= warmup and val_loss < best_val - 1e-5:
             best_val, since = val_loss, 0
-            # .clone() so the snapshot survives later in-place weight updates.
-            best_state = {k: v.clone() for k, v in model.state_dict().items()}
+            best_state = {k: v.clone() for k, v in model.state_dict().items()}  # survives later in-place updates
         elif epoch >= warmup:
             since += 1
             if since >= patience:
@@ -217,11 +160,9 @@ def train_model(x_train, y_train, x_val, y_val, epochs=800, patience=40,
 
 def calibrate_conformal(model, x_scaler, y_scaler, x_val, y_val):
     """Split-conformal scale so mean +- 1.96*(sd*scale) has >= 95% coverage.
-
-    Uses the finite-sample-corrected quantile level ceil((n+1)(1-alpha))/n on the
-    normalized residuals |y - mean| / sd -- this is the level that guarantees
-    marginal coverage >= 1-alpha for exchangeable calibration/test points (the
-    plain (1-alpha) empirical quantile slightly under-covers on small sets).
+    Uses the finite-sample-corrected quantile level ceil((n+1)(1-alpha))/n on
+    normalized residuals |y-mean|/sd -- guarantees marginal coverage for
+    exchangeable points, where the plain (1-alpha) quantile under-covers.
     """
     surr = DNNSurrogate(model, x_scaler, y_scaler, sd_scale=1.0)
     mean, sd = surr.predict(x_val)
@@ -284,17 +225,11 @@ def make_plots(surr, splits, outdir):
 
 
 def run(csv_path=None, outdir=None, seed=0, J=None):
-    """Load -> train -> conformally calibrate -> evaluate -> save. Writes the
-    checkpoint and metrics to results/model/ and plots to results/figures/.
-    `load_surrogate` below reads that checkpoint back without retraining.
-
-    J=None (default) trains the deployed J=100 surrogate exactly as before,
-    at MODEL_DIR/surrogate_1d.pt. J=10 or J=50 trains a J-specific surrogate
-    on resampled J-culture data (load_splits/resample_dbar_J) and writes it
-    to a separate surrogate_1d_J{J}.pt instead, so it can't be confused with
-    or overwrite the deployed model. Diagnostic plots (make_plots) are only
-    written for the deployed model; the J-specific ones are an internal
-    component of the ABC pipeline, not something a reader inspects directly.
+    """Load -> train -> conformally calibrate -> evaluate -> save, to
+    results/model/ and results/figures/. `load_surrogate` reads the
+    checkpoint back without retraining. J=None trains/saves the deployed
+    J=100 model; J=10/50 trains a separate J-specific one (never overwrites
+    the deployed checkpoint); diagnostic plots are only made for J=None.
     """
     csv_path = csv_path or str(DATA)
     (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = load_splits(csv_path, J=J, seed=seed)
@@ -354,8 +289,6 @@ if __name__ == "__main__":
     ap.add_argument("--data", default=DEFAULT_DATA)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--J", type=int, default=None,
-                    help="train a J-specific surrogate (e.g. 10 or 50) on "
-                         "resampled J-culture data instead of the deployed "
-                         "J=100 model; see run()'s docstring")
+                    help="train a J-specific surrogate instead of the deployed J=100 model")
     args = ap.parse_args()
     run(args.data, seed=args.seed, J=args.J)

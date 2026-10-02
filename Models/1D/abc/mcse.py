@@ -1,28 +1,10 @@
-"""Monte Carlo standard errors for Table 1 (MSE of p-hat), and the GPS-ABC vs.
-DNN-ABC head-to-head comparison in units of their combined MCSE.
+"""Monte Carlo standard errors for Table 1's MSE, and GPS-ABC vs. DNN-ABC in
+units of their combined MCSE (is Table 1's per-cell gap real or noise?).
+MCSE follows Morris, White & Crowther (2019): for MSE_hat = mean(e_r) over R
+replicates, MCSE = sd(e_r)/sqrt(R). `delta_over_SE` below ~2 means unresolved
+at this replicate count -- a descriptive diagnostic, not a hypothesis test.
 
-Follows Morris, White & Crowther (2019), "Using simulation studies to
-evaluate statistical methods" (Statistics in Medicine): for an MSE estimator
-formed by averaging per-replicate squared errors e_r = (p_hat_r - p)^2 over
-R replicates, the Monte Carlo standard error of MSE_hat = mean(e_r) is
-sd(e_r) / sqrt(R), i.e. the ordinary standard error of a sample mean applied
-to the squared errors themselves.
-
-Reads results/logs/raw_replicates.csv (written by run_experiments.py, one row
-per (p, J, replicate) with every method's point estimate) and writes
-results/tables/mcse.md: per-cell MSE, MCSE, relative MCSE, and, for the
-GPS-ABC vs. DNN-ABC comparison specifically, the MSE gap in units of its
-combined MCSE (the Delta/SE column reported in the paper's Table 1).
-
-Usage:
-    python mcse.py
-
-This answers: "Table 1 shows DNN-ABC ahead in every cell -- real effect, or
-replicate noise?" Each cell's MSE_hat is itself a sample mean, so it carries
-an ordinary standard error. `delta_over_SE` is the GPS-minus-DNN gap over the
-standard error of that gap; below about 2 in magnitude means unresolved at
-this replicate count. It is a descriptive diagnostic, not a hypothesis test.
-Only 2 of Study I's 9 cells clear that bar.
+Reads results/logs/raw_replicates.csv, writes results/tables/mcse.md.
 """
 
 import sys

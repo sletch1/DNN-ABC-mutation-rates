@@ -1,22 +1,13 @@
-"""Monte Carlo standard errors for the 3-D two-stage result tables.
+"""Monte Carlo standard errors for the 3-D two-stage result tables. Matters
+more here than usual: p1 and tau are weakly identified, so per-replicate
+estimates are wildly dispersed and a difference between methods can look
+large while being pure noise.
 
-WHY THIS MATTERS HERE MORE THAN USUAL. Every number in TABLES.md is itself an
-average over a finite number of simulated replicates, so it carries sampling
-error. Comparing two methods without that error is how simulation studies
-manufacture findings that do not replicate. On this model the risk is acute:
-p1 and tau are weakly identified, so their per-replicate estimates are wildly
-dispersed and a difference between methods can look large while being pure
-noise.
+mcse_mean/mcse_rmse/mcse_prop: SE of a mean/RMSE(delta method)/proportion.
+annotate: attach MCSEs to run_experiments.aggregate's table, flag pairs
+separated by more than 2 MCSEs.
 
-Provides:
-  mcse_mean  - standard error of a mean over replicates.
-  mcse_rmse  - standard error of an RMSE, via the delta method.
-  mcse_prop  - standard error of a proportion (used for interval coverage).
-  annotate   - attach MCSEs to a table produced by run_experiments.aggregate and
-               flag which method-pairs are separated by more than 2 MCSEs.
-
-Usage:
-    python mcse.py            # annotates results/tables/table1_recovery.csv
+Usage: python mcse.py (annotates results/tables/table1_recovery.csv)
 """
 
 import sys

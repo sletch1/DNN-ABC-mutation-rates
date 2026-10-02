@@ -1,22 +1,13 @@
-"""Round 2: how SMALL can the 3-D surrogate be and still reach the noise floor?
+"""Round 2: how small can the 3-D surrogate be and still reach the noise
+floor? Round 1 (benchmark_arch.py) found every architecture tied at ~1.08x
+the floor, so capacity isn't the binding constraint -- the design question
+inverts to: given models that all sit at the floor, the smaller one wins on
+query latency (a surrogate is queried tens of thousands of times per fit).
+This walks capacity down until accuracy departs from the floor, reporting
+the smallest network that still reaches it plus measured latency. A linear
+model is the "is a network needed at all?" control at the bottom.
 
-Round 1 (benchmark_arch.py) found every architecture tied at ~1.08x the
-irreducible floor -- a 256-128-64 network and a 128-64 network are
-indistinguishable, and the residual stack the retired (p, a, delta) study used
-buys nothing. Capacity is not the binding constraint on this surface.
-
-That inverts the design question. A surrogate exists to be QUERIED, once per
-MCMC iteration, tens of thousands of times per fit. Given two models that both
-sit at the noise floor, the smaller one is strictly better: same accuracy, lower
-latency. So this script walks capacity DOWN until accuracy visibly departs from
-the floor, and reports the smallest network that still reaches it -- together
-with measured query latency, which is the thing the choice actually trades.
-
-A linear model on the four inputs is included as the bottom of the scale: it is
-the "is a network needed at all?" control.
-
-Usage:
-    python benchmark_round2.py [--seeds 3]
+Usage: python benchmark_round2.py [--seeds 3]
 """
 
 import argparse

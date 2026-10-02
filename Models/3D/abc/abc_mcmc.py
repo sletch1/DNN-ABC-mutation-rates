@@ -1,50 +1,22 @@
-"""ABC-MCMC for the 3-D two-stage mutation model.
+"""ABC-MCMC for the 3-D two-stage mutation model. Random-walk Metropolis-
+Hastings over the full theta = (log10 p1, log10 p2, tau), jointly estimated
+from one scalar summary statistic (paper's Study 2) -- unlike the 1-D study,
+where a single scalar was inferred with other inputs known. `d_bar` responds
+strongly to p2 (corr 0.74), weakly to p1 (0.40), barely to tau (0.14), so
+expect a well-identified p2 and broad/multimodal p1, tau marginals.
 
-Random-walk Metropolis-Hastings over the FULL parameter vector
+Three backends, same sampler: "sim" runs the real simulator `ns` times per
+proposal and scores obs with a synthetic-likelihood Gaussian (Wood 2010);
+"dnn"/"gp" use the surrogate's (mean, sd) directly via the exact convolution
+`N(obs; mean, sqrt(eps^2+sd^2))`, no Monte Carlo sampling needed.
 
-    theta = ( log10 p1 , log10 p2 , tau )
+Priors are per-coordinate ("uniform"/"normal"/"expon") because the paper uses
+different families per study: Study 2 (this module) uses truncated normals
+nearly flat over the box, so "uniform" is a faithful default; Study 1 (1-D)
+uses a truncated exponential on log10(p), meaningless on tau. See _log_prior.
 
-This is the substantive difference from the 1-D pipeline, and from the retired
-(p, a, delta) study. There, a single scalar was inferred while the other inputs
-were supplied as known covariates. Here all three parameters are estimated
-jointly from one scalar summary statistic, which is what the paper's Study 2
-does and what makes the problem hard: `d_bar` responds strongly to p2
-(corr 0.74 on the ground truth), weakly to p1 (0.40), and barely to tau (0.14).
-Expect a well-identified p2 and broad, possibly multimodal, p1 and tau
-marginals -- the paper reports exactly that, and sharpening those marginals is
-the stated target of the rebuild.
-
-Three backends share one sampler; only the way the summary statistic and its
-uncertainty are obtained differs:
-
-- backend="sim" : exact ABC-MCMC. Run the two-stage simulator `ns` times at the
-  proposed theta and score the observation with a synthetic-likelihood Gaussian
-  (Wood 2010) of width sqrt(eps^2 + var_sim). This is the expensive baseline the
-  surrogates approximate.
-- backend="dnn" / "gp" : the surrogate returns (mean, sd) instantly and the ABC
-  likelihood is the exact convolution
-      p(obs | theta) = N( obs ; mean, sqrt(eps^2 + sd^2) ),
-  so the surrogate's calibrated uncertainty widens the likelihood exactly where
-  it is unsure, with no Monte-Carlo noise.
-
-PRIORS. Independent per coordinate, and selectable per coordinate: "uniform",
-"normal" (truncated normal) or "expon" (truncated exponential, rate `lam`).
-The paper does not use one family throughout, so neither does this:
-
-  - Study 2, the two-stage model THIS module samples, uses truncated normals --
-    theta1, theta2 ~ TN(log10 p_hat_MOM, 20, [-11, -7]) and tau ~ TN(10, 20,
-    [0.1, 19.9]). An sd of 20 over a box of width 4 is very nearly flat, so
-    `prior="uniform"` stays the faithful default and is what the tables use.
-  - Study 1, the constant-rate 1-D model, instead uses a truncated exponential
-    of rate 2 on theta = log10(p) (ABC_fluc_exp1_rev.m). "expon" implements it.
-    It is meaningful only on the log10-rate coordinates; putting it on tau would
-    invent a prior the paper never states, which is why kinds are per coordinate.
-
-See _log_prior for the exact densities.
-
-PROPOSAL. Component-wise random walk with per-component step sizes, since the
-three coordinates have very different natural scales (log10 units vs. absolute
-time). Steps are truncated to the box and Hastings-corrected accordingly.
+Proposal: component-wise random walk, per-component step sizes (log10 units
+vs. absolute time are different scales), truncated and Hastings-corrected.
 """
 
 from __future__ import annotations
@@ -72,30 +44,18 @@ def _tn_logZ(mu, s, lo, hi):
 
 
 def _log_prior(theta, box, kind, centres, sds, lam=2.0):
-    """Independent log prior on the box, per coordinate.
+    """Independent log prior on the box, per coordinate. `kind` is one name
+    for all three coordinates, or a per-coordinate sequence (the paper uses
+    different families for the rates vs. the transition time):
 
-    `kind` is either one name applied to all three coordinates, or a sequence of
-    three names -- which is what the paper actually needs, since it does not use
-    the same family for the rates and for the transition time.
-
-      "uniform" : flat on [lo, hi].
-      "normal"  : truncated normal, centred on `centres` with sd `sds`.
-      "expon"   : truncated exponential with rate `lam`, DECREASING away from the
-                  lower bound, i.e. favouring small values. This is the prior of
-                  ABC_fluc_exp1_rev.m and of the paper's simulation study 1
-                  ("a truncated exponential ... with rate 2"), where the parameter
-                  is theta = log10(p) and small mutation rates are a priori more
-                  plausible.
-
-    WHICH PRIOR THE PAPER USES WHERE -- worth stating, because the two studies
-    differ and it is easy to carry the wrong one across. Study 1 (constant rate,
-    1-D) uses the truncated exponential above. Study 2 (two-stage, the model THIS
-    module samples) does not: it uses independent truncated normals,
-    theta_1, theta_2 ~ TN(log10(p_hat_MOM), 20, [-11, -7]) and
-    theta_3 ~ TN(10, 20, [0.1, 19.9]). With sd = 20 over a box of width 4, those
-    are nearly flat, which is why "uniform" remains a faithful default here.
-    Applying "expon" to tau would be a fabrication -- it is meaningful only on the
-    log10-rate coordinates -- hence the per-coordinate form.
+      "uniform": flat on [lo, hi].
+      "normal" : truncated normal, centred on `centres` with sd `sds`. Study 2's
+                 actual prior (TN(log10 p_hat_MOM, 20, box) for p1/p2, TN(10, 20,
+                 [0.1,19.9]) for tau) is nearly flat at sd=20 over a width-4 box,
+                 so "uniform" is used as the faithful default instead.
+      "expon"  : truncated exponential, rate `lam`, favouring small values --
+                 Study 1's (1-D) prior on theta=log10(p); meaningless on tau,
+                 hence per-coordinate rather than a single shared kind.
     """
     kinds = [kind] * len(box) if isinstance(kind, str) else list(kind)
     lp = 0.0
@@ -105,9 +65,8 @@ def _log_prior(theta, box, kind, centres, sds, lam=2.0):
         if k == "normal":
             lp += norm.logpdf(v, loc=c, scale=s) - _tn_logZ(c, s, lo, hi)
         elif k == "expon":
-            # log of  lam * exp(-lam (v - lo)) / (1 - exp(-lam (hi - lo))).
-            # The reference drops the leading `lam` since it cancels in the
-            # acceptance ratio; it is kept here so the value is a real log-density.
+            # log[ lam*exp(-lam(v-lo)) / (1-exp(-lam(hi-lo))) ]; `lam` kept (it
+            # cancels in the acceptance ratio) so this is a real log-density.
             lp += (np.log(lam) - lam * (v - lo)
                    - np.log1p(-np.exp(-lam * (hi - lo))))
         elif k != "uniform":
@@ -139,10 +98,8 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
         sk = sim_kwargs
 
         def log_like(th):
-            # Synthetic-likelihood ABC: estimate the statistic's mean and
-            # variance from `ns` fresh simulations at this theta, then score the
-            # observation under a Gaussian with that mean and eps^2 + variance --
-            # the same form the surrogate backends use, paid for by brute force.
+            # Synthetic-likelihood ABC: mean/var from ns sims, score obs under
+            # N(mean, eps^2+var) -- same form the surrogates use, paid for by simulation.
             vals = np.empty(ns)
             for k in range(ns):
                 Z, X = fluc_exp_2stage(sk["Z0"], sk["a"], 10.0 ** th[0], 10.0 ** th[1],
@@ -155,13 +112,9 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
             var = float(np.var(v, ddof=1)) if ns > 1 else 0.0
             return norm.logpdf(obs_log, loc=m, scale=np.sqrt(eps ** 2 + var))
     elif backend in ("dnn", "gp"):
-        # Surrogates declare the scale they report on, and the observation is put on
-        # that same scale here. Ours (DNN, strengthened GP) work in log10. The
-        # faithful reference GP works on the RAW statistic, exactly as
-        # ABC_fluc_exp1.m does -- there `obs = mean(sqrt(X./Z))` and the tolerance
-        # eps are both raw. Scoring a raw-scale surrogate against obs_log would be a
-        # category error that silently produces a wrong posterior, so the target
-        # follows the surrogate rather than being assumed.
+        # Target follows the surrogate's declared scale (DNN/strengthened GP: log10;
+        # reference GP: raw, matching ABC_fluc_exp1.m) -- scoring the wrong scale
+        # silently produces a wrong posterior.
         target = obs_log if getattr(surrogate, "scale", "log10") == "log10" else float(obs)
 
         def log_like(th):
@@ -183,9 +136,7 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
 
     for i in range(1, n_mcmc):
         cur = samples[i - 1]
-        # component-wise truncated random walk; the Hastings term does not cancel
-        # because the truncation mass differs between the current and candidate
-        # points, so it is accumulated per coordinate.
+        # Hastings term doesn't cancel (truncation mass differs per point), accumulated per coordinate.
         can = np.empty(3)
         log_q = 0.0
         for k in range(3):
@@ -204,11 +155,9 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
 
 
 def summarize(samples, burn_in, cred=0.95):
-    """Posterior summaries per parameter from the post-burn-in draws.
-
-    p1 and p2 are summarised on the natural (not log) scale so the numbers are
-    comparable with the paper's tables; tau is already on its natural scale.
-    Returns a dict of dicts keyed by parameter name.
+    """Posterior summaries per parameter from post-burn-in draws. p1/p2 are
+    reported on the natural (not log) scale, matching the paper's tables;
+    tau is already natural. Returns a dict of dicts keyed by parameter name.
     """
     post = samples[burn_in:]
     lo_q, hi_q = (1 - cred) / 2, 1 - (1 - cred) / 2
@@ -223,12 +172,9 @@ def summarize(samples, burn_in, cred=0.95):
 
 
 def ess(x):
-    """Effective sample size of a 1-D chain via the initial-positive-sequence rule.
-
-    Reported alongside acceptance because a joint 3-parameter chain on a weakly
-    identified surface can accept healthily while still mixing badly in the
-    poorly-informed directions -- which is precisely the failure mode expected
-    for p1 and tau here.
+    """Effective sample size via the initial-positive-sequence rule. Reported
+    alongside acceptance because a joint chain can accept healthily while
+    still mixing badly in poorly-informed directions -- expected for p1/tau.
     """
     x = np.asarray(x, dtype=float)
     n = len(x)

@@ -1,62 +1,31 @@
 """Fit-quality benchmark for the three new architecture families (CNN1D, RNN,
-LSTM) against the already-deployed FFN, on the 3-D two-stage surrogate task.
+LSTM) against the already-deployed FFN. benchmark_arch.py/benchmark_round2.py
+established capacity isn't the binding constraint on this surface (a plain
+MLP reaches the floor at ~700-2,500 params) -- this asks whether a built-in
+structural prior (convolution over "neighbouring" positions, recurrence over
+"sequential" ones) helps or hurts, given the inputs have no real spatial/
+temporal relationship (model_families.py). Expected to be a negative/neutral
+result; reported as measured either way.
 
-WHY THIS EXISTS. `benchmark_arch.py` and `benchmark_round2.py` (this directory)
-established that a plain MLP reaches the data's irreducible noise floor with as
-few as ~700-2,500 parameters, and that capacity is not the binding constraint on
-this surface. This script asks a different question: does an architecture with
-a built-in structural prior -- convolution over "neighbouring" positions
-(CNN1D), or recurrence over "sequential" positions (RNN/LSTM) -- do any better
-or worse than the plain MLP, given that (as `network/model_families.py`
-explains in detail) the four inputs here have no real spatial or temporal
-relationship to exploit? This is expected, honestly, to be a negative or
-neutral result; it is reported as measured either way.
+Compared, each averaged over 2 seeds: HeteroscedasticCNN1D, HeteroscedasticRNN
+(GRU), HeteroscedasticLSTM (all model_families.py), and FFN (64-32 GELU) --
+NOT retrained, pulled verbatim from benchmark_round2.md/surrogate_metrics.json
+as a fixed reference point.
 
-WHAT IS COMPARED, each averaged over 2 seeds (matching the existing
-architecture-search convention in this directory):
-  - HeteroscedasticCNN1D  (model_families.py): small Conv1d stack over the
-    4-length input treated as a 1-channel signal.
-  - HeteroscedasticRNN    (model_families.py): a small GRU over 4 length-1
-    "timesteps" (see model_families.py for why GRU over a vanilla RNN).
-  - HeteroscedasticLSTM   (model_families.py): same shape convention, nn.LSTM.
-  - FFN (64-32 GELU)      : NOT retrained here. Pulled verbatim from
-    `results/logs/benchmark_round2.md` / `results/model/surrogate_metrics.json`
-    -- the already-deployed, already-reported surrogate. Re-running it would
-    both waste time and risk a spurious seed-to-seed difference from the number
-    actually cited in the manuscript; the existing number is a fixed reference
-    point instead.
+Split/training identical to train.py/benchmark_arch.py (reps 1-5/6-8/9-10,
+same optimizer/schedule/warmup-then-NLL loop). One deviation: optional
+gradient clipping (max-norm 1.0) for RNN/LSTM only, off for CNN1D and the
+deployed MLP -- recurrent nets are the textbook unstable-gradient case, and
+clipping costs nothing even at 4 "timesteps."
 
-SPLIT, TRAINING REGIME, DATA -- identical to `train.py` / `benchmark_arch.py`:
-train = reps 1-5, val = reps 6-8 (early stopping + conformal calibration),
-test = reps 9-10, both by replicate. Same Adam(lr=1e-3, weight_decay=1e-5),
-same ReduceLROnPlateau, same warmup-then-NLL training loop as
-`network/train.py: train_model`. The one documented deviation: optional
-gradient clipping (max-norm 1.0) for the RNN and LSTM cells, off by default for
-the CNN1D and never used for the deployed MLP. Recurrent nets are the textbook
-case for unstable gradients across a rollout; even at only 4 "timesteps" this
-costs nothing (a single extra `clip_grad_norm_` call) and removes a known
-failure mode without changing the tested architectures' capacity or the results
-of the mean-vs-no-clip ablation would be a paper unto itself, not run here.
+Metrics match benchmark_round2.py's table (mse_mean, x floor, R^2, cover95,
+params, us/query). Each family's best seed is saved, conformally calibrated
+like train.py does, to results/arch_families/checkpoints/<family>_best.pt --
+feeds directly into run_experiments_families.py's ABC-MCMC evaluation via the
+existing DNNSurrogate3D wrapper (model_families.py classes all return
+(mean, logvar) like HeteroscedasticMLP).
 
-METRICS -- same as `benchmark_round2.py`'s table: `mse_mean` (fitted-surface
-MSE against the held-out design-point mean), `x floor` (ratio to the
-irreducible noise floor, computed fresh from the data here and expected to
-match the already-established 1.393e-3 in `results/logs/benchmark_round2.md`),
-`R^2`, `cover95` (95% predictive coverage after split-conformal calibration),
-`params`, and `us/query` (single-point prediction latency -- the cost that
-actually matters inside the MCMC loop).
-
-CHECKPOINTS. The best seed (by `mse_mean`) of each new family is also saved,
-conformally calibrated exactly as `train.py` does for the deployed FFN, to
-`results/arch_families/checkpoints/<family>_best.pt` -- these feed directly
-into `abc/run_experiments_families.py`'s full ABC-MCMC evaluation, reusing the
-existing `DNNSurrogate3D` wrapper (model_families.py's classes all return
-`(mean, logvar)` exactly like `HeteroscedasticMLP`, so nothing about the
-surrogate interface needs to change to accept them).
-
-Usage:
-    python benchmark_families.py                # 2 seeds/family, writes results
-    python benchmark_families.py --seeds 3
+Usage: python benchmark_families.py [--seeds 3]
 """
 
 import argparse

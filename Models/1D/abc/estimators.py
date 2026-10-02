@@ -1,14 +1,6 @@
-"""Classical (non-ABC) mutation-rate estimators: MOM and MLE.
-
-Python port of ../matlab/MOMMLE_fluc_exp1.m, itself the paper's
-Eq. (11)-(12) for the constant-mutation-rate model. Used to fill the
-"MOM/MLE" column of Table 1 / Table 2.
-
-These are the classical, non-simulation-based baselines ABC is compared
-against; they use only the aggregates Y_bar = mean(Z-X) and Z_bar = mean(Z).
-The MLE's likelihood equation (Eq. 11) is transcendental in p, so it's solved
-numerically, started from the MOM estimate -- the equation has a second,
-spurious root that a poor starting value would converge to instead.
+"""Classical (non-ABC) mutation-rate estimators: MOM and MLE. Port of
+../matlab/MOMMLE_fluc_exp1.m, the paper's Eq. (11)-(12); fills the "MOM/MLE"
+baseline column of Table 1/2. Both use only Y_bar = mean(Z-X), Z_bar = mean(Z).
 """
 
 import numpy as np
@@ -40,11 +32,9 @@ def estimate_mle(Z_vec, X_vec) -> float:
     def fun(ph):
         return (1 - 2 * ph) * Y_bar - (1 - ph) * Z_bar ** (1 - 2 * ph) + ph
 
-    # Local root nearest the MOM start (matching MATLAB's fzero), rather than a
-    # wide bracket that can latch onto the spurious root near ph = 0.5.
+    # Root nearest the MOM start (matches MATLAB's fzero) -- a wide bracket
+    # can latch onto a spurious second root near ph=0.5.
     st = max(1e-10, estimate_mom(Z_vec, X_vec))
-    # fsolve sometimes warns but still returns a usable estimate; the result is
-    # sanity-checked below instead, so the warning is silenced.
     with np.errstate(all="ignore"):
         import warnings
         with warnings.catch_warnings():

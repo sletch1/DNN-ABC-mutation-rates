@@ -1,25 +1,19 @@
-"""Choose the activation pair for the deployed 64->32 network, without touching test.
-
-WHY THIS SCRIPT EXISTS. `benchmark_activations.py` and
-`benchmark_activation_pairs.py` both score candidates on the TEST split. That
-makes the reported test MSE optimistic for whichever activation wins: the split
-that is supposed to be untouched was used to pick the model. This script fixes
-the procedure:
-
+"""Choose the activation pair for the deployed 64->32 network, without
+touching test. benchmark_activations.py/benchmark_activation_pairs.py both
+score candidates on TEST, which makes the reported MSE optimistic for
+whichever wins -- the supposedly-untouched split was used to pick the model.
+Fixed here:
     stage 1  all 100 ordered (layer1, layer2) pairs, few seeds, scored on VAL
-    stage 2  the finalists, many FRESH seeds, scored on VAL  -> winner
-    stage 3  the winner alone is scored on TEST, once
+    stage 2  finalists, many FRESH seeds, scored on VAL -> winner
+    stage 3  winner alone, scored on TEST, once
+(VAL is already used for early stopping/calibration, so selecting on it is
+mildly optimistic too, but this is standard train/select/report discipline
+and leaves the number the manuscript quotes honest.)
 
-Validation is already used for early stopping and conformal calibration, so
-selecting on it is mildly optimistic too -- but it is the standard train/select/
-report split discipline, and it leaves the test number honest, which is what the
-manuscript quotes.
+Each worker pins torch to one thread -- parallelism is across fits, so a
+full thread pool per process would oversubscribe the machine.
 
-Each worker pins torch to one thread: parallelism here is across fits, so letting
-every process spin up a full thread pool would oversubscribe the machine.
-
-    python3 architecture_search/benchmark_activation_select.py
-    python3 architecture_search/benchmark_activation_select.py --screen-seeds 2 --confirm-seeds 15
+Usage: python3 architecture_search/benchmark_activation_select.py [--screen-seeds 2] [--confirm-seeds 15]
 """
 from __future__ import annotations
 

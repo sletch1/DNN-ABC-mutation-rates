@@ -1,29 +1,15 @@
-"""Result figures for the 3-D two-stage study.
+"""Result figures for the 3-D two-stage study:
 
-Each figure answers one question a reader will ask, and none of them are
-decorative:
+  fig_data_structure.png  how strongly d_bar responds to each parameter --
+                          the asymmetry (p2 strong, p1 weak, tau weakest)
+  fig_noise.png           replicate-noise heteroscedasticity, justifying the two-headed model
+  fig_capacity.png        architecture search vs. the irreducible noise floor
+  fig_calibration.png     nominal vs. empirical coverage after conformal scaling
 
-  fig_data_structure.png  What does the ground truth actually look like, and why
-                          is this a hard inference problem? Shows how strongly
-                          d_bar responds to each parameter -- the asymmetry
-                          (p2 strong, p1 weak, tau weakest) that drives every
-                          downstream result.
-  fig_noise.png           Is the replicate noise heteroscedastic? This is the
-                          justification for the two-headed model: a single
-                          homoscedastic term, all a GP offers, cannot represent
-                          a 292x spread in noise that tracks the target.
-  fig_capacity.png        The architecture search against the irreducible noise
-                          floor -- why the network is small and why a linear
-                          model is nonetheless not enough.
-  fig_calibration.png     Does the predictive uncertainty mean what it claims?
-                          Nominal vs empirical coverage after conformal scaling.
+Figures that depend on ABC results are skipped with a message if
+abc/run_experiments.py hasn't been run yet, so this is safe at any stage.
 
-Figures that depend on ABC results (posteriors, timing) are produced only when
-abc/run_experiments.py has been run and its tables exist; they are skipped with
-a message otherwise, so this script is safe to run at any stage.
-
-Usage:
-    python make_figures.py
+Usage: python make_figures.py
 """
 
 import sys

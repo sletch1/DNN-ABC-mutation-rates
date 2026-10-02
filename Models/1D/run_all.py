@@ -1,16 +1,7 @@
-"""Run the whole 1-D pipeline: press Run in an IDE (Spyder, VS Code, PyCharm, IDLE).
-
-There are no command-line arguments to type. The script asks, in the console,
-whether you want the quick smoke test or the full paper-scale run, and then
-does everything: trains the surrogate, runs the estimator comparison, computes
-Monte Carlo standard errors, and regenerates every figure.
-
-Everything runs with whatever interpreter the IDE is using (the one printed at
-startup), so the packages in requirements.txt need to be installed in that
-environment. If any are missing the script offers to install them for you.
-
-If you do run this from a terminal and want to skip the question, pass --quick
-or --full.
+"""Run the whole 1-D pipeline: press Run in an IDE, or pass --quick/--full
+from a terminal. Asks quick-smoke-test vs. full-paper-scale, installs missing
+packages if needed, then trains the surrogate, runs the estimator comparison,
+computes MCSEs, and regenerates every figure.
 """
 
 import os
@@ -44,7 +35,8 @@ Which run do you want?
 
 
 def ask_quick():
-    """Ask quick-vs-full in the console. Falls back to quick if nothing can answer."""
+    """Ask quick-vs-full in the console. Defaults to quick if unanswerable
+    (piped input, no console) so it can't silently burn hours."""
     argv = [a.lower() for a in sys.argv[1:]]
     if "--quick" in argv:
         return True
@@ -56,8 +48,6 @@ def ask_quick():
         try:
             answer = input("Enter 1 or 2 [1]: ").strip()
         except (EOFError, OSError):
-            # No console to ask on (piped, or run by a scheduler). Quick is the
-            # safe default: it cannot burn hours by accident.
             print("(no input available -- defaulting to the quick run)", flush=True)
             return True
         if answer in ("", "1"):
@@ -97,16 +87,10 @@ def run(label, script, args=()):
     cmd = [PY, str(HERE / script), *[str(a) for a in args]]
     print("  " + " ".join(cmd), flush=True)
 
-    # Unbuffered, so the progress counter in step 2 appears live rather than in
-    # one lump at the end. Line-by-line print() keeps it visible in Spyder's
-    # console, which does not show a subprocess's raw output stream.
-    #
-    # Thread count is capped rather than left at PyTorch's default (one thread
-    # per core). These networks are tiny -- a few thousand parameters -- so on
-    # a many-core shared machine the default causes thread-spawn overhead to
-    # dominate actual compute: on a 32-core server this made a 30-second
-    # training step take 10+ minutes at 800%+ CPU. A handful of threads is
-    # enough for a model this size regardless of how many cores are present.
+    # Unbuffered so progress prints live instead of in one lump at the end.
+    # Thread count capped: these networks are tiny, so PyTorch's default of
+    # one thread/core causes thread-spawn overhead to dominate on a many-core
+    # machine (measured: a 30s training step became 10+ min at 800%+ CPU).
     n_threads = str(min(4, os.cpu_count() or 1))
     env = dict(os.environ, PYTHONUNBUFFERED="1",
                OMP_NUM_THREADS=n_threads, MKL_NUM_THREADS=n_threads)
@@ -131,13 +115,10 @@ def main():
     if quick:
         print("\n=== QUICK MODE: pipeline check only, NOT paper-scale results ===",
               flush=True)
-        # Few workers on purpose: each one fits its own GP baseline at startup,
-        # which with only 2 tasks would otherwise dominate the runtime.
+        # workers=2: each worker fits its own GP at startup, not worth it for 2 tasks.
         experiment_args = ["--reps", 2, "--nmcmc", 120, "--burnin", 40, "--ns", 6,
                            "--p-grid", "1e-2", "--J-grid", 10, "--workers", 2]
-        # The posterior figure runs the exact simulator and ignores every
-        # setting above, so it needs shrinking separately.
-        figure_args = ["--quick"]
+        figure_args = ["--quick"]  # posterior figure ignores the args above; shrink separately
     else:
         print("\n=== FULL RUN: 40 replicates, paper settings (expect several hours) ===",
               flush=True)
