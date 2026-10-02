@@ -155,11 +155,13 @@ Three surrogates are run through the same sampler
 | DNN-ABC | this package's heteroscedastic MLP | 1.139 | 1.59 |
 
 **The headline is negative, and it is robust.** DNN-ABC does not beat the GP: it
-wins 1 of 9 parameter-by-truth cells. That verdict survived three separate
-corrections, each of which genuinely improved the surrogate — fixing the
-mutation-time convention, adopting the paper's fourth-root statistic (held-out
-error 1.19× floor → 1.11×), and reselecting the activation under it (→ 1.05×).
-A surrogate that got materially better three times over did not change the
+wins 1 of 9 parameter-by-truth cells. That verdict survived separate
+corrections that each genuinely improved the surrogate — adopting the paper's
+fourth-root statistic (held-out error 1.19× floor → 1.11×) and reselecting the
+activation under it (→ 1.05×); see §6's open item for a correction to an
+earlier, now-removed claim about a "mutation-time convention" fix in this
+same list, which turned out not to be a real bug in the professor's code.
+A surrogate that got materially better did not change the
 answer, which is the point: **what binds here is the model's identifiability,
 not surrogate error.** `p1` and `τ` are weakly determined by one scalar summary,
 so a better approximation of that summary cannot help.
@@ -239,19 +241,24 @@ inside every MCMC iteration and is dramatically slower.
 
 ## 6. Open items
 
-- **Mutation-time convention — RESOLVED, and it was a live bug.** `mut2stage_bMBP.m`
-  contains two: the live lines 25–26 evaluate `p(t)` at the offspring's own
-  division time, the commented-out lines 23–24 at the parent's. The pipeline used
-  to train its surrogates on ground truth generated under *offspring* while
-  drawing observations under *parent* — different models, differing by up to
-  **10.1%** in the statistic. The convention was recovered empirically (no
-  generation log survives): all 60 of the most discriminating design points sit
-  closer to offspring, mean |error| 0.0054 vs 0.0400 log₁₀ units, paired
-  t = +11.3. That matches the live MATLAB, the R generator's default, and the
-  paper's Algorithm 3. Everything now defaults to `offspring`;
-  `tests/validate_simulator.py` re-checks it on every run.
-  Still worth asking the professor which he *intends*, but the pipeline is
-  self-consistent either way now.
+- **Mutation-time convention — CORRECTED 2026-10-02, not actually a bug in the
+  professor's code.** `matlab/mut2stage_bMBP.m` at this path previously didn't
+  match `github.com/lruijin/ABC_mutation-rate` at all (wrong function
+  signature, no `Z0` argument) and had invented a parent-vs-offspring choice
+  that doesn't exist in the published algorithm: the real file always
+  evaluates `p(t)` at the child's own division time, full stop, with no
+  commented-out alternative timing convention anywhere in the repo (checked
+  every `.m` file, including the `exact simulator/` and `simulation/`
+  subfolders). The empirical "10.1% gap, t=+11.3" measurement earlier versions
+  of this section reported was real as a measurement of this project's own
+  fabricated branch against the data, not evidence of an ambiguity in the
+  professor's work. `matlab/mut2stage_bMBP.m` has been replaced with the
+  verified real file; `abc/simulator.py`'s `mut2stage_slow` no longer takes a
+  `mut_time` argument at all, since there's nothing to choose between.
+  `tests/validate_simulator.py` now checks only degeneracy to the constant-rate
+  model, which is the one structural property the paper's algorithm actually
+  claims. No experiment results changed: the pipeline's default was always
+  `"offspring"`, which is what the real algorithm always does anyway.
 - **The paper's own regime is out of reach exactly.** Study 2 uses `tp = 20`
   (~5e8 cells/culture); `tp = 10` here is ~2.2e4. Reaching it needs the fast
   two-stage simulator (`mut2stage_fast` in `abc/simulator.py`), which is written

@@ -79,15 +79,14 @@ def _one_replicate(task):
     seed = abs(hash((round(p1, 12), round(p2, 12), round(tau, 3), J, rep))) % (2 ** 31)
     rng = np.random.default_rng(seed)
 
-    Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True,
-                             mut_time=cfg["mut_time"])
+    Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True)
     obs = summary_stat(Zv, Xv)
     truth = dict(p1=p1, p2=p2, tau=tau)
 
     out = {"p1_true": p1, "p2_true": p2, "tau_true": tau, "J": J, "rep": rep,
            "obs": obs}
 
-    sim_kwargs = dict(Z0=Z0, a=A, tp=TP, J=J, use_slow=True, mut_time=cfg["mut_time"])
+    sim_kwargs = dict(Z0=Z0, a=A, tp=TP, J=J, use_slow=True)
     backends = [("GPS-ABC", dict(backend="gp", surrogate=_G["gp"])),
                 ("GPS-ABC-ref", dict(backend="gp", surrogate=_G["gp_ref"])),
                 ("DNN-ABC", dict(backend="dnn", surrogate=_G["dnn"]))]
@@ -168,7 +167,6 @@ def main():
     ap.add_argument("--eps", type=float, default=0.005)
     ap.add_argument("--gp-budget", type=int, default=GP_BUDGET)
     ap.add_argument("--J-grid", type=int, nargs="+", default=[100])
-    ap.add_argument("--mut-time", default="offspring", choices=["parent", "offspring"])
     ap.add_argument("--workers", type=int,
                     default=max(1, (__import__("os").cpu_count() or 2) - 2))
     ap.add_argument("--no-sim", action="store_true",
@@ -183,7 +181,7 @@ def main():
 
     cfg = dict(reps=args.reps, nmcmc=args.nmcmc, burnin=args.burnin, ns=args.ns,
                eps=args.eps, gp_budget=args.gp_budget, J_grid=list(args.J_grid),
-               truths=TRUTHS, mut_time=args.mut_time, with_sim=not args.no_sim,
+               truths=TRUTHS, with_sim=not args.no_sim,
                workers=args.workers)
     (LOG_DIR / "experiment_config.json").write_text(json.dumps(cfg, indent=2))
 

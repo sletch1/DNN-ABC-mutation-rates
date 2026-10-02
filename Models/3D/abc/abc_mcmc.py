@@ -104,8 +104,7 @@ def run_abc_mcmc(obs, backend, n_mcmc=2000, theta_init=None, steps=DEFAULT_STEPS
             for k in range(ns):
                 Z, X = fluc_exp_2stage(sk["Z0"], sk["a"], 10.0 ** th[0], 10.0 ** th[1],
                                        th[2], sk["tp"], sk["J"], rng,
-                                       use_slow=sk.get("use_slow", True),
-                                       mut_time=sk.get("mut_time", "parent"))
+                                       use_slow=sk.get("use_slow", True))
                 vals[k] = summary_stat(Z, X)
             v = np.log10(np.maximum(vals, 10.0 ** LOG_FLOOR))
             m = float(np.mean(v))

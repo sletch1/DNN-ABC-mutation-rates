@@ -50,8 +50,7 @@ def _one_row(task):
     cfg = _CFG["cfg"]
     seed = 20_000 * i + 3  # fixed, simple, independent of add_npe.py's seed stream
     rng = np.random.default_rng(seed)
-    sim_kwargs = dict(Z0=Z0, a=A, tp=TP, J=int(J), use_slow=True,
-                      mut_time=cfg["mut_time"])
+    sim_kwargs = dict(Z0=Z0, a=A, tp=TP, J=int(J), use_slow=True)
     t0 = time.time()
     s, acc = run_abc_mcmc(obs, backend="sim", n_mcmc=cfg["nmcmc"], steps=DEFAULT_STEPS,
                           box=DEFAULT_BOX, eps=cfg["eps"], rng=rng,

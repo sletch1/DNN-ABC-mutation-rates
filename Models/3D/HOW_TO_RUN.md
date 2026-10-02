@@ -136,9 +136,7 @@ python tests/validate_simulator.py --quick
 ```
 
 Every line should print PASS. This confirms the two-stage simulator reduces
-exactly to the constant-rate model in both limiting cases, and re-derives from
-the data itself which mutation-time convention the ground truth was generated
-under.
+to the constant-rate model in both limiting cases.
 
 (The very last digits in `results/model/surrogate_metrics.json` may differ
 between machines — ordinary floating-point variation, not a problem.)
@@ -168,12 +166,8 @@ conformal sd_scale = 1.0185
 [test ] n= 4000  mse_mean=3.628e-04 (1.05x its 2-rep floor)  95%cover=0.955
 
 --- [1b/4] Validating the simulator and the ground truth ---
-  [PASS] tau >= tp -> stage 1 only (p1)  [parent, exact]
-  [PASS] tau <= 0  -> stage 2 only (p2)  [parent, exact]
-  [PASS] tau >> tp -> stage 1 only (p1)  [offspring, in distribution]
-  [PASS] tau <= 0  -> stage 2 only (p2)  [offspring, in distribution]
-  [PASS] convention gap is measurable and of the documented magnitude
-  [PASS] ground truth was generated with mut_time = 'offspring'
+  [PASS] tau >= tp -> stage 1 only (p1)
+  [PASS] tau <= 0  -> stage 2 only (p2)
 all checks passed
 
 --- [2/4] Estimator comparison: parameter recovery ---

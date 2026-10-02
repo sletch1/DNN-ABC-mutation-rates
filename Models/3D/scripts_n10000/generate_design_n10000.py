@@ -3,8 +3,7 @@
 Reproduces the schema of data/slow_data_3D.csv (Z0,a,delta,p1,p2,tau,tp,J,
 design,rep,d_bar,d_1..d_100) but over a 10,000-point Latin-hypercube design
 instead of the original 2,000, with the same 10 replicates per point, J=100,
-tp=10, a=1, delta=1, and the exact ("slow") simulator with the code's current
-default mut_time convention.
+tp=10, a=1, delta=1, and the exact ("slow") simulator.
 
 Bounds (from the manuscript, Section on Study II ground truth):
     log10 p1, log10 p2 in [-5, -1.3]

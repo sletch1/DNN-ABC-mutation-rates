@@ -41,7 +41,6 @@ TRUTHS = [
     (2e-3, 8e-3, 5.0),
 ]
 A, TP, Z0, J = 1.0, 10.0, 1, 100
-MUT_TIME = "offspring"
 EPS = 0.005
 GP_BUDGET = 300
 
@@ -80,7 +79,7 @@ def _one_replicate(task):
     cfg_nmcmc, cfg_burnin = _G["nmcmc"], _G["burnin"]
     seed = abs(hash((round(p1, 12), round(p2, 12), round(tau, 3), J, rep))) % (2 ** 31)
     rng = np.random.default_rng(seed)
-    Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True, mut_time=MUT_TIME)
+    Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True)
     obs = summary_stat(Zv, Xv)
     truth = dict(p1=p1, p2=p2, tau=tau)
 

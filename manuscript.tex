@@ -1518,32 +1518,28 @@ no differential mutant growth rate, making this a genuine three-parameter study;
 \citeauthor{lu2023}'s full specification is four-dimensional. Our simulator
 threads $\delta$ through so the extension does not require a rewrite.
 
-\emph{One convention in the reference implementation is ambiguous, and we had it
-wrong.} A cell born at its parent's division time divides at its own later time,
-and the reference code contains two versions of which of those two times indexes
-the step function in Eq.~\eqref{eq:twostage}, one active, one commented out.
-An earlier version of this study generated its ground truth under the active
-convention while drawing every observed dataset under the other, so the
-surrogates were trained on one model and scored against data from a second. The
-two differ by up to $10.1\%$ in the summary statistic, and by $2.9$--$7.4\%$ at
-the three truth triples of Table~\ref{tab:abc3D}.
-
-Because the generated data records no provenance, the convention was recovered
-by measurement: simulating at the design points of the ground truth itself under
-both conventions, all sixty of the most discriminating points lie closer to the
-active convention (mean absolute error $0.0054$ against $0.0400$ in $\log_{10}$
-units; paired $t = +11.3$). That is also the convention of the paper's
-Algorithm~3, which indexes $p(t)$ by the offspring's own accumulated lifetime.
-The analysis now uses it throughout, and the check is part of the test suite.
-
-The correction is worth reporting even though it changed no conclusion. Its
-effect on the reported quantities was below the Monte Carlo error of the
-experiment, a bias of $0.013$--$0.031$ in $\log_{10}$ units entering
-posteriors whose RMSE is $0.5$--$2.7$, because the same weak identifiability
-that limits this study also absorbs the misspecification. Which convention the
-reference \emph{intends} remains a question for its authors; the analysis is now
-self-consistent under either answer, and the data-generation code can produce a
-paired comparison on identical design points and seeds.
+\emph{A local copy of the reference implementation had drifted from the
+published code, and a prior version of this study reported a spurious finding
+as a result.} We previously reported that the reference implementation's
+mutation-time indexing was ambiguous between two conventions -- a cell's
+own division time versus its parent's -- and that an earlier version of this
+study had trained surrogates under one convention while drawing observed
+data under the other. Re-checking the local reference file against
+\citeauthor{lu2023}'s own public repository (\url{https://github.com/lruijin/ABC_mutation-rate})
+shows that file did not match the published source at all: it used a
+different function signature and had introduced a parent/offspring branch
+that does not exist in the real code, which we checked in full, including
+every subfolder. The published algorithm indexes $p(t)$ by each cell's own
+division time unconditionally, with no alternative convention anywhere in
+the source. There was accordingly no genuine ambiguity to resolve and no
+cross-convention mismatch in the reported pipeline: its default had always
+matched the one convention the published algorithm implements, so no
+reported quantity in this paper changes. We correct the record here rather
+than silently drop the earlier claim, since an earlier draft of this section
+reported it as a positive finding and it should not stand uncorrected. The
+local reference copy has been replaced with a verified-identical copy of the
+published file, and the
+corresponding branch in the simulator and its test have been removed.
 
 \section{Discussion}
 \label{sec:discussion}
@@ -1711,12 +1707,12 @@ reason the exact baseline is not: neither calls the true simulator inside the
 sampling loop.
 
 The two-stage package also ships a validation script that re-derives, rather
-than asserts, three facts the analysis depends on: that the two-stage simulator
-reduces to the constant-rate one in both degenerate limits (checked against an
-independently ported constant-rate implementation, and exact on a shared seed);
-the size of the mutation-time convention gap reported in
-Section~\ref{sec:sim3D_coverage}; and which convention the committed ground
-truth was generated under, since the data file itself records no provenance.
+than asserts, a fact the analysis depends on: that the two-stage simulator
+reduces to the constant-rate one in both degenerate limits, checked in
+distribution against an independently ported constant-rate implementation
+(the two draw their random numbers in a different order per generation, so
+agreement is checked by a two-sample test on matched moments rather than by
+a shared-seed replay).
 The summary statistic is likewise recomputed from the per-culture values stored
 in that file rather than from a cached aggregate, so the choice of root in
 Section~\ref{sec:groundtruth3D} is a single switch and cannot drift between the

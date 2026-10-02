@@ -9,9 +9,9 @@ prior/proposal as the deployed MLP, nothing reimplemented.
 GPS-ABC and DNN-ABC(MLP) are NOT rerun -- reused verbatim from
 table1_recovery.csv/raw_replicates.csv, so MCSEs against the new families are
 apples-to-apples without burning time or risking drift. Config (truths,
-reps=16, nmcmc=3000, burnin=1000, eps=0.005, J=100, mut_time) is loaded
-verbatim from experiment_config.json, not restated, so the two scripts can't
-silently disagree. Every replicate uses the identical per-task seed formula
+reps=16, nmcmc=3000, burnin=1000, eps=0.005, J=100) is loaded verbatim from
+experiment_config.json, not restated, so the two scripts can't silently
+disagree. Every replicate uses the identical per-task seed formula
 from run_experiments.py, so every family and GPS-ABC/DNN-ABC(MLP) score
 against the same simulated observations per (truth, rep) cell.
 
@@ -89,8 +89,7 @@ def _one_replicate_family(task):
     seed = abs(hash((round(p1, 12), round(p2, 12), round(tau, 3), J, rep))) % (2 ** 31)  # identical formula to run_experiments.py
     rng = np.random.default_rng(seed)
 
-    Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True,
-                             mut_time=cfg["mut_time"])
+    Zv, Xv = fluc_exp_2stage(Z0, A, p1, p2, tau, TP, J, rng, use_slow=True)
     obs = summary_stat(Zv, Xv)
     truth = dict(p1=p1, p2=p2, tau=tau)
 
@@ -139,7 +138,7 @@ def main():
     cfg_all = json.loads((LOG_DIR / "experiment_config.json").read_text())
     truths = [tuple(t) for t in cfg_all["truths"]]
     cfg = dict(reps=cfg_all["reps"], nmcmc=cfg_all["nmcmc"], burnin=cfg_all["burnin"],
-              eps=cfg_all["eps"], mut_time=cfg_all["mut_time"])
+              eps=cfg_all["eps"])
     print(f"config (from experiment_config.json): {cfg}, truths={truths}, "
           f"J={cfg_all['J_grid']}")
 
