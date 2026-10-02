@@ -34,5 +34,12 @@ sbi-logs/
 # private submission planning notes
 updates/
 
+# copyrighted publisher PDFs of referenced papers, kept locally for reading only --
+# same reasoning as MutationRates_ABC_paper.pdf above: not redistributable publicly
+lit_review/*.pdf
+
 # Submission improvement plan -- private
 impr.md
+
+# scraped journal submission guidelines -- reference notes, not part of the record
+Statistics_and_Computing_Manuscript_Format.md

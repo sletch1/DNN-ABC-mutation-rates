@@ -1,0 +1,295 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue]{hyperref}
+
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thesection}{S\arabic{section}}
+
+\title{Supplementary Material\\
+\large Deep Neural Network Surrogates for Approximate Bayesian Computation:\\
+A Simulation Study for Mutation-Rate Estimation\\
+in Markov Branching Processes}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent \textbf{Journal:} Statistics and Computing (submitted).
+\textbf{Corresponding author:} [PLACEHOLDER: name, affiliation and email,
+to match the main manuscript's title page once the author list is
+finalised.]
+
+\noindent This document contains the full architecture-, activation-, and
+capacity-search tables referenced from the main text as ``Supplementary
+Material S1'', together with the full per-family results of Study II's
+architecture comparison. Each table below corresponds to a numbered claim in
+the main text; the surrounding prose there states the headline conclusion,
+and is not repeated here except as needed to make each table self-contained.
+
+\section{Study I: the full activation, normalisation and capacity search}
+\label{ssec:s1-1d-arch}
+
+The deployed one-dimensional surrogate (Section~5.3 of the main text) is a
+shallow funnel multilayer perceptron, input $\theta=\log_{10}p$, two
+GELU-activated dense layers at width $32$--$16$ ($626$ parameters). That
+choice is the outcome of the two-stage search reported in full here:
+activation/normalisation first, at a $128$--$64$ baseline, then capacity,
+once the activation question was settled.
+
+\begin{table}[h]
+\centering
+\caption{Architecture search, one-dimensional model: mean-curve fit MSE
+against the denoised response curve (irreducible replicate-noise floor
+$\approx 4.7\times 10^{-3}$).}
+\label{stab:arch1D}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrr}
+\toprule
+Model & Mean-curve MSE & vs.\ GP \\
+\midrule
+Gaussian process (GPS-ABC baseline) & $3.836\times10^{-4}$ & --- \\
+\textbf{DNN, GELU (128, 64), no BatchNorm [selects activation]} & $\mathbf{3.888\times10^{-4}}$ & $+1\%$ \\
+DNN ensemble $\times 5$, SiLU (128, 128, 64) & $3.960\times10^{-4}$ & $+3\%$ \\
+DNN ensemble $\times 5$, tanh (256, 128) & $4.178\times10^{-4}$ & $+9\%$ \\
+DNN, SiLU (128, 128, 64) & $4.400\times10^{-4}$ & $+15\%$ \\
+DNN, tanh (64, 64, 32) & $4.435\times10^{-4}$ & $+16\%$ \\
+DNN, tanh (256, 128) & $4.503\times10^{-4}$ & $+17\%$ \\
+DNN, ReLU + BatchNorm + dropout (64, 64, 32) & $4.352\times10^{-3}$ & $+1035\%$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The row that determines every downstream comparison in the main text is the
+last one: an otherwise-reasonable network carrying BatchNorm and dropout fits
+\emph{eleven times worse} than the same network without them. BatchNorm
+normalises per-minibatch statistics, useful in deep classification networks;
+but on a smooth scalar regression over a one-sided domain (the $\theta$-grid
+has a hard edge at $-8$) it injects batch-dependent noise and biases
+predictions near that boundary. A follow-up ablation isolating only the
+activation function (same 128--64 architecture, no BatchNorm, averaged over
+three random seeds) found ReLU, SiLU, GELU, and tanh within $7\%$ of one
+another ($3.95$--$4.23\times10^{-4}$): a statistical tie, with ReLU
+marginally ahead. Because accuracy does not separate them, the choice of
+GELU is made on structural grounds (smoothness, immunity to the dead-neuron
+failure mode) at no measurable accuracy cost. A second search round using
+$7$-network deep ensembles (mean-curve MSE $3.94$--$4.25\times10^{-4}$
+across four ensemble configurations) did not improve on the single chosen
+network, so the simpler model is retained throughout.
+
+\begin{table}[h]
+\centering
+\caption{One-dimensional model: does capacity matter? Curve MSE is
+against the denoised response curve, mean over three seeds. Downstream
+MSE and 95\% CI length are DNN-ABC at the same scale as the main text's
+mean-squared-error table ($40$ replicates/cell, full $p\times J$ grid), one
+seed per row.}
+\label{stab:capacity1D}
+\setlength{\tabcolsep}{4.5pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrr}
+\toprule
+Hidden layers & Parameters & Curve MSE ($\times$ GP) & Downstream MSE & Downstream 95\% CI \\
+\midrule
+GP (GPS-ABC baseline) & --- & $3.836\times10^{-4}$ (---) & $2.702\times10^{-6}$ & $2.137\times10^{-3}$ \\
+\textbf{32--16 (deployed)} & \textbf{626} & $\mathbf{3.896\times10^{-4}}$ ($\mathbf{+1.6\%}$) & $\mathbf{1.433\times10^{-6}}$ & $\mathbf{1.300\times10^{-3}}$ \\
+128--64 (original) & $8{,}642$ & $4.129\times10^{-4}$ ($+7.6\%$) & $1.514\times10^{-6}$ & $1.308\times10^{-3}$ \\
+64--32 & $2{,}274$ & $3.957\times10^{-4}$ ($+3.2\%$) & $1.565\times10^{-6}$ & $1.377\times10^{-3}$ \\
+16 (1 layer) & $66$ & $4.460\times10^{-4}$ ($+16.3\%$) & $1.579\times10^{-6}$ & $1.375\times10^{-3}$ \\
+8 (1 layer) & $34$ & $4.983\times10^{-4}$ ($+29.9\%$) & $1.668\times10^{-6}$ & $1.393\times10^{-3}$ \\
+16--8 & $186$ & $4.508\times10^{-4}$ ($+17.5\%$) & $1.810\times10^{-6}$ & $1.528\times10^{-3}$ \\
+Linear (control) & $4$ & $4.672\times10^{-4}$ ($+21.8\%$) & --- & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+On raw curve fit, capacity is not merely unnecessary above a small
+threshold: it is mildly \emph{counter-productive} at the original size:
+$128$--$64$ has the largest gap to the GP of any two-layer candidate tested
+($+7.6\%$), while $32$--$16$, at $14\times$ fewer parameters, comes closest to
+matching it ($+1.6\%$). On the downstream task the surrogate is actually
+used for, $32$--$16$ is also the best point estimate on both accuracy and
+interval length of every candidate tested, $128$--$64$ included, though
+attaching Monte Carlo standard errors to the gap shows this specific edge is
+not itself resolved (all nine $\Delta/\mathrm{SE}$ values fall below $0.6$ in
+magnitude). Nothing in the data argues against the smaller network either:
+$32$--$16$ never does measurably worse than $128$--$64$ in any cell. Only the
+linear control shows a clear, unambiguous cost, confirming some nonlinearity
+is required, just not much capacity beyond that.
+
+\section{Study II: the full activation search}
+\label{ssec:s1-3d-act}
+
+The deployed three-dimensional surrogate uses GELU into tanh (different
+activations per hidden layer) at width $64\to32$. Ten activations spanning
+three families (piecewise-linear: ReLU, LeakyReLU, PReLU; smooth
+saturating: tanh, ELU, SELU; and smooth unbounded: softplus, GELU, SiLU,
+Mish) were compared on the deployed network, five seeds each.
+
+\begin{table}[h]
+\centering
+\caption{Study II: activation comparison on the deployed $64\to32$ network,
+five seeds each. MSE is against held-out design-point means of
+$\log_{10}S$; the irreducible floor is $3.451\times10^{-4}$. The final
+column compares each row to the best, in units of the standard error of the
+difference. Standard deviations are across seeds (sample, $n-1$).}
+\label{stab:act3D}
+\begin{tabular}{llrrr}
+\toprule
+Activation & Family & $\times$ floor & $\pm$ sd (seeds) & $t$ vs.\ best \\
+\midrule
+\textbf{GELU} & smooth unbounded & \textbf{1.072} & $9.5\times10^{-6}$ & --- \\
+tanh & smooth saturating & 1.078 & $6.0\times10^{-6}$ & 0.42 \\
+LeakyReLU & piecewise-linear & 1.080 & $6.4\times10^{-6}$ & 0.50 \\
+ReLU & piecewise-linear & 1.082 & $9.5\times10^{-6}$ & 0.54 \\
+Mish & smooth unbounded & 1.094 & $7.2\times10^{-6}$ & 1.38 \\
+SiLU & smooth unbounded & 1.130 & $1.2\times10^{-5}$ & 3.00 \\
+PReLU & piecewise-linear & 1.135 & $1.3\times10^{-5}$ & 3.04 \\
+ELU & smooth saturating & 1.166 & $2.3\times10^{-5}$ & 2.95 \\
+SELU & smooth saturating & 1.265 & $3.3\times10^{-5}$ & 4.35 \\
+softplus & smooth unbounded & 1.383 & $8.7\times10^{-5}$ & 2.74 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two results follow, pulling in opposite directions. First, the choice
+\emph{can} matter: the best-to-worst spread is $29\%$ of the best row's MSE
+at $t=2.7$, outside seed noise, and softplus fails outright (strictly
+positive, so every downstream layer must undo an accumulated offset).
+Second, the five leading candidates (GELU, tanh, LeakyReLU, ReLU and
+Mish) are mutually indistinguishable, every pairwise $|t|$ among them
+below $2$. SELU's poor placement reflects that it presupposes LeCun-normal
+initialisation and AlphaDropout, absent under this project's standard
+initialisation; its position here is evidence about this configuration, not
+a general verdict on SELU.
+
+Because the two hidden layers need not share an activation, all
+$10\times10=100$ ordered per-layer assignments were also compared. All $100$
+pairs are screened; the ten leading candidates are then re-fit on fifteen
+\emph{fresh} seeds that played no part in selection, with the test split
+touched exactly once, for the eventual winner alone.
+
+\begin{table}[h]
+\centering
+\caption{Study II: activation selection with no test-set leakage. All $100$
+ordered pairs were screened on validation; the ten finalists were re-fit on
+fifteen fresh validation seeds. Selection is on validation MSE; the test
+column is shown for reference and played no part in the choice. Test
+$\times$ floor is against the irreducible test floor $3.451\times10^{-4}$.}
+\label{stab:actsel3D}
+\begin{tabular}{llrrrr}
+\toprule
+Layer 1 (64) & Layer 2 (32) & Val MSE & $\pm$ sd & $t$ vs.\ best & Test $\times$ floor \\
+\midrule
+\textbf{GELU} & \textbf{tanh} & $\mathbf{2.980\times10^{-4}}$ & $1.3\times10^{-5}$ & --- & 1.062 \\
+Mish & tanh & $3.006\times10^{-4}$ & $1.4\times10^{-5}$ & 0.54 & 1.076 \\
+SiLU & tanh & $3.021\times10^{-4}$ & $1.4\times10^{-5}$ & 0.86 & 1.086 \\
+LeakyReLU & LeakyReLU & $3.059\times10^{-4}$ & $8.4\times10^{-6}$ & 2.00 & 1.075 \\
+PReLU & ReLU & $3.071\times10^{-4}$ & $1.2\times10^{-5}$ & 2.05 & 1.077 \\
+Mish & Mish & $3.120\times10^{-4}$ & $1.1\times10^{-5}$ & 3.19 & 1.080 \\
+ELU & GELU & $3.137\times10^{-4}$ & $8.5\times10^{-6}$ & 3.99 & 1.093 \\
+SiLU & Mish & $3.164\times10^{-4}$ & $1.4\times10^{-5}$ & 3.84 & 1.097 \\
+GELU & Mish & $3.172\times10^{-4}$ & $1.7\times10^{-5}$ & 3.51 & 1.086 \\
+Mish & SiLU & $3.205\times10^{-4}$ & $1.8\times10^{-5}$ & 3.94 & 1.101 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The selection optimism this two-stage discipline guards against is not
+small: the finalists perform, on average, $1.03\times10^{-5}$ \emph{worse}
+on the fresh seeds than on the seeds that chose them, $45\%$ of the entire
+spread of the confirmation table and comparable to the across-seed standard
+deviation itself. The pair that screened best, SiLU into tanh, finished
+third on confirmation: a single-stage search would have reported that
+movement as a real result. Under the fourth-root target used throughout the
+main text, GELU into tanh is best on both validation and test, so scoring
+selection on test would not, here, have changed the choice; under the
+square-root target tried during development it did, which is why the
+two-stage, validation-only discipline is treated as a requirement rather
+than a formality.
+
+\section{Study II: the architecture-family comparison}
+\label{ssec:s1-3d-family}
+
+A 1-D CNN (two convolutional layers, kernel width 3), a GRU, and an LSTM
+(each unrolling the three inputs $(\log_{10}p_1,\log_{10}p_2,\tau)$ as three
+timesteps), with comparable parameter counts ($2{,}402$--$3{,}426$) to the
+deployed FFN, were each evaluated exactly as GPS-ABC and DNN-ABC were: a
+surrogate-fit comparison against the irreducible noise floor, and the
+identical full ABC-MCMC recovery task (same three truth triples, $16$
+replicates, $3{,}000$ iterations, $1{,}000$ burn-in).
+
+\begin{table}[h]
+\centering
+\caption{Surrogate fit quality by architecture family, test set. The
+irreducible noise floor is $3.451\times10^{-4}$. The deployed FFN's row is
+read from the capacity study rather than restated, so it necessarily
+describes the same target as the rows beside it.}
+\label{stab:archfam3D}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Architecture & Parameters & MSE (design means) & $\times$ floor & $R^2$ & 95\% coverage \\
+\midrule
+CNN1D (2 conv layers, $k{=}3$) & 2{,}482 & $3.589\times10^{-4}$ & 1.04 & 0.99670 & 0.949 \\
+\textbf{FFN 64--32 [deployed]} & \textbf{2{,}402} & $\mathbf{3.749\times10^{-4}}$ & \textbf{1.09} & \textbf{0.99656} & \textbf{0.952} \\
+LSTM (hidden $24$) & 2{,}642 & $4.221\times10^{-4}$ & 1.22 & 0.99612 & 0.950 \\
+RNN (GRU, hidden $32$) & 3{,}426 & $4.520\times10^{-4}$ & 1.31 & 0.99585 & 0.949 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{ABC-MCMC recovery of $(p_1,p_2,\tau)$ by architecture family,
+per-parameter RMSE (log$_{10}$ scale for $p_1,p_2$; absolute time units for
+$\tau$), averaged over the three truth triples used throughout Study II.
+Bold marks the best value in each row.}
+\label{stab:archfam3D_abc}
+\begin{tabular}{lrrrrr}
+\toprule
+Parameter & GPS-ABC & DNN-ABC (FFN) & CNN1D-ABC & RNN-ABC & LSTM-ABC \\
+\midrule
+$p_1$ RMSE & 1.391 & 1.407 & \textbf{1.373} & 1.378 & 1.389 \\
+$p_1$ coverage & 1.000 & 0.938 & 0.958 & 0.917 & 0.979 \\
+$p_2$ RMSE & \textbf{0.156} & 0.258 & 0.203 & 0.312 & 0.209 \\
+$p_2$ coverage & 1.000 & 0.979 & 0.979 & 0.938 & 0.958 \\
+$\tau$ RMSE & \textbf{1.422} & 1.753 & 1.688 & 1.700 & 1.631 \\
+$\tau$ coverage & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CNN1D statistically ties the deployed FFN ($4.3\%$ lower MSE, inside the
+seed-to-seed spread already documented for the capacity study), but costs
+$143$\,\textmu s per query against the FFN's $40$, the wrong trade for a tie.
+LSTM and RNN are measurably worse ($+12.6\%$, $+20.6\%$ MSE; both gaps an
+order of magnitude larger than their own across-seed standard deviation).
+Attaching Monte Carlo standard errors to every one of the $3\times3\times3=27$
+new-family, truth and parameter cells, and comparing each new family against
+both GPS-ABC and DNN-ABC at the $2$-MCSE level ($54$ pairwise comparisons in
+total), gives a picture consistent with the fit-quality result, and a
+slightly starker one: $49$ of $54$ ($91\%$) are statistical ties. All $5$
+resolved comparisons favour GPS-ABC, and \emph{none} favours a new family
+anywhere. Three of the five are CNN1D-ABC and two RNN-ABC; LSTM-ABC is tied
+in every one of its eighteen comparisons.
+
+Interval calibration adds nothing to the picture either way. Pooled coverage
+is $0.951$--$0.979$ for the four neural families and $1.000$ for both
+Gaussian processes, against a nominal $0.95$. An earlier version of this
+comparison read a narrative into that column (the FFN under-covering,
+CNN1D inheriting and worsening it, LSTM correcting it) which the corrected
+numbers do not support: the spread across all four neural families is under
+three percentage points, which at sixteen replicates is at most one cell per
+parameter. Every method over-covers on $\tau$ at exactly $1.000$, reflecting
+that parameter's weak identifiability rather than any property of an
+architecture.
+
+\end{document}

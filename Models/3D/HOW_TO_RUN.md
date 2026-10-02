@@ -9,11 +9,14 @@ Two-stage mutation rate `(p1, p2, τ)` — the paper's Study 2.
 Python 3.9 or newer. Nothing else: no GPU, no compiler, no server, no data to
 download. The ground-truth data is already in `data/`.
 
-**Unlike the 1-D study, this one is fast — under 5 minutes end to end**
-(measured: 3m40s on a 14-core laptop). The
-expensive exact-simulator baseline is off by default, because this study
-compares surrogates to each other rather than to the exact sampler
-(`results/logs/experiment_config.json` records `"with_sim": false`).
+**Unlike the 1-D study, this one is fast by default — under 5 minutes end to
+end** (measured: 3m40s on a 14-core laptop) **for three of the four reported
+methods.** The exact-simulator baseline (the `ABC-MCMC` row in
+`results/tables/TABLES.md` and Table 9 of the paper) is off by default because
+it is genuinely expensive -- several hours, not minutes, and highly variable
+across the three truth triples (`abc/add_exact.py`'s docstring has the
+measured numbers) -- not because it isn't reported. It is reported, backfilled
+separately with `abc/add_exact.py` rather than run inline by `run_all.py`.
 
 ## 2. Run it
 
@@ -28,18 +31,23 @@ Which run do you want?
   [1] Quick  - a smoke test, roughly 1.5 minutes. Confirms the pipeline works
                end to end. Its numbers are noisy: do not read results off it.
 
-  [2] Full   - the reported settings: 16 replicates, a few minutes. This is
-               what produced the results in results/.
+  [2] Full   - GPS-ABC, GPS-ABC-ref, DNN-ABC and NPE at the reported settings:
+               16 replicates, a few minutes.
 
-  [3] Full + exact-simulator ABC baseline - hours, and not needed.
+  [3] Full + exact-simulator ABC baseline - several hours, and only needed if
+               you want to reproduce the ABC-MCMC (exact) row yourself.
 
 Enter 1, 2 or 3 [1]:
 ```
 
-Option 3 exists only for completeness: the reported results were produced
-without the exact-simulator baseline (`results/logs/experiment_config.json`
-records `"with_sim": false`), because this study compares the two surrogates to
-each other rather than to the exact sampler.
+`results/` already contains the exact-simulator baseline (`results/logs/experiment_config.json`
+records `"with_sim": true`) -- it was produced once, separately, with
+`abc/add_exact.py` (several hours; see that script's docstring), backfilled
+onto an existing run rather than rerun from scratch each time. Option 2 will
+not add or change that row; it reproduces the other four methods only.
+Option 3 reruns everything, including the exact baseline, from scratch,
+which is correct but far more expensive than necessary if the other four
+methods are already what you're checking.
 
 **From an IDE (Spyder, VS Code, PyCharm, IDLE):** open `run_all.py` and press
 **Run**. Answer the question in the console pane, and that is the whole job.
@@ -95,9 +103,14 @@ python abc/mcse.py
 python figures/make_figures.py
 ```
 
-That reproduces the reported results. Drop `--no-sim` from the third command to
-include the exact-simulator baseline instead (hours, and not needed). On Windows
-use backslashes in the script paths (`python network\train.py ...`).
+That reproduces four of the five reported methods (everything except the
+`ABC-MCMC` row). For that row, either drop `--no-sim` from the third command
+to rerun everything including the exact baseline from scratch (several
+hours), or run `python abc/add_exact.py` afterward to backfill just that row
+onto the four-method output above (also several hours -- the baseline itself
+is what's expensive, not which script runs it -- but it skips
+re-simulating the other four methods' observations). On Windows use
+backslashes in the script paths (`python network\train.py ...`).
 
 ## 3. Check it worked
 
@@ -209,10 +222,11 @@ the paper switches to the fourth root for the two-stage model.
 
 A neural network predicts the mean **and the variance** of `log10 S` from
 `(log10 p1, log10 p2, τ)`, and replaces the simulator inside an ABC-MCMC
-sampler. Four methods are compared:
+sampler. Five methods are compared:
 
 | Method | What it is |
 |---|---|
+| `ABC-MCMC` | exact -- the true simulator called inside the MCMC loop every iteration; the expensive gold-standard baseline, off by default (Section 1) |
 | `DNN-ABC` | this network |
 | `GPS-ABC` | a Gaussian process, strengthened: anisotropic kernel, log-scaled inputs |
 | `GPS-ABC-ref` | a Gaussian process matching `matlab/demoGPS_fluc_exp2.m` exactly |
@@ -222,20 +236,23 @@ Both GPs are reported because the strengthened one is better than the reference
 on every axis, so quoting only it would overstate the published baseline.
 
 **The headline result is negative for the surrogate-vs-surrogate comparison,
-and reported as such.** DNN-ABC and GPS-ABC are statistically tied in seven of
-nine parameter-by-truth comparisons; the other two favour GPS-ABC and none
-favours the network. What binds here is not surrogate error but the model's
+and reported as such.** DNN-ABC and GPS-ABC are statistically tied in most
+parameter-by-truth comparisons; where they're not, GPS-ABC wins and DNN-ABC
+never does. What binds here is not surrogate error but the model's
 own identifiability: `p1` and `τ` are weakly determined by a single scalar
 summary, so a better surrogate cannot help.
 
 **NPE is the exception, and only on the one well-identified parameter.** On
-`p2`, NPE's RMSE beats every surrogate at every tested truth, resolved beyond
-replicate noise in most comparisons. On `p1` and `τ` it is a mix of ties and
-occasional wins/losses against each GP variant -- consistent with the same
-identifiability ceiling that limits the surrogates. If you only need to
-add/retrain NPE and the rest of `results/logs/raw_replicates.csv` is already
-correct, run `abc/add_npe.py` instead of the full pipeline: it reuses every
-already-simulated observation and finishes in well under a minute.
+`p2`, NPE's RMSE beats every surrogate *and* exact ABC-MCMC at every tested
+truth, resolved beyond replicate noise in most comparisons. On `p1` and `τ`
+it is a mix of ties and occasional wins/losses against each GP variant --
+consistent with the same identifiability ceiling that limits every other
+method, exact simulator included. Two backfill scripts avoid rerunning the
+full pipeline for a partial update: `abc/add_npe.py` (retrains/rescoures
+just NPE, reuses every already-simulated observation, well under a minute)
+and `abc/add_exact.py` (backfills just the exact-simulator baseline onto an
+existing run -- several hours, since that baseline is what's expensive, not
+which script produces it).
 
 ## 7. Regenerating the ground-truth data (not needed)
 

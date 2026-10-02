@@ -4,6 +4,9 @@
 
 | truth (p1,p2,tau) | J | param | method | rmse_log ± MCSE | coverage ± MCSE |
 |---|---|---|---|---|---|
+| (1e-04, 1e-02, 3) | 100 | p1 | ABC-MCMC | 1.894 ± 0.036 | 1.00 ± 0.00 |
+| (1e-04, 1e-02, 3) | 100 | p2 | ABC-MCMC | 0.116 ± 0.017 | 1.00 ± 0.00 |
+| (1e-04, 1e-02, 3) | 100 | tau | ABC-MCMC | 2.493 ± 0.236 | 0.94 ± 0.06 |
 | (1e-04, 1e-02, 3) | 100 | p1 | GPS-ABC | 1.846 ± 0.038 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 3) | 100 | p2 | GPS-ABC | 0.083 ± 0.011 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 3) | 100 | tau | GPS-ABC | 2.259 ± 0.177 | 1.00 ± 0.00 |
@@ -16,6 +19,9 @@
 | (1e-04, 1e-02, 3) | 100 | p1 | NPE | 1.870 ± 0.004 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 3) | 100 | p2 | NPE | 0.021 ± 0.004 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 3) | 100 | tau | NPE | 2.323 ± 0.009 | 1.00 ± 0.00 |
+| (1e-04, 1e-02, 7) | 100 | p1 | ABC-MCMC | 1.791 ± 0.045 | 1.00 ± 0.00 |
+| (1e-04, 1e-02, 7) | 100 | p2 | ABC-MCMC | 0.282 ± 0.057 | 0.88 ± 0.08 |
+| (1e-04, 1e-02, 7) | 100 | tau | ABC-MCMC | 1.719 ± 0.179 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 7) | 100 | p1 | GPS-ABC | 1.838 ± 0.030 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 7) | 100 | p2 | GPS-ABC | 0.247 ± 0.026 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 7) | 100 | tau | GPS-ABC | 1.305 ± 0.126 | 1.00 ± 0.00 |
@@ -28,6 +34,9 @@
 | (1e-04, 1e-02, 7) | 100 | p1 | NPE | 1.753 ± 0.005 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 7) | 100 | p2 | NPE | 0.220 ± 0.003 | 1.00 ± 0.00 |
 | (1e-04, 1e-02, 7) | 100 | tau | NPE | 1.515 ± 0.013 | 1.00 ± 0.00 |
+| (2e-03, 8e-03, 5) | 100 | p1 | ABC-MCMC | 0.563 ± 0.063 | 1.00 ± 0.00 |
+| (2e-03, 8e-03, 5) | 100 | p2 | ABC-MCMC | 0.296 ± 0.081 | 0.94 ± 0.06 |
+| (2e-03, 8e-03, 5) | 100 | tau | ABC-MCMC | 1.104 ± 0.119 | 1.00 ± 0.00 |
 | (2e-03, 8e-03, 5) | 100 | p1 | GPS-ABC | 0.490 ± 0.039 | 1.00 ± 0.00 |
 | (2e-03, 8e-03, 5) | 100 | p2 | GPS-ABC | 0.138 ± 0.034 | 1.00 ± 0.00 |
 | (2e-03, 8e-03, 5) | 100 | tau | GPS-ABC | 0.701 ± 0.087 | 1.00 ± 0.00 |
@@ -43,54 +52,90 @@
 
 ## Method comparisons (rmse_log)
 
+- (1e-04,1e-02,3) J=100 `p1`: ABC-MCMC vs GPS-ABC: delta = +0.047 ± 0.052 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p1`: ABC-MCMC vs GPS-ABC-ref: delta = +0.042 ± 0.039 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p1`: ABC-MCMC vs DNN-ABC: delta = +0.029 ± 0.066 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p1`: ABC-MCMC vs NPE: delta = +0.024 ± 0.036 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p1`: GPS-ABC vs GPS-ABC-ref: delta = -0.006 ± 0.041 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p1`: GPS-ABC vs DNN-ABC: delta = -0.018 ± 0.067 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p1`: GPS-ABC vs NPE: delta = -0.023 ± 0.038 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p1`: GPS-ABC-ref vs DNN-ABC: delta = -0.013 ± 0.057 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p1`: GPS-ABC-ref vs NPE: delta = -0.018 ± 0.016 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p1`: DNN-ABC vs NPE: delta = -0.005 ± 0.055 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p2`: ABC-MCMC vs GPS-ABC: delta = +0.034 ± 0.020 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p2`: ABC-MCMC vs GPS-ABC-ref: delta = -0.040 ± 0.042 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p2`: ABC-MCMC vs DNN-ABC: delta = -0.016 ± 0.024 -> **TIE**
+- (1e-04,1e-02,3) J=100 `p2`: ABC-MCMC vs NPE: delta = +0.095 ± 0.018 -> **NPE better**
 - (1e-04,1e-02,3) J=100 `p2`: GPS-ABC vs GPS-ABC-ref: delta = -0.073 ± 0.040 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p2`: GPS-ABC vs DNN-ABC: delta = -0.050 ± 0.020 -> **GPS-ABC better**
 - (1e-04,1e-02,3) J=100 `p2`: GPS-ABC vs NPE: delta = +0.061 ± 0.012 -> **NPE better**
 - (1e-04,1e-02,3) J=100 `p2`: GPS-ABC-ref vs DNN-ABC: delta = +0.024 ± 0.042 -> **TIE**
 - (1e-04,1e-02,3) J=100 `p2`: GPS-ABC-ref vs NPE: delta = +0.135 ± 0.038 -> **NPE better**
 - (1e-04,1e-02,3) J=100 `p2`: DNN-ABC vs NPE: delta = +0.111 ± 0.017 -> **NPE better**
+- (1e-04,1e-02,3) J=100 `tau`: ABC-MCMC vs GPS-ABC: delta = +0.234 ± 0.295 -> **TIE**
+- (1e-04,1e-02,3) J=100 `tau`: ABC-MCMC vs GPS-ABC-ref: delta = -0.589 ± 0.257 -> **ABC-MCMC better**
+- (1e-04,1e-02,3) J=100 `tau`: ABC-MCMC vs DNN-ABC: delta = -0.057 ± 0.268 -> **TIE**
+- (1e-04,1e-02,3) J=100 `tau`: ABC-MCMC vs NPE: delta = +0.170 ± 0.236 -> **TIE**
 - (1e-04,1e-02,3) J=100 `tau`: GPS-ABC vs GPS-ABC-ref: delta = -0.823 ± 0.204 -> **GPS-ABC better**
 - (1e-04,1e-02,3) J=100 `tau`: GPS-ABC vs DNN-ABC: delta = -0.291 ± 0.217 -> **TIE**
 - (1e-04,1e-02,3) J=100 `tau`: GPS-ABC vs NPE: delta = -0.063 ± 0.177 -> **TIE**
 - (1e-04,1e-02,3) J=100 `tau`: GPS-ABC-ref vs DNN-ABC: delta = +0.532 ± 0.162 -> **DNN-ABC better**
 - (1e-04,1e-02,3) J=100 `tau`: GPS-ABC-ref vs NPE: delta = +0.759 ± 0.102 -> **NPE better**
 - (1e-04,1e-02,3) J=100 `tau`: DNN-ABC vs NPE: delta = +0.228 ± 0.126 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p1`: ABC-MCMC vs GPS-ABC: delta = -0.047 ± 0.054 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p1`: ABC-MCMC vs GPS-ABC-ref: delta = +0.137 ± 0.048 -> **GPS-ABC-ref better**
+- (1e-04,1e-02,7) J=100 `p1`: ABC-MCMC vs DNN-ABC: delta = +0.002 ± 0.071 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p1`: ABC-MCMC vs NPE: delta = +0.037 ± 0.045 -> **TIE**
 - (1e-04,1e-02,7) J=100 `p1`: GPS-ABC vs GPS-ABC-ref: delta = +0.185 ± 0.035 -> **GPS-ABC-ref better**
 - (1e-04,1e-02,7) J=100 `p1`: GPS-ABC vs DNN-ABC: delta = +0.049 ± 0.063 -> **TIE**
 - (1e-04,1e-02,7) J=100 `p1`: GPS-ABC vs NPE: delta = +0.085 ± 0.030 -> **NPE better**
 - (1e-04,1e-02,7) J=100 `p1`: GPS-ABC-ref vs DNN-ABC: delta = -0.136 ± 0.058 -> **GPS-ABC-ref better**
 - (1e-04,1e-02,7) J=100 `p1`: GPS-ABC-ref vs NPE: delta = -0.100 ± 0.018 -> **GPS-ABC-ref better**
 - (1e-04,1e-02,7) J=100 `p1`: DNN-ABC vs NPE: delta = +0.036 ± 0.056 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p2`: ABC-MCMC vs GPS-ABC: delta = +0.035 ± 0.062 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p2`: ABC-MCMC vs GPS-ABC-ref: delta = -0.117 ± 0.064 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p2`: ABC-MCMC vs DNN-ABC: delta = +0.013 ± 0.070 -> **TIE**
+- (1e-04,1e-02,7) J=100 `p2`: ABC-MCMC vs NPE: delta = +0.063 ± 0.057 -> **TIE**
 - (1e-04,1e-02,7) J=100 `p2`: GPS-ABC vs GPS-ABC-ref: delta = -0.152 ± 0.040 -> **GPS-ABC better**
 - (1e-04,1e-02,7) J=100 `p2`: GPS-ABC vs DNN-ABC: delta = -0.022 ± 0.048 -> **TIE**
 - (1e-04,1e-02,7) J=100 `p2`: GPS-ABC vs NPE: delta = +0.027 ± 0.026 -> **TIE**
 - (1e-04,1e-02,7) J=100 `p2`: GPS-ABC-ref vs DNN-ABC: delta = +0.130 ± 0.051 -> **DNN-ABC better**
 - (1e-04,1e-02,7) J=100 `p2`: GPS-ABC-ref vs NPE: delta = +0.180 ± 0.031 -> **NPE better**
 - (1e-04,1e-02,7) J=100 `p2`: DNN-ABC vs NPE: delta = +0.050 ± 0.041 -> **TIE**
+- (1e-04,1e-02,7) J=100 `tau`: ABC-MCMC vs GPS-ABC: delta = +0.414 ± 0.219 -> **TIE**
+- (1e-04,1e-02,7) J=100 `tau`: ABC-MCMC vs GPS-ABC-ref: delta = +0.475 ± 0.190 -> **GPS-ABC-ref better**
+- (1e-04,1e-02,7) J=100 `tau`: ABC-MCMC vs DNN-ABC: delta = +0.122 ± 0.257 -> **TIE**
+- (1e-04,1e-02,7) J=100 `tau`: ABC-MCMC vs NPE: delta = +0.203 ± 0.180 -> **TIE**
 - (1e-04,1e-02,7) J=100 `tau`: GPS-ABC vs GPS-ABC-ref: delta = +0.061 ± 0.141 -> **TIE**
 - (1e-04,1e-02,7) J=100 `tau`: GPS-ABC vs DNN-ABC: delta = -0.292 ± 0.224 -> **TIE**
 - (1e-04,1e-02,7) J=100 `tau`: GPS-ABC vs NPE: delta = -0.210 ± 0.127 -> **TIE**
 - (1e-04,1e-02,7) J=100 `tau`: GPS-ABC-ref vs DNN-ABC: delta = -0.353 ± 0.195 -> **TIE**
 - (1e-04,1e-02,7) J=100 `tau`: GPS-ABC-ref vs NPE: delta = -0.272 ± 0.064 -> **GPS-ABC-ref better**
 - (1e-04,1e-02,7) J=100 `tau`: DNN-ABC vs NPE: delta = +0.082 ± 0.185 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p1`: ABC-MCMC vs GPS-ABC: delta = +0.073 ± 0.075 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p1`: ABC-MCMC vs GPS-ABC-ref: delta = +0.141 ± 0.066 -> **GPS-ABC-ref better**
+- (2e-03,8e-03,5) J=100 `p1`: ABC-MCMC vs DNN-ABC: delta = -0.005 ± 0.083 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p1`: ABC-MCMC vs NPE: delta = +0.067 ± 0.063 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p1`: GPS-ABC vs GPS-ABC-ref: delta = +0.068 ± 0.044 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p1`: GPS-ABC vs DNN-ABC: delta = -0.078 ± 0.066 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p1`: GPS-ABC vs NPE: delta = -0.006 ± 0.040 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p1`: GPS-ABC-ref vs DNN-ABC: delta = -0.146 ± 0.056 -> **GPS-ABC-ref better**
 - (2e-03,8e-03,5) J=100 `p1`: GPS-ABC-ref vs NPE: delta = -0.073 ± 0.019 -> **GPS-ABC-ref better**
 - (2e-03,8e-03,5) J=100 `p1`: DNN-ABC vs NPE: delta = +0.073 ± 0.053 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p2`: ABC-MCMC vs GPS-ABC: delta = +0.158 ± 0.088 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p2`: ABC-MCMC vs GPS-ABC-ref: delta = +0.129 ± 0.084 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p2`: ABC-MCMC vs DNN-ABC: delta = -0.076 ± 0.159 -> **TIE**
+- (2e-03,8e-03,5) J=100 `p2`: ABC-MCMC vs NPE: delta = +0.269 ± 0.081 -> **NPE better**
 - (2e-03,8e-03,5) J=100 `p2`: GPS-ABC vs GPS-ABC-ref: delta = -0.029 ± 0.041 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p2`: GPS-ABC vs DNN-ABC: delta = -0.235 ± 0.141 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p2`: GPS-ABC vs NPE: delta = +0.111 ± 0.035 -> **NPE better**
 - (2e-03,8e-03,5) J=100 `p2`: GPS-ABC-ref vs DNN-ABC: delta = -0.206 ± 0.139 -> **TIE**
 - (2e-03,8e-03,5) J=100 `p2`: GPS-ABC-ref vs NPE: delta = +0.139 ± 0.023 -> **NPE better**
 - (2e-03,8e-03,5) J=100 `p2`: DNN-ABC vs NPE: delta = +0.345 ± 0.137 -> **NPE better**
+- (2e-03,8e-03,5) J=100 `tau`: ABC-MCMC vs GPS-ABC: delta = +0.402 ± 0.147 -> **GPS-ABC better**
+- (2e-03,8e-03,5) J=100 `tau`: ABC-MCMC vs GPS-ABC-ref: delta = +0.033 ± 0.136 -> **TIE**
+- (2e-03,8e-03,5) J=100 `tau`: ABC-MCMC vs DNN-ABC: delta = -0.008 ± 0.220 -> **TIE**
+- (2e-03,8e-03,5) J=100 `tau`: ABC-MCMC vs NPE: delta = +0.667 ± 0.120 -> **NPE better**
 - (2e-03,8e-03,5) J=100 `tau`: GPS-ABC vs GPS-ABC-ref: delta = -0.370 ± 0.108 -> **GPS-ABC better**
 - (2e-03,8e-03,5) J=100 `tau`: GPS-ABC vs DNN-ABC: delta = -0.411 ± 0.204 -> **GPS-ABC better**
 - (2e-03,8e-03,5) J=100 `tau`: GPS-ABC vs NPE: delta = +0.265 ± 0.088 -> **NPE better**

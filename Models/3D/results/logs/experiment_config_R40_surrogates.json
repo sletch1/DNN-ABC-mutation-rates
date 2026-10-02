@@ -1,5 +1,5 @@
 {
-  "reps": 16,
+  "reps": 40,
   "nmcmc": 3000,
   "burnin": 1000,
   "ns": 4,
@@ -26,6 +26,6 @@
     ]
   ],
   "mut_time": "offspring",
-  "with_sim": true,
-  "workers": 12
+  "with_sim": false,
+  "workers": 10
 }
