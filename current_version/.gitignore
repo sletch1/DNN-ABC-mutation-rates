@@ -1,0 +1,46 @@
+# macOS / editor junk
+.DS_Store
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+dnnenv/
+# copyright: the published Version of Record (Elsevier) is not redistributable
+# publicly. Cite it via DOI instead — https://doi.org/10.1016/j.jtbi.2023.111467
+MutationRates_ABC_paper.pdf
+# LaTeX build byproducts (manuscript.tex/.bib/.pdf are tracked; these are not)
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# distribution archives built by hand for sharing (see DNN_ABC.zip) -- these are
+# derived artifacts, rebuilt from the tree whenever needed, and large enough to
+# bloat the repo pointlessly
+*.zip
+*.xdv
+
+# working notes -- personal scratch, not part of the record
+Models/notes/
+
+# tensorboard event logs sbi writes during NPE training -- build byproduct
+sbi-logs/
+
+
+# local-only material (kept on disk, not for the public repo)
+Original_Paper_Code/training/
+3D/data/mat/
+3D/gps_abc/out/
+3D/gps_abc/*.mat
+3D/gps_abc/log_*.txt
+3D/gps_abc/timing_*.log
+3D/gps_abc/*.log
+3D/results/*.log
+
+# copyrighted publisher PDFs of referenced papers, kept locally for reading only
+lit_review/*.pdf
