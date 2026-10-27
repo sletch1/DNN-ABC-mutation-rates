@@ -63,7 +63,7 @@
 \author[1]{\fnm{Xiaowei} \sur{Wu}}\email{xwwu@vt.edu}
 \affil*[1]{\orgdiv{Department of Statistics}, \orgname{Virginia Tech}, \orgaddress{\city{Blacksburg}, \state{VA}, \postcode{24061}, \country{USA}}}
 
-\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but its per-iteration cost makes posterior analysis infeasible when the simulator is slow, as for the branching-process models used to estimate mutation rates from Luria--Delbr\"uck-style fluctuation experiments. A standard remedy substitutes a Gaussian-process (GP) surrogate for the simulator inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but its cubic fitting cost limits how much simulator output the surrogate can use, and in the four-parameter model of the original study a single chain takes days. We ask whether a neural-network surrogate, calibrated by split-conformal prediction, can make the same substitution, and what it buys. A one-dimensional benchmark shows tighter calibrated intervals and a 68- to 2,000-fold speedup over exact ABC-MCMC. The main study is the four-parameter two-stage model with differential growth, run in the original study's own regime after checking that our data generator is statistically indistinguishable from theirs. There the summary statistic is exactly zero for 30\% of data sets and its two features are strongly correlated; a zero-aware network fits it at the data's noise floor where a GP fit to the original design's $1{,}500$ points is $1.45$ times above it ($2.4$ at $300$ points), and needs only that design size. On the same data sets, against the original authors' own sampler, it matches the accuracy of GPS-ABC for the identified parameters with posterior intervals for the second mutation probability $1.7$ to $3.6$ times shorter, in about forty seconds per data set where a GPS-ABC chain takes days. An amortized neural posterior estimator trained on the same simulations agrees on what the data identify, the second mutation probability and loosely the growth parameter and not the first mutation probability or the transition time, and is better calibrated over prior draws, while the surrogate-based samplers are sharper and mildly overconfident. Code, data and a reproducible pipeline accompany the paper.}
+\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a neural-network surrogate calibrated by split-conformal prediction can make the same substitution. A one-dimensional benchmark shows tighter calibrated intervals and a 68- to 2,000-fold speedup over exact ABC-MCMC. The main study is the four-parameter two-stage model, run in the original study's regime after checking that our data generator is statistically indistinguishable from theirs. The summary statistic is exactly zero for 30\% of data sets; a zero-aware network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it. Against the original authors' own sampler on the same data sets, it matches the accuracy of GPS-ABC with $1.7$ to $3.6$ times shorter intervals for the second mutation probability, in about forty seconds per data set. A neural posterior estimator (NPE) trained on the same simulations, with no surrogate or chain, agrees on what the data identify and is better calibrated, while the surrogate-based samplers are sharper and mildly overconfident.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; conformal prediction; heteroscedastic
@@ -134,6 +134,14 @@ study's regime ($t_p=20$, $p\in[10^{-11},10^{-7}]$, four parameters), after chec
 that our data generator is statistically indistinguishable from theirs at their own
 design points. A control trained on only the original design size separates the effect
 of more simulation from the effect of the surrogate.
+\item \emph{A neural posterior estimator as an independent reference.} NPE learns the
+posterior directly from the same simulations, with no surrogate likelihood, no kernel
+and no Markov chain. It matters here for three reasons. It shows whether the surrogate
+and sampler are needed at all in four dimensions, since it uses exactly the same data and
+features. It separates the two ways a surrogate-based posterior can go wrong, the
+surrogate's variance model and the sampler, because it has neither. And, being
+amortized, it returns posterior draws for a new data set in seconds with no further
+simulation, which GPS-ABC and DNN-ABC cannot do.
 \item \emph{Identifiability, not the surrogate, limits accuracy.} The data identify
 $p_2$ and, loosely, $\delta$, and not $p_1$ or $\tau$. A neural posterior estimator (NPE)
 trained on the same simulations and the surrogate-based sampler agree on this, which
@@ -901,19 +909,23 @@ acceptance into that range.
 \noindent\textbf{NPE, and why it is here.} An amortized neural posterior estimator
 learns $p(\theta\mid\bar d,s)$ directly from simulator draws
 \citep{papamakarios2016,greenberg2019}, here with \texttt{sbi}
-\citep{tejerocantero2020}. We include it in this study because it tests, with the
-same simulations, what the other two methods add on top of them. In one
+\citep{tejerocantero2020}. We include it for three reasons, each of which bears on a claim of the paper. First, it
+tests, with the same simulations, what the other two methods add on top of them. In one
 dimension there is little to gain by skipping the sampler; in four, the
 alternative to a surrogate inside an MCMC kernel is to learn the posterior
 itself, and the question is whether the sampler, and the surrogate's variance
 model, are needed at all. NPE uses exactly the DNN-ABC training data, the same
 two features and the same design-point split, so any difference is the
-method, not the data. It needs no chain, no acceptance step and no $\epsilon$, so it
-also separates errors that come from the surrogate's variance from errors that
-come from the kernel. And after training it returns independent posterior draws
-for a new data set in milliseconds, which none of GPS-ABC, DNN-ABC and exact
-ABC-MCMC can. It cannot do better than the information in $(\bar d,s)$, which
-makes it a ceiling on what any method using these features can recover. We
+method, not the data. Second, it needs no chain, no acceptance step and no $\epsilon$, so it
+separates errors that come from the surrogate's variance model from errors that
+come from the kernel and sampler; this is what lets Section~\ref{sec:sim3D_sbc} attribute
+DNN-ABC's mild overconfidence to the Gaussian predictive density and the surrogate's
+error rather than to the sampler. Third, it is amortized: after training it returns
+independent posterior draws for a new data set in about four seconds, which none of GPS-ABC,
+DNN-ABC and exact ABC-MCMC can, so it shows what is gained, and what is paid
+(about six hours of training), by amortizing. Because it conditions on the same two
+features, it also gives a reference for how much the pair $(\bar d,s)$ can identify, which
+is what supports the identifiability claim as a property of the statistic and not of either method. We
 train on the rows with $\bar d>0$ only. The population minimiser of the NPE
 objective is $p(\theta\mid x)$ at every $x$ in the support of the training data,
 whatever its marginal, so discarding the rows where $\log_{10}\bar d$ is undefined
