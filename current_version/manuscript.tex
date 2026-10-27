@@ -804,9 +804,11 @@ makes the surrogate fit the constant. We model the distribution of the features
 $(\bar d,s)$ given $\theta$ as a \emph{hurdle} distribution,
 \begin{equation}
 \label{eq:hurdle}
-\Pr(\bar d=0\mid\theta)=\pi_\phi(\theta),\qquad
-(\log_{10}\bar d,\ \log_{10}s)\mid\bar d>0,\theta\;\sim\;
-\mathcal N\!\big(\mu_\phi(\theta),\ \mathrm{diag}\,\sigma^2_\phi(\theta)\big),
+\begin{split}
+\Pr(\bar d=0\mid\theta)&=\pi_\phi(\theta),\\
+(\log_{10}\bar d,\ \log_{10}s)\mid\bar d>0,\theta&\sim
+\mathcal N\!\big(\mu_\phi,\ \mathrm{diag}\,\sigma^2_\phi\big),
+\end{split}
 \end{equation}
 with a logistic head for $\pi_\phi$ and two Gaussian mean and log-variance
 heads. ($s=0$ exactly when $\bar d=0$.) The likelihood of an observed data set
