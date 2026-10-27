@@ -5,7 +5,7 @@
 # eyeball it before committing to a real run.
 #
 # Use this to sanity-check that the simulator behaves before spending hours in
-# genSlowData_1D.R / genSlowData_3D.R, which do the same sweep at full
+# genSlowData_1D.R, which does the same sweep at full
 # resolution, in parallel, and write a CSV.
 #
 # It sweeps the mutation rate p over log10(p) in [-8, -2] (11 points, 5

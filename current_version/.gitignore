@@ -34,13 +34,20 @@ sbi-logs/
 
 # local-only material (kept on disk, not for the public repo)
 Original_Paper_Code/training/
-3D/data/mat/
-3D/gps_abc/out/
-3D/gps_abc/*.mat
-3D/gps_abc/log_*.txt
-3D/gps_abc/timing_*.log
-3D/gps_abc/*.log
-3D/results/*.log
+4D/data/mat/
+4D/gps_abc/out/
+4D/gps_abc/*.mat
+4D/gps_abc/log_*.txt
+4D/gps_abc/timing_*.log
+4D/gps_abc/*.log
+4D/results/*.log
 
 # copyrighted publisher PDFs of referenced papers, kept locally for reading only
 lit_review/*.pdf
+
+# large regenerable outputs (chains, posterior draws, GPS-ABC runs); tables and trained weights are kept
+4D/results/*.npz
+4D/results/*.pkl
+4D/results/gps/
+4D/results/*.log
+4D/figures/*.png
