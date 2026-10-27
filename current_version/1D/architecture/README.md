@@ -10,8 +10,9 @@ Logs from the 1-D surrogate studies (copied from `../results/logs/`; scripts in
 | `benchmark_capacity_confirm.md` | downstream ABC accuracy and interval length at the paper's scale (40 replicates, full grid) for each capacity, with how many of the 9 comparisons to the deployed network are resolved |
 | `benchmark_round2.md` | second round of architecture candidates |
 
-The deployed network is the two-layer 128-64 GELU network (8,642 parameters). Its
-mean-curve MSE is 7.6% above the GP's in `benchmark_capacity.md`, and its downstream ABC
-intervals are shorter than the GP's. The confirm run finds smaller networks (down to 66
-parameters) not resolvably different from it downstream, so the deployed size is not
-shown to be necessary; it was kept unchanged as the original work's model.
+The deployed network is the 32-16 GELU network (626 parameters), chosen on parsimony: it
+has the best point estimate on curve fit and downstream, though not distinguishably better
+than 128-64 or 64-32 (`benchmark_capacity_confirm.md`, 0 of 9 comparisons resolved), and
+every candidate from 8 to 128-64 hidden units beats the GP baseline. The decisive result of
+the search is that BatchNorm makes an otherwise reasonable 128-64 network fit about eleven
+times worse (`benchmark_arch.md`). The manuscript's Study I section (Architecture) gives the argument.

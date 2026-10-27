@@ -856,13 +856,20 @@ perfect surrogate.
 \subsection{Choosing the architecture}
 \label{sec:arch4D}
 
-We search twelve architectures: plain MLPs of five widths and depths with five
-activations, and two residual networks, five seeds each ($60$ fits per
-model). Selection uses validation loss only; test metrics are reported but never used to
-choose. Following \citeauthor{lu2023}'s own warning about cost, we apply a rule
-fixed in advance: take the best mean validation loss, and choose the cheapest
-model, by single-query latency, whose validation loss is within one standard
-error of it. The Gaussian-process baseline is fit to the same data on the nonzero part only, because a GP cannot
+We do not assume an architecture; we test one. The twelve candidates vary the three things that
+could plausibly matter for a smooth, low-noise map from four parameters to a mean and a log-variance:
+\emph{capacity} (from $437$ to $529{,}000$ parameters, widths $16$ to $256$), \emph{depth and skip
+connections} (two to four hidden layers, and two residual networks), and the \emph{activation}
+(ReLU, tanh, SiLU, GELU and one mixed). Each is fit with five seeds ($60$ fits), so that a
+difference between architectures can be read against the seed-to-seed spread. All twelve use the
+same two-head hurdle output (Section~\ref{sec:hurdle}), the same training set and split by design
+point, and the same early-stopping rule, so only the architecture changes. Selection uses
+validation loss only; test metrics are reported but never used to choose. We
+fix the rule in advance, in the spirit of \citeauthor{lu2023}'s warning about cost: take the best mean validation
+loss, and choose the cheapest model, by single-query latency, whose validation loss is within one
+standard error of it. Alongside the accuracy criteria we report calibration of the conformal $95\%$ interval, the
+ranking quality (AUC) of the zero head, and latency, since a surrogate that is accurate but slow or
+miscalibrated is no use inside the sampler. The Gaussian-process baseline is fit to the same data on the nonzero part only, because a GP cannot
 represent the zero mass, at the original design size of $1{,}500$ points and, for reference, at $300$. Table~\ref{tab:arch4D} reports the search.
 
 \begin{table*}[t]
@@ -952,7 +959,7 @@ $\bar d=0$ against $\bar d>0$ almost perfectly (AUC $0.9975$--$0.9979$ for all t
 
 The selection rule picks the $3\times128$ residual network: it has the best mean validation loss
 ($-3.342$, standard error $0.002$) and the next best, a $4\times64$ MLP, is $0.0045$ worse,
-so it alone is within one standard error. We do not read this as a verdict on residual
+so no other model is within one standard error of it and the cheaper-model clause does not apply. We do not read this as a verdict on residual
 networks. Three plain MLPs of $13{,}000$--$43{,}000$ parameters are within $0.02$ in
 validation loss and two to six times faster on large batches, and nothing in what follows
 depends on the choice. On held-out designs the selected network has test error
