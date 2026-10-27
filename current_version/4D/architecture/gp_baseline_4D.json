@@ -1,0 +1,30 @@
+[
+ {
+  "budget": 300,
+  "arch": "GP_300pts(nonzero only)",
+  "seed": 0.0,
+  "params": NaN,
+  "train_s": 8.995272636413574,
+  "test_mse": 0.026705714526829363,
+  "test_rmse": 0.16341883161627782,
+  "test_x_floor": 2.3681061890485933,
+  "test_excess_mse": 0.015428469169196726,
+  "test_nll": -0.4882855672965265,
+  "test_cov95_raw": 0.9140669313669881,
+  "latency_us": 15684.81046706438
+ },
+ {
+  "budget": 1500,
+  "arch": "GP_1500pts(nonzero only)",
+  "seed": 0.0,
+  "params": NaN,
+  "train_s": 104.47139573097229,
+  "test_mse": 0.016406080821539007,
+  "test_rmse": 0.12808622416770277,
+  "test_x_floor": 1.4547950586563307,
+  "test_excess_mse": 0.00512883546390637,
+  "test_nll": -0.6505622812160459,
+  "test_cov95_raw": 0.9152013613159388,
+  "latency_us": 3935.69003790617
+ }
+]
