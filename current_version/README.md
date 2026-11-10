@@ -17,6 +17,8 @@ sampler with a zero-aware neural surrogate, and a control trained on only the or
 posterior estimation, trained on the same simulations), with simulation-based calibration over prior draws. The data generator is
 checked against the training sets the original authors released (`4D/tests/validate_vs_published.py`).
 
+Revision progress toward submission is tracked in [`REVISION_STATUS.md`](REVISION_STATUS.md).
+
 ## Layout
 
 ```
