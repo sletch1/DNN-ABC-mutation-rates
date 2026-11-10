@@ -17,7 +17,7 @@ W = {"0": "Zero", "1": "One", "2": "Two", "3": "Three", "4": "Four", "5": "Five"
 
 
 def camel(s):
-    s = re.sub(r"[0-9]", lambda m: " " + W[m.group()] + " ", str(s)); s = s.replace(">", " gt ").replace("<", " lt ").replace("=", " eq ").replace(".", " pt ")
+    s = str(s).replace("log10", "Log"); s = re.sub(r"[0-9]", lambda m: " " + W[m.group()] + " ", s); s = s.replace(">", " gt ").replace("<", " lt ").replace("=", " eq ").replace(".", " pt ")
     return "".join(w.capitalize() for w in re.split(r"[^A-Za-z]+", s) if w)
 
 
@@ -31,6 +31,10 @@ def fmt(v):
 
 
 def walk(o, name, out):
+    if name.endswith("BPriorChange") and isinstance(o, list):      # per-data-set rows -> means
+        for key in ("dnn_abc_rerun_s", "npe_reweight_s", "npe_ess", "ess_frac"): walk(sum(r[key] for r in o) / len(o), name + camel("mean " + key), out)
+        for j, nm in enumerate(("LogPOne", "LogPTwo", "Tau", "LogDelta")): walk(sum(r["w1_dnn_vs_npe_reweighted"][j] for r in o) / len(o), name + "WassDnnVsNpe" + nm, out)
+        return
     if isinstance(o, dict):
         for k, v in o.items():
             if k in ("rows", "samples"): continue
