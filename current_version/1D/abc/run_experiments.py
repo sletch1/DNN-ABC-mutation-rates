@@ -108,6 +108,9 @@ def _one_replicate(task):
     """
     p_true, J, rep = task
     cfg = _G["cfg"]
+    if cfg.get("dynamic"):
+        from dyncores import wait_for_core
+        wait_for_core()     # take a task only when a core is idle (see dyncores.py)
     dnn, gp = _G["dnn_by_J"][J], _G["gp_by_J"][J]
     rng = np.random.default_rng(10_000 * int(round(-np.log10(p_true))) + 100 * J + rep)
 
@@ -338,6 +341,8 @@ def main():
     ap.add_argument("--ns", type=int, default=8, help="sims per ABC-MCMC iteration")
     ap.add_argument("--eps", type=float, default=0.005)
     ap.add_argument("--timing-iters", type=int, default=60)
+    ap.add_argument("--dynamic", action="store_true",
+                    help="wide worker pool whose workers wait for an idle core before each task (shared servers)")
     ap.add_argument("--workers", type=int, default=max(1, (__import__("os").cpu_count() or 2) - 2))
     ap.add_argument("--p-grid", type=float, nargs="+", default=[1e-4, 1e-3, 1e-2])
     ap.add_argument("--J-grid", type=int, nargs="+", default=[10, 50, 100])
@@ -356,7 +361,7 @@ def main():
             train_run(str(DATA), J=(None if J == 100 else J))
 
     cfg = dict(reps=args.reps, nmcmc=args.nmcmc, burnin=args.burnin, ns=args.ns,
-               eps=args.eps, timing_iters=args.timing_iters, workers=args.workers,
+               eps=args.eps, timing_iters=args.timing_iters, workers=(__import__('dyncores').wide_pool_size(30) if args.dynamic else args.workers), dynamic=args.dynamic,
                p_grid=list(args.p_grid), J_grid=list(args.J_grid))
     with open(LOG_DIR / "experiment_config.json", "w") as f:
         json.dump(cfg, f, indent=2)

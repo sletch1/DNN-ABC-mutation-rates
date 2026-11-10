@@ -28,7 +28,7 @@ Which run do you want?
   [1] Quick  - a smoke test, roughly 3 minutes. Confirms the pipeline works
                end to end. Its numbers are noisy: do not read results off it.
 
-  [2] Full   - the paper's settings: 40 replicates, 3 mutation rates, 3 culture
+  [2] Full   - the paper's settings: 100 replicates, 3 mutation rates, 3 culture
                counts. Several hours (see HOW_TO_RUN.md section 6). You very
                likely do not need this -- results/ already holds a full run.
 """
@@ -120,11 +120,16 @@ def main():
                            "--p-grid", "1e-2", "--J-grid", 10, "--workers", 2]
         figure_args = ["--quick"]  # posterior figure ignores the args above; shrink separately
     else:
-        print("\n=== FULL RUN: 40 replicates, paper settings (expect several hours) ===",
+        print("\n=== FULL RUN: 100 replicates (matches Lu et al.), paper settings (expect several hours) ===",
               flush=True)
-        experiment_args = ["--reps", 40, "--nmcmc", 600, "--burnin", 250, "--ns", 6,
+        reps, workers = 100, []
+        if "--dynamic" in sys.argv: workers = ["--dynamic"]   # wide pool; each worker waits for an idle core (abc/dyncores.py)
+        for a in sys.argv[1:]:
+            if a.startswith("--reps="): reps = int(a.split("=")[1])
+            if a.startswith("--workers="): workers = ["--workers", int(a.split("=")[1])]
+        experiment_args = ["--reps", reps, "--nmcmc", 600, "--burnin", 250, "--ns", 6,
                            "--p-grid", "1e-4", "1e-3", "1e-2",
-                           "--J-grid", 10, 50, 100]   # default workers: all cores but two
+                           "--J-grid", 10, 50, 100] + workers   # default workers: all cores but two
         figure_args = []
 
     t0 = time.time()
