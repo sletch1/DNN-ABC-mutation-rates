@@ -31,7 +31,7 @@ def prior_centres(mom, D):
     lm = np.log10(max(mom, 1e-11)); return np.array([lm, lm, 10.0, 0.0])[:D]
 
 
-def run_chain(sur, obs_x, mom, n_iter, rng, sigma=20.0, step_scale=0.05, adapt_until=10000):
+def run_chain(sur, obs_x, mom, n_iter, rng, sigma=20.0, step_scale=0.05, adapt_until=10000, prior_mu=None):
     """Random-walk Metropolis--Hastings with the paper's priors and likelihood from the surrogate.
     Proposal: Gaussian random walk whose covariance starts at diag((step_scale x paper widths (3.5,3.5,4,0.8))^2) and, during the
     first `adapt_until` iterations (the burn-in that is discarded), is re-estimated every 250 draws as 2.38^2/D x the sample
@@ -41,7 +41,7 @@ def run_chain(sur, obs_x, mom, n_iter, rng, sigma=20.0, step_scale=0.05, adapt_u
     kernel mixes poorly along the p2--(p1, tau) ridge. Returns (draws, post-burn-in acceptance rate)."""
     D, box = sur.dim, sur.box
     obs_feat = np.array([np.mean(obs_x), np.std(obs_x, ddof=1)])
-    mu0 = prior_centres(mom, D); lo, hi = box[:, 0], box[:, 1]; width = hi - lo
+    mu0 = prior_centres(mom, D) if prior_mu is None else np.asarray(prior_mu, float); lo, hi = box[:, 0], box[:, 1]; width = hi - lo
     cov = np.diag((STEPS[:D] * step_scale) ** 2); L = np.linalg.cholesky(cov); cur = START[:D].copy()
     lp = lambda t: float(np.sum(-0.5 * ((t - mu0) / sigma) ** 2))
     lcur, pcur = sur.loglik(cur, obs_feat), lp(cur)
