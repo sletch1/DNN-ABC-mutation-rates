@@ -11,8 +11,8 @@ Updated 2026-11-10. The manuscript, supplement and this file are kept in step wi
 Updated 2026-11-10 10:30. All heavy jobs run in the background with dynamic core use (`1D/abc/dyncores.py`: each worker waits for an idle core).
 | Item | Status |
 |---|---|
-| P1 GPS-ABC data sets 6-20 (30 chains, 2,000 it.) | running via `4D/server/gps_queue.sh`; about 7 h per chain, 5 slots; 1 of 30 finished |
-| P1 20,000-iteration chains (one per case) | running (resumable checkpoints), expected about 4 days |
+| P1 GPS-ABC data sets 6-20 (30 chains, 2,000 it.) | running via `4D/server/gps_queue.sh`; about 7-10 h per chain; 2 of 30 finished at 11:50 on 11/10 |
+| P1 20,000-iteration chains (one per case) | running (resumable checkpoints) but slow: 2,500 of 20,000 iterations after 8-11 h (11:50 on 11/10), slowing as the GP grows; will NOT reach 20,000 by the submission target. Plan: analyse the length reached by about 11/17 from the checkpoints and report the full 20,000 as a limitation |
 | P2 oracle posterior (8 data sets) | done; `4D/analysis/p2_oracle_compare.py`; in manuscript (Section on independent reference) |
 | P3 feature checks, self-consistency SBC | done: self-consistency SBC is still overconfident for log10 p2 and log10 delta; in manuscript |
 | P3 mixing test (5x longer chains), Student-t / eps / recalibration repairs | running |
