@@ -1,0 +1,1063 @@
+{
+ "rows": [
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.18037164638791442,
+   "len_ratio": 1.029182994455728,
+   "mean_diff_sd": 0.16314604265027774,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.012395149294579695,
+   "len_ratio": 1.0068752834586852,
+   "mean_diff_sd": -0.12117016593294472,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 1.6555085635913063,
+   "len_ratio": 0.9715409848625568,
+   "mean_diff_sd": -0.2752950589964776,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.0735273404125956,
+   "len_ratio": 0.5493281803373645,
+   "mean_diff_sd": -0.5150268996821366,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.1861931797378943,
+   "len_ratio": 1.0019239618467282,
+   "mean_diff_sd": 0.16856610756295226,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.03148546666071011,
+   "len_ratio": 1.3822657087158527,
+   "mean_diff_sd": -0.3255828121919819,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 1.0958872718175778,
+   "len_ratio": 1.0266946775433377,
+   "mean_diff_sd": -0.17553946696641898,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.05902141424216671,
+   "len_ratio": 0.7005716569030167,
+   "mean_diff_sd": -0.4118854407741222,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.1230177049958947,
+   "len_ratio": 0.9467369949064643,
+   "mean_diff_sd": -0.03835922779788796,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.1871633627519623,
+   "len_ratio": 6.252581466903833,
+   "mean_diff_sd": -2.1898272261454186,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 0.9670768109490159,
+   "len_ratio": 0.9880546115286843,
+   "mean_diff_sd": -0.10778828394258215,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.023809678708254532,
+   "len_ratio": 0.8916544206516899,
+   "mean_diff_sd": 0.01853243017046671,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.03347464477896649,
+   "len_ratio": 1.0154603213020843,
+   "mean_diff_sd": -0.009943898038959799,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.013731067870619451,
+   "len_ratio": 1.1968449929602407,
+   "mean_diff_sd": -0.11833169646657846,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 0.23640883913804123,
+   "len_ratio": 1.0425863483323912,
+   "mean_diff_sd": 0.04300185247928853,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.0118200183347111,
+   "len_ratio": 1.0190889341328544,
+   "mean_diff_sd": 0.14051534125467957,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.056302402956880965,
+   "len_ratio": 1.0072561203278532,
+   "mean_diff_sd": 0.048815344696934534,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.0367608286372081,
+   "len_ratio": 1.438077940987778,
+   "mean_diff_sd": -0.34720803053329663,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 0.5975160209995791,
+   "len_ratio": 1.0658775624961838,
+   "mean_diff_sd": 0.11182497147947065,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.015648564493111115,
+   "len_ratio": 1.1989919669792284,
+   "mean_diff_sd": 0.18805165628692422,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.18675928349955426,
+   "len_ratio": 1.01531198559312,
+   "mean_diff_sd": 0.1647416108488453,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.16710783841888466,
+   "len_ratio": 2.9340233907674147,
+   "mean_diff_sd": -1.762460110377494,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 1.955470514416543,
+   "len_ratio": 0.9957121542102436,
+   "mean_diff_sd": 0.3676435369798755,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.09496341549312179,
+   "len_ratio": 1.5004567764657648,
+   "mean_diff_sd": 1.1404215260502257,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.32602575628982694,
+   "len_ratio": 0.9795337282113942,
+   "mean_diff_sd": 0.2745898254667961,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.03695913157817994,
+   "len_ratio": 1.168975716733989,
+   "mean_diff_sd": -0.25748326067485294,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 0.4554097193428954,
+   "len_ratio": 0.9998544671920189,
+   "mean_diff_sd": -0.056915264214521845,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.04356042672731401,
+   "len_ratio": 0.9077065238640479,
+   "mean_diff_sd": -0.34567467869850915,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.32897973510341716,
+   "len_ratio": 0.9830487447181586,
+   "mean_diff_sd": 0.27679671506193687,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.07454888163729431,
+   "len_ratio": 1.7020053472652588,
+   "mean_diff_sd": -0.6089571598844734,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 0.5794277812819307,
+   "len_ratio": 0.9947177997336644,
+   "mean_diff_sd": -0.05922472938562976,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.03899456778767026,
+   "len_ratio": 0.8933230848694828,
+   "mean_diff_sd": -0.30910124432259073,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.3605040516558663,
+   "len_ratio": 0.9810297527963175,
+   "mean_diff_sd": 0.2959685083544602,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.2477711425361563,
+   "len_ratio": 4.759236153465832,
+   "mean_diff_sd": -2.051607832110528,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 0.923686085999313,
+   "len_ratio": 0.9207384515317771,
+   "mean_diff_sd": 0.13867511873386515,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.033130525450028744,
+   "len_ratio": 1.1117998581840534,
+   "mean_diff_sd": -0.2504788080204289,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.09840657022766638,
+   "len_ratio": 0.9772411427649067,
+   "mean_diff_sd": 0.07939446600387383,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.017602602772625577,
+   "len_ratio": 1.3369356749142343,
+   "mean_diff_sd": -0.17356687438174742,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 0.2667550097538327,
+   "len_ratio": 1.0066653079675485,
+   "mean_diff_sd": -0.011922726289369997,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.013235883517845843,
+   "len_ratio": 0.8534009339178021,
+   "mean_diff_sd": -0.11625070845693551,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.16259392078529822,
+   "len_ratio": 0.9915196781704154,
+   "mean_diff_sd": 0.1415650096714306,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.06162357050210426,
+   "len_ratio": 3.3382908272808036,
+   "mean_diff_sd": -0.5826017013484677,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 0.38075557848341685,
+   "len_ratio": 1.0421865929217409,
+   "mean_diff_sd": 0.060092111782997316,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.015483715789527955,
+   "len_ratio": 0.8282458492828041,
+   "mean_diff_sd": -0.13571608972804747,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.5090022161292922,
+   "len_ratio": 0.9827135774852161,
+   "mean_diff_sd": 0.44239494816212943,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.1435996932625919,
+   "len_ratio": 4.302279972475737,
+   "mean_diff_sd": -1.0153086871988761,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 0.6903642876317464,
+   "len_ratio": 1.0387365876681725,
+   "mean_diff_sd": 0.08716194763599726,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 1,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.025517475010733835,
+   "len_ratio": 0.9821253496020126,
+   "mean_diff_sd": 0.003036600926745617,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.046363708846693115,
+   "len_ratio": 1.000081822471184,
+   "mean_diff_sd": -0.024570283707277724,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.0073677317120923996,
+   "len_ratio": 1.1050866559961343,
+   "mean_diff_sd": 0.024296683185685227,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 0.4905409850351521,
+   "len_ratio": 1.0157982610044374,
+   "mean_diff_sd": -0.07389729246559162,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.016735911539805255,
+   "len_ratio": 0.8607602644735389,
+   "mean_diff_sd": -0.17545305573959588,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.09557021448693415,
+   "len_ratio": 1.0040694537159665,
+   "mean_diff_sd": -0.030694757980952416,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.04573576786713873,
+   "len_ratio": 1.1533801123958736,
+   "mean_diff_sd": -0.5060661199185102,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 0.6161157169415933,
+   "len_ratio": 1.0061364215325228,
+   "mean_diff_sd": 0.11031457167496654,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.015943855890390463,
+   "len_ratio": 1.1411400150731106,
+   "mean_diff_sd": 0.16942600380562947,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.1838195148593676,
+   "len_ratio": 1.0028078712041741,
+   "mean_diff_sd": -0.08451888637189638,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.10266091905390456,
+   "len_ratio": 1.7269674994746742,
+   "mean_diff_sd": -1.1091346749382778,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 0.6098883640989902,
+   "len_ratio": 0.999014175050471,
+   "mean_diff_sd": -0.042563683444132576,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 1,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.06634590735902388,
+   "len_ratio": 1.162464229584384,
+   "mean_diff_sd": 0.7116051488924,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.10022726530439721,
+   "len_ratio": 1.0707328606189541,
+   "mean_diff_sd": 0.044824257863813964,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.015237480220209692,
+   "len_ratio": 0.8641666106825876,
+   "mean_diff_sd": 0.05807973475249719,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 0.860577039009429,
+   "len_ratio": 1.035915458232495,
+   "mean_diff_sd": -0.11373656879770658,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.022137006905654184,
+   "len_ratio": 0.9026248096018569,
+   "mean_diff_sd": -0.15650368049571872,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.14029549491726315,
+   "len_ratio": 1.0704952554992393,
+   "mean_diff_sd": 0.1204548818661886,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.046519221669640044,
+   "len_ratio": 0.8874548718704125,
+   "mean_diff_sd": -0.38669871629678176,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 0.4675712282784227,
+   "len_ratio": 1.0416030924129538,
+   "mean_diff_sd": 0.034099394132997035,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.02150811134629525,
+   "len_ratio": 0.9121699505347021,
+   "mean_diff_sd": 0.003873142961727493,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.3117609256597939,
+   "len_ratio": 1.0572398340481088,
+   "mean_diff_sd": 0.2511312043079403,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.09436618747659484,
+   "len_ratio": 1.533980221554629,
+   "mean_diff_sd": -0.7735045930288829,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 2.155187004622531,
+   "len_ratio": 1.0108271786209404,
+   "mean_diff_sd": -0.3699468535015296,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 2,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.02954443559424255,
+   "len_ratio": 0.8087850188081156,
+   "mean_diff_sd": 0.06893346175686137,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.06677748254508245,
+   "len_ratio": 1.0192968624744931,
+   "mean_diff_sd": -0.031225994973598268,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.00825938930746358,
+   "len_ratio": 0.9450296244858724,
+   "mean_diff_sd": 0.013648895261624524,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 0.2462553018325001,
+   "len_ratio": 0.9831091876996991,
+   "mean_diff_sd": 0.03245335751383082,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.03636445558920155,
+   "len_ratio": 1.524729313627218,
+   "mean_diff_sd": 0.34672100992820826,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.0671818094367109,
+   "len_ratio": 1.0192497817165294,
+   "mean_diff_sd": 0.05016900308864046,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.03918740969827353,
+   "len_ratio": 1.0571706775730418,
+   "mean_diff_sd": -0.4903396397900241,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 0.6435254146341493,
+   "len_ratio": 0.9682626648953906,
+   "mean_diff_sd": 0.09864794751607628,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.015665165669198525,
+   "len_ratio": 1.2021144879769923,
+   "mean_diff_sd": 0.15235482165167805,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.12239297865572472,
+   "len_ratio": 0.9613175456737412,
+   "mean_diff_sd": 0.03585375610582711,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.14123591389246823,
+   "len_ratio": 2.3083199877032112,
+   "mean_diff_sd": -1.754293243072285,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 1.7270067398582192,
+   "len_ratio": 0.9731446766015545,
+   "mean_diff_sd": 0.2910489354809544,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 3,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.08222932424188722,
+   "len_ratio": 1.216637036400871,
+   "mean_diff_sd": 0.866243701938015,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "log10 p1",
+   "w1": 0.09510839934180798,
+   "len_ratio": 0.982327154552002,
+   "mean_diff_sd": -0.066220002406367,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "log10 p2",
+   "w1": 0.0046034358553962845,
+   "len_ratio": 0.9469822977295326,
+   "mean_diff_sd": 0.020545717655511556,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "tau",
+   "w1": 1.2432368013705049,
+   "len_ratio": 1.0445548100323168,
+   "mean_diff_sd": 0.2246903098060705,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "DNN-ABC",
+   "param": "log10 delta",
+   "w1": 0.04269555149468796,
+   "len_ratio": 1.583899087723225,
+   "mean_diff_sd": 0.4818769501015775,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "NPE",
+   "param": "log10 p1",
+   "w1": 0.07954224644216246,
+   "len_ratio": 0.9902035119073307,
+   "mean_diff_sd": 0.02564029373817215,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "NPE",
+   "param": "log10 p2",
+   "w1": 0.04048198734513552,
+   "len_ratio": 1.1665335754446353,
+   "mean_diff_sd": -0.48087072854950125,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "NPE",
+   "param": "tau",
+   "w1": 1.4032151249320888,
+   "len_ratio": 1.024730024415044,
+   "mean_diff_sd": 0.25422677972606156,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "NPE",
+   "param": "log10 delta",
+   "w1": 0.03471563466615946,
+   "len_ratio": 1.3127023946141523,
+   "mean_diff_sd": 0.3929409139863068,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "log10 p1",
+   "w1": 0.14794966739358242,
+   "len_ratio": 0.9434854454129835,
+   "mean_diff_sd": -0.09345583759320295,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "log10 p2",
+   "w1": 0.055329721646195006,
+   "len_ratio": 1.4961967196045154,
+   "mean_diff_sd": -0.5612082934540061,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "tau",
+   "w1": 0.9561482196181182,
+   "len_ratio": 0.937131230332639,
+   "mean_diff_sd": 0.06993923180470135,
+   "oracle_mean_in_ci": true
+  },
+  {
+   "case": 2,
+   "idx": 4,
+   "method": "GPS-ABC",
+   "param": "log10 delta",
+   "w1": 0.01544313288471489,
+   "len_ratio": 1.0781288541444647,
+   "mean_diff_sd": 0.10708679451278845,
+   "oracle_mean_in_ci": true
+  }
+ ],
+ "summary": {
+  "GPS-ABC": {
+   "log10 p1": {
+    "n": 8,
+    "w1": 0.2431507928561345,
+    "len_ratio": 0.9863303758900157,
+    "mean_diff_sd": 0.17580299744277372,
+    "oracle_mean_in_ci": 1.0
+   },
+   "log10 p2": {
+    "n": 8,
+    "w1": 0.14240434737984473,
+    "len_ratio": 3.164198176493731,
+    "mean_diff_sd": 1.402168082540721,
+    "oracle_mean_in_ci": 1.0
+   },
+   "tau": {
+    "n": 8,
+    "w1": 1.2481035033993098,
+    "len_ratio": 0.9829198831930603,
+    "mean_diff_sd": 0.18434594894045475,
+    "oracle_mean_in_ci": 1.0
+   },
+   "log10 delta": {
+    "n": 8,
+    "w1": 0.04637298684275093,
+    "len_ratio": 1.0940064429801695,
+    "mean_diff_sd": 0.3957923090334915,
+    "oracle_mean_in_ci": 1.0
+   }
+  },
+  "DNN-ABC": {
+   "log10 p1": {
+    "n": 8,
+    "w1": 0.11834443421529436,
+    "len_ratio": 1.0092321108563433,
+    "mean_diff_sd": 0.08673934638887054,
+    "oracle_mean_in_ci": 1.0
+   },
+   "log10 p2": {
+    "n": 8,
+    "w1": 0.014519498576395827,
+    "len_ratio": 1.0713621071201596,
+    "mean_diff_sd": 0.09839037853893026,
+    "oracle_mean_in_ci": 1.0
+   },
+   "tau": {
+    "n": 8,
+    "w1": 0.6818365323842077,
+    "len_ratio": 1.0125031031654328,
+    "mean_diff_sd": 0.10398905382035718,
+    "oracle_mean_in_ci": 1.0
+   },
+   "log10 delta": {
+    "n": 8,
+    "w1": 0.03250957431522694,
+    "len_ratio": 1.0251922559597384,
+    "mean_diff_sd": 0.2847527905446702,
+    "oracle_mean_in_ci": 1.0
+   }
+  },
+  "NPE": {
+   "log10 p1": {
+    "n": 8,
+    "w1": 0.13958237548332014,
+    "len_ratio": 1.0084708134877778,
+    "mean_diff_sd": 0.10783776420840098,
+    "oracle_mean_in_ci": 1.0
+   },
+   "log10 p2": {
+    "n": 8,
+    "w1": 0.04704289175218808,
+    "len_ratio": 1.5156473826917072,
+    "mean_diff_sd": 0.4660406135641296,
+    "oracle_mean_in_ci": 1.0
+   },
+   "tau": {
+    "n": 8,
+    "w1": 0.7230017671710948,
+    "len_ratio": 1.0212761044938548,
+    "mean_diff_sd": 0.11299624658307728,
+    "oracle_mean_in_ci": 1.0
+   },
+   "log10 delta": {
+    "n": 8,
+    "w1": 0.02712262873556497,
+    "len_ratio": 1.0236574257791862,
+    "mean_diff_sd": 0.22041866418962833,
+    "oracle_mean_in_ci": 1.0
+   }
+  }
+ },
+ "mc_floor_w1": {
+  "log10 p1": 0.20449025366368023,
+  "log10 p2": 0.020543126820138775,
+  "tau": 2.4840871436282064,
+  "log10 delta": 0.05504020296292567
+ },
+ "gps_horizon": 2000
+}

@@ -47,9 +47,9 @@ def fake_obs(m, s):    # two points with sample mean m and sd s, so run_chain's 
     return np.array([m + s / np.sqrt(2), m - s / np.sqrt(2)])
 
 
-def _init(sur_path, nu, eps, n_iter, scale):
+def _init(sur_path, nu, eps, n_iter, scale, thin=20):
     import torch; torch.set_num_threads(1)
-    G.update(sur=HurdleSurrogate(sur_path), nu=nu, eps=eps, n=n_iter, scale=scale)
+    G.update(sur=HurdleSurrogate(sur_path), nu=nu, eps=eps, n=n_iter, scale=scale, thin=thin)
 
 
 def _gen(k):
@@ -61,11 +61,25 @@ def _gen(k):
 def _chain(args):
     wait_for_core(); k, feat, mom = args; v = Variant(G["sur"], G["nu"], G["eps"]); rng = np.random.default_rng(31337 + k)
     ch, acc = dnn_abc.run_chain(v, fake_obs(*feat) if feat[0] > 0 else np.array([0.0, 0.0]), mom, G["n"], rng, step_scale=G["scale"])
-    return ch[15000::20], acc
+    return ch[15000::G["thin"]], acc, ess(ch[15000:])
 
 
-def pool(a, nu=None, eps=0.0):
-    return Pool(wide_pool_size(28), initializer=_init, initargs=(a.surrogate, nu, eps, a.iters, a.step_scale))
+def ess(x):
+    """effective sample size per parameter: initial-positive-sequence autocorrelation estimate on the post-burn-in chain."""
+    x = np.asarray(x, float); n = len(x); out = []
+    for j in range(x.shape[1]):
+        v = x[:, j] - x[:, j].mean(); f = np.fft.rfft(v, 2 * n); ac = np.fft.irfft(f * np.conj(f))[:n] / (v @ v)
+        t = 1.0
+        for k in range(1, n - 1, 2):
+            pr = ac[k] + ac[k + 1]
+            if pr < 0: break
+            t += 2 * pr
+        out.append(n / t)
+    return np.array(out)
+
+
+def pool(a, nu=None, eps=0.0, iters=None, thin=20):
+    return Pool(wide_pool_size(28), initializer=_init, initargs=(a.surrogate, nu, eps, iters or a.iters, a.step_scale, thin))
 
 
 def score(TH, R, L, mask=None, label=""):
@@ -106,19 +120,20 @@ def stage_feature(a):
     json.dump(res, open(OUT / "feature_checks.json", "w"), indent=1); print(json.dumps(res, indent=1))
 
 
-def run_variant(a, tag, nu=None, eps=0.0, selfc=False):
-    D = np.load(OUT / "data.npz"); TH, F, MOM = D["theta"], D["feat"], D["mom"]
+def run_variant(a, tag, nu=None, eps=0.0, selfc=False, iters=None, thin=20, K=None):
+    D = np.load(OUT / "data.npz"); TH, F, MOM = D["theta"][:K], D["feat"][:K], D["mom"][:K]
     sur = HurdleSurrogate(a.surrogate)
     if selfc:        # features drawn from the surrogate's own predictive density at the prior draw
         rng = np.random.default_rng(99); F = np.empty_like(F)
         for k in range(len(TH)):
             p0, mu, sd = sur.predict(TH[k])
             F[k] = [0.0, 0.0] if rng.random() < p0[0] else 10 ** (mu[0] + sd[0] * rng.standard_normal(2))
-    with pool(a, nu, eps) as p: res = p.map(_chain, [(k, F[k], MOM[k]) for k in range(len(TH))], chunksize=1)
+    with pool(a, nu, eps, iters, thin) as p: res = p.map(_chain, [(k, F[k], MOM[k]) for k in range(len(TH))], chunksize=1)
     R = np.array([SBC.ranks(TH[k], res[k][0]) for k in range(len(TH))]); L = len(res[0][0]); nz = F[:, 0] > 0
-    np.savez_compressed(OUT / f"sbc_{tag}.npz", ranks=R, L=L, theta=TH, nonzero=nz, acc=np.array([r[1] for r in res]), var=np.array([r[0].var(0) for r in res]))
+    np.savez_compressed(OUT / f"sbc_{tag}.npz", ranks=R, L=L, theta=TH, nonzero=nz, acc=np.array([r[1] for r in res]), var=np.array([r[0].var(0) for r in res]), ess=np.array([r[2] for r in res]))
     sc = {"all": score(TH, R, L, label=tag), "dbar>0": score(TH, R, L, nz)}
     box = np.array(S.BOX_4D); V = np.array([r[0].var(0) for r in res])[nz]
+    sc["ess_median"] = {n: float(np.median([r[2][i] for r in res])) for i, n in enumerate(NAMES)}; sc["acc_median"] = float(np.median([r[1] for r in res]))
     sc["contraction"] = {n: float(1 - V[:, i].mean() / ((box[i, 1] - box[i, 0]) ** 2 / 12)) for i, n in enumerate(NAMES)}
     json.dump(sc, open(OUT / f"sbc_{tag}.json", "w"), indent=1); print(tag, json.dumps({k: (v["pass"] if isinstance(v, dict) and "pass" in v else None) for k, v in sc.items()}))
     return sc
@@ -140,7 +155,7 @@ def stage_recal(a, tag="base"):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("stage", choices=["data", "feature", "selfsbc", "variant", "recal", "all"])
+    ap = argparse.ArgumentParser(); ap.add_argument("stage", choices=["data", "feature", "selfsbc", "variant", "recal", "mixing", "all"])
     ap.add_argument("--surrogate", default="results/surrogate_4d.pt"); ap.add_argument("--data", default="data/slow_data_4D.csv")
     ap.add_argument("--K", type=int, default=500); ap.add_argument("--iters", type=int, default=35000); ap.add_argument("--step-scale", type=float, default=0.05)
     ap.add_argument("--eps", type=float, nargs="*", default=[0.02, 0.05, 0.1]); a = ap.parse_args()
@@ -150,6 +165,8 @@ def main():
     if a.stage in ("variant", "all"):
         run_variant(a, "base"); nu = json.load(open(OUT / "feature_checks.json"))["student_t_df"]; run_variant(a, f"student_t{nu}", nu=nu)
         for e in a.eps: run_variant(a, f"eps{e}", eps=e)
+    if a.stage == "mixing":      # is the overconfidence the sampler's? 5x longer chains, thinned to the same 1,000 draws
+        run_variant(a, "selfconsistent_long", selfc=True, iters=175000, thin=160, K=a.K); run_variant(a, "base_long", iters=175000, thin=160, K=a.K)
     if a.stage in ("recal", "all"): stage_recal(a)
 
 
