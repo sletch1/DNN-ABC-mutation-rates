@@ -76,10 +76,22 @@ function [Sample, runningTime, initTime] = ABC_mu2a(theta_mu, theta_sigma, dt_ra
     theta_old = model_spec.theta_old;
 
     Sample = NaN(N,p);
-    
+    ss0 = 1; elapsed0 = 0;
+    % RESUME (added): if a state checkpoint exists, restore the chain and the GP training set, then refit the two GPs.
+    if isfield(model_spec,'resume') && model_spec.resume && isfield(model_spec,'ckpt') && exist(model_spec.ckpt,'file')
+      R = load(model_spec.ckpt);
+      if isfield(R,'state')
+        Sample = R.Sample; ss0 = R.ss + 1; elapsed0 = R.elapsed; theta_old = R.state.theta_old;
+        X = R.state.X; theta_list = R.state.theta_list; theta_list_s = R.state.theta_list_s;
+        rng(R.state.rng);
+        [param, model] = mleHomGP(theta_list_s,mean(X,3),init_param,bounds);
+        [param_sd, model_sd] = mleHomGP(theta_list_s,std(X,[],3),init_param,bounds);
+        fprintf('RESUMED at ss=%d\n', R.ss);
+      end
+    end
     startTime = tic;
     %h = waitbar(0,'Please wait...');
-    for ss =  1:N
+    for ss =  ss0:N
         if mod(ss, time_update) == 0 % screen print to show progress.
             fprintf(['ss=', int2str(ss),'\n']);
         end
@@ -160,11 +172,11 @@ function [Sample, runningTime, initTime] = ABC_mu2a(theta_mu, theta_sigma, dt_ra
        end
        theta_old = Sample(ss,:);
        if isfield(model_spec,'ckpt') && mod(ss,250) == 0
-         elapsed = toc(startTime); save(model_spec.ckpt, 'Sample', 'ss', 'elapsed', '-v7');
+         elapsed = elapsed0 + toc(startTime); state = struct('theta_old',theta_old,'X',X,'theta_list',theta_list,'theta_list_s',theta_list_s,'rng',rng); save(model_spec.ckpt, 'Sample', 'ss', 'elapsed', 'state', '-v7');
        end
          %h = waitbar(ss/N,h,['remaining sample =',num2str(N-ss),'samples']);
     end
-    runningTime = toc(startTime);
+    runningTime = elapsed0 + toc(startTime);
     
     %save('sample_post_H37Rv.mat','model_spec','theta_mu','theta_sigma','Sample','runningTime','dt_range','p_range');
     %     close(gcf)

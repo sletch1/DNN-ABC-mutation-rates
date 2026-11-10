@@ -2,7 +2,8 @@
 % (xi = 0.3, tau box [0.1,19.9], priors TN(log10 MOM,20,.) x2, TN(10,20,.), TN(0,20,.)); everything the paper
 % does not state is taken from simulation2_server.m. Theta order is the code's: (log10 delta, log10 p1, log10 p2, tau).
 %   matlab -batch "run_rep(1, 7, 10, 20000)"      % case, seed(dataset index), workers, N
-function run_rep(caseNo, seed, nworkers, N)
+function run_rep(caseNo, seed, nworkers, N, tag)
+  if nargin < 5, tag = ''; end
   maxNumCompThreads(2);   % GP refits are single-threaded; run many replicates side by side instead
   here = pwd; root = fullfile(here, '../../Original_Paper_Code');
   addpath(genpath([root '/kernel'])); addpath(genpath([root '/lightspeed'])); addpath(genpath([root '/optim/Matlab'])); addpath(root); addpath(fullfile(here,'patched'));
@@ -17,11 +18,11 @@ function run_rep(caseNo, seed, nworkers, N)
   ms.trans_step = [0.8 3.5 3.5 4]; ms.theta_old = [log10(0.8) -9 -8 14];
   ms.init = fullfile(here, 'init_2a_paperbox.mat');
   if ~exist('out','dir'), mkdir('out'); end
-  ms.ckpt = fullfile(here, sprintf('out/ckpt_case%d_%d.mat', caseNo, seed));
+  ms.ckpt = fullfile(here, sprintf('out/ckpt%s_case%d_%d.mat', tag, caseNo, seed)); ms.resume = 1;
   lm = log10(max(MOM, 1e-11)); theta_mu = [0 lm lm 10];
   [sample, runningTime, initTime] = ABC_mu2a(theta_mu, theta_sigma, dt_range, p_range, obs_X, ms);
   acc_rate = sum(diff(sample) ~= 0) / ms.N; %#ok<NASGU>
   if ~exist('out','dir'), mkdir('out'); end
-  save(sprintf('out/gps4d_case%d_%d.mat', caseNo, seed), 'sample','runningTime','theta_mu','ms','acc_rate');
+  save(sprintf('out/gps4d%s_case%d_%d.mat', tag, caseNo, seed), 'sample','runningTime','theta_mu','ms','acc_rate');
   fprintf('DONE case %d seed %d: %.1f s, acc %.3f\n', caseNo, seed, runningTime, acc_rate); delete(gcp('nocreate'));
 end
