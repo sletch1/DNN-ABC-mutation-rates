@@ -1076,8 +1076,7 @@ none ($-0.01$), so that part of what it learns about $\tau$ is not in the data. 
 makes the ranks more uniform ($\chi^2$ $p=0.51$ for $\log_{10}p_2$ and $0.98$ for $\log_{10}\delta$, against $0.17$ and $0.04$),
 and removes more variance of $\log_{10}\delta$ ($0.63$ against $0.58$, and $0.62$ for NPE), but does not restore nominal
 coverage ($0.896$, $0.901$ and $0.901$ for $\log_{10}p_2$, $\tau$ and $\log_{10}\delta$). The independence assumption inherited from GPS-ABC is therefore not the main
-reason for the overconfidence. We have not identified it; candidates are the Gaussian form of the predictive
-density of the log-features, which NPE does not assume, and the surrogate's own error away from the training points.
+reason for the overconfidence. Section~\ref{sec:diagnose} traces it to the Markov chain, which misses a tail of $\log_{10}p_2$ that exact sampling of the same surrogate recovers.
 Rank histograms are in Online Resource 1, Figure~S1.
 
 
@@ -1182,7 +1181,24 @@ predictive raises the held-out log-likelihood from \pfcValLoglikGauss\ to \pfcVa
 \emph{Self-consistency SBC.} We drew the features from the surrogate's \emph{own} predictive density and reran the sampler. If the surrogate's
 density were the problem this check would come out calibrated, since the sampler then targets exactly the distribution that generated the data. It does not:
 coverage of the $95\%$ interval is $\pscAllLogPTwoCovNineFive$ for $\log_{10}p_2$ ($z=\pscAllLogPTwoZ$) and $\pscAllLogDeltaCovNineFive$ for $\log_{10}\delta$ ($z=\pscAllLogDeltaZ$), so the
-overconfidence is not explained by surrogate misspecification alone.
+overconfidence is not explained by surrogate misspecification alone. Chains five times longer (effective sample sizes of about a thousand or more) leave it unchanged
+($\pblAllLogPTwoCovNineFive$ for $\log_{10}p_2$ on simulator data), so it is not a matter of chain length either.
+
+\emph{Exact sampling of the same posterior.} For a four-dimensional parameter and a surrogate that is cheap to evaluate, the posterior can be sampled without a Markov chain: draw $\pisselfN$ points from the uniform
+prior, weight them by the surrogate likelihood and the normal prior of the model (the surrogate's predictions do not depend on the data, so they are computed once), and read off weighted ranks
+(median effective sample size $\pisselfEssMedian$). On the self-generated features this is calibrated for all four parameters (coverage $\pisselfLogPOneCovNineFiveAll$, $\pisselfLogPTwoCovNineFiveAll$,
+$\pisselfTauCovNineFiveAll$, $\pisselfLogDeltaCovNineFiveAll$), and so it is on the simulator-generated data of the main comparison with the paper's correlated likelihood ($\pissimLogPOneCovNineFiveAll$,
+$\pissimLogPTwoCovNineFiveAll$, $\pissimTauCovNineFiveAll$, $\pissimLogDeltaCovNineFiveAll$; all $|z|\le\pissimLogPTwoZ$). The surrogate posterior, with its Gaussian predictive density, is therefore calibrated;
+the overconfidence belongs to the Markov chain. Comparing the two data set by data set ($\pcmpNNonzero$ data sets with $\bar d>0$) shows how: the chain matches the exact posterior for $\log_{10}p_1$, $\tau$ and $\log_{10}\delta$ (median ratio of standard deviations
+$\pcmpLogPOneMedianSdRatioChainOverIs$, $\pcmpTauMedianSdRatioChainOverIs$, $\pcmpLogDeltaMedianSdRatioChainOverIs$) but misses a long tail of $\log_{10}p_2$ towards small values (median ratio
+$\pcmpLogPTwoMedianSdRatioChainOverIs$, below one half in $\pcmpShareOfNonzeroWithPTwoSdRatioBelowHalf$ of the data sets), which it does not reach even in chains five times as long.
+
+\emph{Repairs tested.} Each is scored by SBC on the same $500$ simulated data sets (Online Resource 1). Replacing the Gaussian predictive by a Student-$t$ with $\nu=\pfcStudentTDf$ changes nothing that matters
+($\log_{10}p_2$ coverage $\pstAllLogPTwoCovNineFive$ against $\pbaseAllLogPTwoCovNineFive$ for the original). Widening the kernel, adding a width $\epsilon$ to the predictive standard deviation, does raise coverage
+($\log_{10}p_2$: $\pepstAllLogPTwoCovNineFive$, $\pepsfAllLogPTwoCovNineFive$ and $\pepsAllLogPTwoCovNineFive$ for $\epsilon=0.02$, $0.05$, $0.1$) but only by blurring the likelihood, which costs contraction and makes
+the ranks non-uniform in $\log_{10}p_2$. Rank recalibration of the credible levels, fitted on one half of the data sets and scored on the other, brings coverage to $\prcLogPTwoCovAfterCrossFitted$ for $\log_{10}p_2$
+(from $\prcLogPTwoCovBefore$), but needs a nominal level of $\prcLogPTwoAdjustedLevel$ to do so, so it patches the symptom without explaining it. The only repair that restores nominal coverage with no loss of
+sharpness is exact sampling of the surrogate posterior. We therefore report the Markov-chain results as they were and recommend importance resampling of the surrogate posterior when four parameters or fewer are inferred.
 
 \subsection{Where a surrogate likelihood still helps}
 \label{sec:edge}
@@ -1258,8 +1274,7 @@ coverage of the posterior built on it. Over truths drawn from the prior, NPE is 
 less sharp on $p_2$ (it removes $0.87$ of the prior variance, against $0.98$ for DNN-ABC), while the surrogate-based
 samplers are sharper and overconfident ($0.885$ for $p_2$, nearly six standard errors below nominal, and $0.90$--$0.93$ for
 the others). At a fixed truth, the two look alike. We therefore recommend simulation-based calibration over prior draws, together with posterior
-contraction, as the routine check for any surrogate-based likelihood-free sampler. The reason for the overconfidence is
-open. We found that the two features are correlated ($0.61$) and that GPS-ABC's treatment of them as independent is wrong
+contraction, as the routine check for any surrogate-based likelihood-free sampler. The overconfidence comes from the Markov chain rather than from the surrogate (Section~\ref{sec:diagnose}). We found that the two features are correlated ($0.61$) and that GPS-ABC's treatment of them as independent is wrong
 in that sense; modelling the correlation improves the held-out joint likelihood and the uniformity of the ranks but not the coverage
 ($0.896$ for $p_2$), so it is not the main cause. The Gaussian form of the predictive density, which NPE does not assume, and
 surrogate error away from the training points are the remaining candidates.
@@ -1281,8 +1296,7 @@ matters for interpreting the estimates. Our data generator is tested against the
 design points, not against their observed data sets, which are not public. Study I uses $40$ replicates against
 \citeauthor{lu2023}'s $100$, and we report Monte Carlo standard errors throughout so that unresolved differences are not
 over-interpreted. The prior is bounded to the original study's box. NPE is trained on data sets with $\bar d>0$ and so does not
-answer for data with no mutants at all. Finally, why the surrogate-based samplers are overconfident, and whether a
-kernel-side correction restores nominal coverage, is left open.
+answer for data with no mutants at all. Finally, the diagnosis that the Markov chain, not the surrogate, is overconfident is established for DNN-ABC; we did not repeat it for GPS-ABC's own sampler.
 
 % =============================================================================
 \section{Reproducibility}

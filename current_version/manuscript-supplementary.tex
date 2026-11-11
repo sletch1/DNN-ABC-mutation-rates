@@ -17,6 +17,7 @@ in Markov Branching Processes}
 \author{}
 \date{}
 
+\input{tables/revision_numbers.tex}
 \begin{document}
 \maketitle
 
@@ -193,5 +194,42 @@ a flat histogram.
 \caption{Simulation-based calibration rank histograms for DNN-ABC (top), DNN-ABC-$\rho$ (middle) and NPE (bottom), on the data sets with $\bar d>0$; dashed line is the uniform level.}
 \label{sfig:sbc}
 \end{figure}
+
+
+\section{Study II: diagnosing the overconfidence of the Markov chain}
+Coverage of the $95\%$ interval for each parameter, by $500$ simulated data sets scored by simulation-based calibration. ``Chain'' is the adaptive Metropolis sampler of the main text;
+``exact'' is importance sampling of the same surrogate posterior (the diagnosis subsection of the main text).
+\begin{table}[h]\centering\small
+\caption{Repairs of the overconfidence, scored on the same $500$ data sets (nominal $0.95$; the standard error is $0.010$).}\label{tab:repairs}
+\begin{tabular}{lcccc}
+\hline Sampler / repair & $\log_{10}p_1$ & $\log_{10}p_2$ & $\tau$ & $\log_{10}\delta$ \\ \hline
+Chain (original) & \pbaseAllLogPOneCovNineFive & \pbaseAllLogPTwoCovNineFive & \pbaseAllTauCovNineFive & \pbaseAllLogDeltaCovNineFive \\
+Chain, five times longer & \pblAllLogPOneCovNineFive & \pblAllLogPTwoCovNineFive & \pblAllTauCovNineFive & \pblAllLogDeltaCovNineFive \\
+Student-$t$ predictive & \pstAllLogPOneCovNineFive & \pstAllLogPTwoCovNineFive & \pstAllTauCovNineFive & \pstAllLogDeltaCovNineFive \\
+Kernel width $\epsilon=0.02$ & \pepstAllLogPOneCovNineFive & \pepstAllLogPTwoCovNineFive & \pepstAllTauCovNineFive & \pepstAllLogDeltaCovNineFive \\
+Kernel width $\epsilon=0.05$ & \pepsfAllLogPOneCovNineFive & \pepsfAllLogPTwoCovNineFive & \pepsfAllTauCovNineFive & \pepsfAllLogDeltaCovNineFive \\
+Kernel width $\epsilon=0.1$ & \pepsAllLogPOneCovNineFive & \pepsAllLogPTwoCovNineFive & \pepsAllTauCovNineFive & \pepsAllLogDeltaCovNineFive \\
+Rank recalibration (cross-fitted) & \prcLogPOneCovAfterCrossFitted & \prcLogPTwoCovAfterCrossFitted & \prcTauCovAfterCrossFitted & \prcLogDeltaCovAfterCrossFitted \\
+Exact sampling (importance) & \pissimLogPOneCovNineFiveAll & \pissimLogPTwoCovNineFiveAll & \pissimTauCovNineFiveAll & \pissimLogDeltaCovNineFiveAll \\ \hline
+\end{tabular}\end{table}
+
+\section{Study II: richer summaries for NPE}
+\begin{table}[h]\centering\small
+\caption{NPE contraction on $(\bar d,s)$ and on $(\bar d,s)$ plus six extra culture-count statistics (mean of $\psevenSeeds$ training seeds).}
+\begin{tabular}{lcccc}
+\hline Summaries & $\log_{10}p_1$ & $\log_{10}p_2$ & $\tau$ & $\log_{10}\delta$ \\ \hline
+$(\bar d,s)$ & \psevenBaseLogPOneContraction & \psevenBaseLogPTwoContraction & \psevenBaseTauContraction & \psevenBaseLogDeltaContraction \\
+with extras & \psevenExtrasLogPOneContraction & \psevenExtrasLogPTwoContraction & \psevenExtrasTauContraction & \psevenExtrasLogDeltaContraction \\ \hline
+\end{tabular}\end{table}
+
+\section{Ricker benchmark: calibration results}
+\begin{table}[h]\centering\small
+\caption{Coverage of the $95\%$ interval and rank-uniformity $p$-value, $\rickK$ held-out prior draws of the stochastic Ricker map.}
+\begin{tabular}{lcccccc}
+\hline Method & \multicolumn{2}{c}{$\log r$} & \multicolumn{2}{c}{$\sigma$} & \multicolumn{2}{c}{$\varphi$} \\ & cov. & $p$ & cov. & $p$ & cov. & $p$ \\ \hline
+DNN-ABC & \rickDnnAllLogRCovNineFive & \rickDnnAllLogRChiTwoP & \rickDnnAllSigmaCovNineFive & \rickDnnAllSigmaChiTwoP & \rickDnnAllPhiCovNineFive & \rickDnnAllPhiChiTwoP \\
+Synthetic likelihood & \rickSlAllLogRCovNineFive & \rickSlAllLogRChiTwoP & \rickSlAllSigmaCovNineFive & \rickSlAllSigmaChiTwoP & \rickSlAllPhiCovNineFive & \rickSlAllPhiChiTwoP \\
+NPE-Z & \ricknNpeZAllLogRCovNineFive & \ricknNpeZAllLogRChiTwoP & \ricknNpeZAllSigmaCovNineFive & \ricknNpeZAllSigmaChiTwoP & \ricknNpeZAllPhiCovNineFive & \ricknNpeZAllPhiChiTwoP \\ \hline
+\end{tabular}\end{table}
 
 \end{document}
