@@ -1198,6 +1198,21 @@ sample size of \pfourBPriorChangeMeanNpeEss\ of $20{,}000$ draws ($\pfourBPriorC
 \pfourBPriorChangeWassDnnVsNpeTau\ (for $\tau$) and \pfourBPriorChangeWassDnnVsNpeLogPTwo\ (for $\log_{10}p_2$). The surrogate's advantage there appears only for priors so narrow that reweighting
 exhausts the sample, which we did not reach. We did not vary $J$: both methods are trained for $J=100$ and would be retrained for another $J$.
 
+\section{A second zero-inflated benchmark: the stochastic Ricker map}\label{sec:ricker}
+To check that the method is not specific to the Luria--Delbr\"uck model we apply it to a second simulator whose summary statistics are zero-inflated, the stochastic Ricker map with extinction
+of \citet{wood2010}. The population obeys $N_{t+1}=r\,N_t\exp(-N_t+e_t)$ with $e_t\sim\mathcal N(0,\sigma^2)$, falls to zero when it drops below $10^{-6}$, and is observed as
+$y_t\sim\mathrm{Poisson}(\varphi N_t)$ for $T=100$ steps after a 50-step burn-in. The parameters are $(\log r,\sigma,\varphi)$ with a uniform prior on $[2.0,3.8]\times[0.1,0.8]\times[3,20]$.
+A fraction $\rickZeroFraction$ of data sets are extinct and have all-zero counts, so the observed summaries have a point mass at zero in the same way as $\bar d=0$ in Study~II.
+We train the hurdle surrogate on simulated summaries and compare DNN-ABC with synthetic likelihood \citep{wood2010,price2018} and with a zero-aware NPE (NPE-Z), using
+simulation-based calibration on $\rickK$ held-out prior draws (code in the Online Resource).
+
+DNN-ABC attains 95\% coverage of $\rickDnnAllLogRCovNineFive$, $\rickDnnAllSigmaCovNineFive$ and $\rickDnnAllPhiCovNineFive$ for $\log r$, $\sigma$ and $\varphi$, but its rank histograms are
+not uniform (chi-square $p=\rickDnnAllLogRChiTwoP$, $\rickDnnAllSigmaChiTwoP$, $\rickDnnAllPhiChiTwoP$), so we do not claim calibration. Synthetic likelihood undercovers
+($\rickSlAllLogRCovNineFive$, $\rickSlAllSigmaCovNineFive$, $\rickSlAllPhiCovNineFive$) although its ranks are closer to uniform, and takes $\rickSlSecPerDataset$ seconds per data set against
+$\rickDnnSecPerDataset$ for DNN-ABC. NPE-Z is calibrated for all three parameters (coverage $\ricknNpeZAllLogRCovNineFive$, $\ricknNpeZAllSigmaCovNineFive$, $\ricknNpeZAllPhiCovNineFive$; rank
+$p=\ricknNpeZAllLogRChiTwoP$, $\ricknNpeZAllSigmaChiTwoP$, $\ricknNpeZAllPhiChiTwoP$) and contracts more than DNN-ABC (for $\log r$, $\ricknNpeZAllLogRContraction$ against $\rickDnnAllLogRContraction$). As in Study~II,
+the surrogate-likelihood method is faster than the exact-likelihood alternative, but an amortised NPE that sees the zero indicator is the better default when calibration and sharpness are the goal.
+
 \section{Discussion}
 \label{sec:discussion}
 % =============================================================================

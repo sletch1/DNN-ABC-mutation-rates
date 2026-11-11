@@ -7,6 +7,8 @@ Methods compared: synthetic-likelihood MCMC (the exact-simulator reference, simu
 same sampler), NPE trained on ALL rows with a zero indicator. All scored by simulation-based calibration (K prior draws).
     python ricker.py gen|train|sbc|time ...  (see main)
 """
+import os
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"): os.environ.setdefault(_v, "1")   # one thread per worker: pools must not oversubscribe a shared server
 import argparse, json, sys, time
 from multiprocessing import Pool
 from pathlib import Path
