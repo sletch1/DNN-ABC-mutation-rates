@@ -132,8 +132,9 @@ regression on $\log_{10}\bar d$.
 \item \emph{A like-for-like comparison with the original sampler.} We run the
 original authors' MATLAB GPS-ABC on the same simulated data sets, in the original
 study's regime ($t_p=20$, $p\in[10^{-11},10^{-7}]$, four parameters), after checking
-that our data generator is statistically indistinguishable from theirs at their own
-design points. A control trained on only the original design size separates the effect
+that our data generator reproduces theirs at their own design points: over $\pvalFourSeeds$ seeds of $\pvalFourM$ simulated data sets per design point, the
+Kolmogorov--Smirnov tests of the probability-integral transform have $p$ between $\pvalFourKsPMin$ and $\pvalFourKsPMax$, the mean cell count differs by $\pvalFourMeanRelDiffPct\%$ and the
+largest decile deviation is $\pvalFourPitMaxRelDevPct\%$ (a difference of this size is detectable only with a very large sample, so ``consistent with'' rather than ``identical to''). A control trained on only the original design size separates the effect
 of more simulation from the effect of the surrogate.
 \item \emph{A neural posterior estimator as an independent reference.} NPE learns the
 posterior directly from the same simulations, with no surrogate likelihood, no kernel
@@ -1197,6 +1198,14 @@ zero-aware NPE, only over an NPE that ignores the zeros.
 sample size of \pfourBPriorChangeMeanNpeEss\ of $20{,}000$ draws ($\pfourBPriorChangeMeanEssFrac$), agreeing with the re-run chain to a Wasserstein distance of at most
 \pfourBPriorChangeWassDnnVsNpeTau\ (for $\tau$) and \pfourBPriorChangeWassDnnVsNpeLogPTwo\ (for $\log_{10}p_2$). The surrogate's advantage there appears only for priors so narrow that reweighting
 exhausts the sample, which we did not reach. We did not vary $J$: both methods are trained for $J=100$ and would be retrained for another $J$.
+
+\emph{Richer summaries for NPE.} The weak identification of $\tau$ and $p_1$ is partly a limit of the two features $(\bar d,s)$ rather than of the inference method. We trained NPE on the same
+$\psevenNTrain$ rows twice, once on $(\bar d,s)$ and once on $(\bar d,s)$ plus six extra statistics of the culture counts (fraction of zero cultures, the $50$th, $75$th and $90$th percentiles and the maximum on the log scale, and
+skewness), with $\psevenSeeds$ training seeds and $\psevenNTest$ held-out designs. Both are calibrated. The extra statistics raise the contraction of $\tau$ from $\psevenBaseTauContraction$ to
+$\psevenExtrasTauContraction$, of $\log_{10}p_1$ from $\psevenBaseLogPOneContraction$ to $\psevenExtrasLogPOneContraction$, of $\log_{10}p_2$ from $\psevenBaseLogPTwoContraction$ to
+$\psevenExtrasLogPTwoContraction$ and of $\log_{10}\delta$ from $\psevenBaseLogDeltaContraction$ to $\psevenExtrasLogDeltaContraction$, and the held-out log posterior density of the truth from
+$\psevenBaseHeldoutLogq$ to $\psevenExtrasHeldoutLogq$. A surrogate-likelihood method must model the joint density of every summary it uses, whereas NPE absorbs them without a likelihood; richer summaries are therefore a further
+point in favour of NPE rather than of the surrogate.
 
 \section{A second zero-inflated benchmark: the stochastic Ricker map}\label{sec:ricker}
 To check that the method is not specific to the Luria--Delbr\"uck model we apply it to a second simulator whose summary statistics are zero-inflated, the stochastic Ricker map with extinction

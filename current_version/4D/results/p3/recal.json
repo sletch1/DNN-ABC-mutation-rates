@@ -1,0 +1,22 @@
+{
+ "log10 p1": {
+  "adjusted_level": 0.9518981018981019,
+  "cov_before": 0.9285714285714286,
+  "cov_after_cross_fitted": 0.9340659340659341
+ },
+ "log10 p2": {
+  "adjusted_level": 0.9990009990009989,
+  "cov_before": 0.8956043956043955,
+  "cov_after_cross_fitted": 0.9615384615384616
+ },
+ "tau": {
+  "adjusted_level": 0.9697802197802197,
+  "cov_before": 0.9313186813186813,
+  "cov_after_cross_fitted": 0.945054945054945
+ },
+ "log10 delta": {
+  "adjusted_level": 0.9735764235764235,
+  "cov_before": 0.9230769230769231,
+  "cov_after_cross_fitted": 0.945054945054945
+ }
+}

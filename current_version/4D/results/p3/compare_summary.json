@@ -1,0 +1,13 @@
+{
+ "n_datasets": 48,
+ "n_nonzero": 34,
+ "log10 p1 median sd ratio chain over IS": 0.9857331299018324,
+ "log10 p1 mean abs mean diff in IS sd": 0.11974078698956166,
+ "log10 p2 median sd ratio chain over IS": 0.24841110091705898,
+ "log10 p2 mean abs mean diff in IS sd": 0.2225206301474964,
+ "tau median sd ratio chain over IS": 0.9246963276997708,
+ "tau mean abs mean diff in IS sd": 0.17820802027010346,
+ "log10 delta median sd ratio chain over IS": 0.892042050758429,
+ "log10 delta mean abs mean diff in IS sd": 0.14262935558680312,
+ "share of nonzero with p2 sd ratio below half": 0.7941176470588235
+}
