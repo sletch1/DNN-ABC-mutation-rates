@@ -64,7 +64,7 @@
 \author[1]{\fnm{Xiaowei} \sur{Wu}}\email{xwwu@vt.edu}
 \affil*[1]{\orgdiv{Department of Statistics}, \orgname{Virginia Tech}, \orgaddress{\city{Blacksburg}, \state{VA}, \postcode{24061}, \country{USA}}}
 
-\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate, whose regression is calibrated by split-conformal prediction, can make the same substitution. A one-dimensional benchmark shows that it matches exact ABC-MCMC at 68 to 2,000 times lower cost. The main study is the four-parameter two-stage model, run in the original study's regime. The summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it. Against the original authors' own sampler on the same data sets, it matches the accuracy of GPS-ABC with shorter intervals for the second mutation probability, in about forty seconds per data set. Simulation-based calibration shows that the surrogate-based samplers are sharper but mildly overconfident, and that a neural posterior estimator (NPE) trained on the same simulations is better calibrated.}
+\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate, whose regression is calibrated by split-conformal prediction, can make the same substitution. A one-dimensional benchmark shows that it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. The main study is the four-parameter two-stage model, run in the original study's regime. The summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it. Against the original authors' own sampler on the same data sets, it matches the accuracy of GPS-ABC with shorter intervals for the second mutation probability, in about forty seconds per data set. Simulation-based calibration shows that the surrogate-based samplers are sharper but mildly overconfident, and that a neural posterior estimator (NPE) trained on the same simulations is better calibrated.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; simulation-based calibration; heteroscedastic
@@ -154,8 +154,8 @@ prior. We use simulation-based calibration over truths drawn from the prior
 \citep{talts2018} together with posterior contraction: NPE is calibrated and less sharp,
 the surrogate-based samplers sharper and mildly overconfident.
 \item \emph{A one-dimensional benchmark.} The one setting where surrogate error
-does bind: the network's input-dependent variance yields tighter,
-still-calibrated intervals than the GP, and DNN-ABC is $68$ to over $2{,}000$
+does bind: the network's input-dependent variance yields tighter
+intervals than the GP at a mean coverage of $\soneDnnCovMean$ against $\soneGpsCovMean$, and DNN-ABC is $\soneSpeedupMin$ to $\soneSpeedupMax$
 times faster than exact ABC-MCMC.
 \item \emph{Negative results we report rather than tune away.} More training
 data does not help once the surrogate is at the noise floor ($1{,}500$ design points
@@ -386,7 +386,7 @@ Study II also the distance of each posterior from the GPS-ABC posterior it is me
 replace, simulation-based calibration and posterior contraction
 (Section~\ref{sec:sim3D_sbc}).
 
-Study I is evaluated over $R=40$ independent replicated data sets per cell. Study II
+Study I is evaluated over $R=\soneR$ independent replicated data sets per cell. Study II
 uses $100$ observed data sets per truth case for DNN-ABC and NPE and, because one
 GPS-ABC chain takes days (Section~\ref{sec:gps}), the first five of the same data sets
 for GPS-ABC, so every comparison with it is paired. Every comparison carries its Monte
@@ -505,7 +505,7 @@ construction.}
 \subsection{ABC simulation results}
 \label{sec:sim1D_results}
 
-We ran the ABC-MCMC / GPS-ABC / DNN-ABC comparison at $40$ replicated data sets
+We ran the ABC-MCMC / GPS-ABC / DNN-ABC comparison at $\soneR$ replicated data sets
 per cell, $600$ MCMC iterations ($250$ burn-in), $n_s=6$ simulator repeats per
 exact iteration, and prior $\theta \sim \mathrm{TruncExp}$ on $[-5,-2]$ (bounded
 so the exact simulator in the loop stays feasible; the surrogates are trained on
@@ -520,7 +520,7 @@ closed forms as classical baselines.
 RMSE $\sqrt{\mathrm{MSE}}/p$ in parentheses. Bold marks the lower of GPS-ABC
 and DNN-ABC in each row. $\Delta/\mathrm{SE}$ is the GPS-ABC$-$DNN-ABC MSE gap
 in units of its combined Monte Carlo standard error (Section~\ref{sec:ademp});
-values below $\sim 2$ in magnitude are not clearly resolved at $R=40$
+values below $\sim 2$ in magnitude are not clearly resolved at $R=\soneR$
 replicates.}
 \label{tab:mse1D}
 {\small
@@ -528,27 +528,14 @@ replicates.}
 \toprule
 $p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \midrule
-$10^{-4}$ & 10  & 9.36e-9 (0.97) & 1.02e-8 (1.01) & 5.95e-9 (0.77) & 7.01e-9 (0.84) & \textbf{5.25e-9 (0.72)} & 0.37 \\
-$10^{-4}$ & 50  & 8.68e-9 (0.93) & 9.59e-9 (0.98) & 1.91e-9 (0.44) & 1.98e-9 (0.45) & \textbf{1.77e-9 (0.42)} & 0.45 \\
-$10^{-4}$ & 100 & 4.18e-9 (0.65) & 4.64e-9 (0.68) & 7.75e-10 (0.28) & 7.95e-10 (0.28) & \textbf{7.68e-10 (0.28)} & 0.10 \\
-$10^{-3}$ & 10  & 1.38e-6 (1.17) & 1.60e-6 (1.26) & 4.11e-7 (0.64) & 6.46e-7 (0.80) & \textbf{4.58e-7 (0.68)} & 0.60 \\
-$10^{-3}$ & 50  & 3.21e-7 (0.57) & 3.85e-7 (0.62) & 1.11e-7 (0.33) & \textbf{1.11e-7 (0.33)} & 1.33e-7 (0.36) & $-$0.48 \\
-$10^{-3}$ & 100 & 2.71e-7 (0.52) & 3.29e-7 (0.57) & 4.29e-8 (0.21) & 4.48e-8 (0.21) & \textbf{4.42e-8 (0.21)} & 0.04 \\
-$10^{-2}$ & 10  & 3.42e-5 (0.58) & 4.40e-5 (0.66) & 1.67e-5 (0.41) & \textbf{1.77e-5 (0.42)} & 2.30e-5 (0.48) & $-$1.02 \\
-$10^{-2}$ & 50  & 7.71e-6 (0.28) & 1.17e-5 (0.34) & 7.01e-6 (0.26) & \textbf{5.46e-6 (0.23)} & 9.93e-6 (0.32) & $-$1.44 \\
-$10^{-2}$ & 100 & 4.01e-6 (0.20) & 6.08e-6 (0.25) & 3.05e-6 (0.17) & \textbf{3.14e-6 (0.18)} & 3.37e-6 (0.18) & $-$0.21 \\
-\bottomrule
+\input{tables/tab1d_mse}
 \end{tabular}}
 \end{table*}
 
-DNN-ABC's point estimate is lower than GPS-ABC's in five of nine cells and
-higher in four, but no difference in either direction is resolved: the largest
-$|\Delta/\mathrm{SE}|$ is $1.44$ ($p=10^{-2}$, $J=50$, favouring GPS-ABC). This
-is a statistical tie in every cell, consistent with a GP on a comparable design
-already being close to optimal for a one-dimensional smooth curve. Both
-surrogates match, and in several cells slightly improve on, exact ABC-MCMC, and
-all ABC methods substantially outperform MOM and MLE, reproducing
-\citeauthor{lu2023}'s central finding.
+Study I is a validation against exact ABC, not a contest between surrogates. DNN-ABC's point estimate is lower than GPS-ABC's in \soneNDnnMseLower\ of \soneNCells\ cells and higher in the rest.
+Only one difference is resolved, $\soneMaxAbsDse$ standard errors at $p=10^{\soneMaxDsePExp}$, $J=\soneMaxDseJ$, in favour of GPS-ABC; every other cell is a statistical tie, consistent with a GP on a comparable
+design already being close to optimal for a one-dimensional smooth curve. Both surrogates match, and in several cells slightly improve on, exact ABC-MCMC, and all ABC methods substantially outperform
+MOM and MLE, reproducing \citeauthor{lu2023}'s central finding. The point of the study is that the cheap surrogates reproduce exact ABC.
 
 
 \begin{table*}[t]
@@ -560,25 +547,13 @@ $\hat p$. Bold marks the shorter of GPS-ABC and DNN-ABC.}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 2.62e-4 & 3.11e-4 & \textbf{2.45e-4} \\
-$10^{-4}$ & 50  & 1.56e-4 & 1.50e-4 & \textbf{1.44e-4} \\
-$10^{-4}$ & 100 & 1.21e-4 & 1.16e-4 & \textbf{1.16e-4} \\
-$10^{-3}$ & 10  & 2.80e-3 & 3.32e-3 & \textbf{2.45e-3} \\
-$10^{-3}$ & 50  & 1.43e-3 & 1.66e-3 & \textbf{1.29e-3} \\
-$10^{-3}$ & 100 & 9.70e-4 & 1.20e-3 & \textbf{8.81e-4} \\
-$10^{-2}$ & 10  & 1.83e-2 & 1.96e-2 & \textbf{1.89e-2} \\
-$10^{-2}$ & 50  & 1.16e-2 & 1.74e-2 & \textbf{1.04e-2} \\
-$10^{-2}$ & 100 & 7.73e-3 & 1.25e-2 & \textbf{6.80e-3} \\
-\bottomrule
+\input{tables/tab1d_ci}
 \end{tabular}
 \end{table*}
 
-DNN-ABC's interval is shorter than GPS-ABC's in all nine cells, $21\%$ tighter
-on average and up to $46\%$, with no loss of point accuracy. The margin varies
-from negligible ($0.1\%$ at $p=10^{-4}$, $J=100$) to $46\%$ ($p=10^{-2}$,
-$J=100$); against exact ABC-MCMC the network is narrower in seven of nine cells.
-Whether this is gained precision or overconfidence is not settled by length
-alone; Section~\ref{sec:sim1D_coverage} measures coverage.
+DNN-ABC's interval is shorter than GPS-ABC's in \soneNCiShorterThanGps\ of \soneNCells\ cells, $\soneCiMeanShrinkPct\%$ tighter on average and up to $\soneCiMaxShrinkPct\%$, with no resolved loss of point accuracy
+(in the remaining cell it is slightly longer, a shrinkage of $\soneCiMinShrinkPct\%$); against exact ABC-MCMC the network is narrower in \soneNCiNarrowerThanAbc\ of \soneNCells\ cells. Whether this is
+gained precision or overconfidence is not settled by length alone; Section~\ref{sec:sim1D_coverage} measures coverage.
 
 
 \begin{table*}[t]
@@ -590,27 +565,17 @@ The final column is the speedup of DNN-ABC over exact ABC-MCMC.}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC & Speedup \\
 \midrule
-$10^{-4}$ & 10  & 50.08  & 0.739 & 0.130 & $386\times$ \\
-$10^{-4}$ & 50  & 170.01 & 0.742 & 0.127 & $1342\times$ \\
-$10^{-4}$ & 100 & 301.74 & 0.126 & 0.127 & $2381\times$ \\
-$10^{-3}$ & 10  & 16.33  & 0.743 & 0.127 & $128\times$ \\
-$10^{-3}$ & 50  & 65.32  & 0.743 & 0.127 & $514\times$ \\
-$10^{-3}$ & 100 & 125.75 & 0.126 & 0.126 & $997\times$ \\
-$10^{-2}$ & 10  & 8.52   & 0.746 & 0.126 & $68\times$ \\
-$10^{-2}$ & 50  & 40.07  & 0.746 & 0.126 & $318\times$ \\
-$10^{-2}$ & 100 & 78.39  & 0.124 & 0.126 & $623\times$ \\
-\bottomrule
+\input{tables/tab1d_time}
 \end{tabular}
 \end{table*}
 
-DNN-ABC runs at a flat $\approx 0.13$\,s per 100 iterations regardless of $p$ or
-$J$, because its query cost does not depend on training-set size. GPS-ABC costs
-$\approx 0.12$\,s at $J=100$ (a $550$-point design) but $\approx 0.74$\,s at
-$J \in \{10, 50\}$ (a $2{,}750$-point design), a $\sim 6\times$ slowdown that
-tracks the GP's $O(n)$ query cost against the $5\times$ larger design: the
+DNN-ABC runs at about $\soneDnnSPerOneZeroZeroMin$--$\soneDnnSPerOneZeroZeroMax$\,s per 100 iterations regardless of $p$ or
+$J$, because its query cost does not depend on training-set size. GPS-ABC is about five times faster at $J=100$ (a $550$-point design) than at
+$J \in \{10, 50\}$ (a $2{,}750$-point design), tracking the GP's $O(n)$ query cost against the $5\times$ larger design: the
 clearest direct demonstration in this paper of the scaling difference of
 Section~\ref{sec:intro}. Exact ABC-MCMC's cost grows with both $p$ and $J$;
-DNN-ABC is $68$--$2381\times$ faster. Figure~\ref{fig:posterior1D} shows the
+DNN-ABC is $\soneSpeedupMin$--$\soneSpeedupMax\times$ faster. These timings were taken on a shared server under load, so absolute seconds are larger than on an idle machine; the ratios, measured under the same
+conditions, are what we report. Figure~\ref{fig:posterior1D} shows the
 three posteriors concentrating on the same true $p$ on a representative data set.
 
 
@@ -636,38 +601,27 @@ we save every credible interval's endpoints and measure it.
 \centering
 \caption{Study I: empirical posterior coverage of the 95\% ABC credible
 interval for $\hat p$, with binomial Monte Carlo standard error
-($\sqrt{\hat c(1-\hat c)/R}$, $R=40$). This is a different quantity from
+($\sqrt{\hat c(1-\hat c)/R}$, $R=\soneR$). This is a different quantity from
 Table~\ref{tab:fit1D}'s regression coverage; see Section~\ref{sec:sim1D_coverage}.}
 \label{tab:cov1D}
 \begin{tabular}{rrrrr}
 \toprule
 $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC \\
 \midrule
-$10^{-4}$ & 10  & 0.775 (0.066) & 0.825 (0.060) & 0.850 (0.056) \\
-$10^{-4}$ & 50  & 0.900 (0.047) & 0.875 (0.052) & 0.900 (0.047) \\
-$10^{-4}$ & 100 & 0.925 (0.042) & 0.950 (0.034) & 0.950 (0.034) \\
-$10^{-3}$ & 10  & 0.800 (0.063) & 0.875 (0.052) & 0.875 (0.052) \\
-$10^{-3}$ & 50  & 0.975 (0.025) & 0.975 (0.025) & 0.925 (0.042) \\
-$10^{-3}$ & 100 & 0.950 (0.034) & 0.975 (0.025) & 0.925 (0.042) \\
-$10^{-2}$ & 10  & 0.850 (0.056) & 0.875 (0.052) & 0.875 (0.052) \\
-$10^{-2}$ & 50  & 1.000 (0.000) & 1.000 (0.000) & 0.925 (0.042) \\
-$10^{-2}$ & 100 & 0.950 (0.034) & 1.000 (0.000) & 0.925 (0.042) \\
-\bottomrule
+\input{tables/tab1d_cov}
 \end{tabular}
 \end{table*}
 
 A surrogate trained only on $J=100$ summaries cannot know that a $J=10$
-observation is noisier. Querying the $J{=}100$-only checkpoints at $J=10$ drops
+observation is noisier. In an earlier $40$-replicate run, querying the $J{=}100$-only checkpoints at $J=10$ dropped
 GPS-ABC and DNN-ABC coverage to $0.43$--$0.53$, about half of nominal. The
 $J$-specific surrogates of Table~\ref{tab:cov1D} recover most of that
-shortfall: at $J=10$ they cover at $0.825$--$0.875$, one to three Monte Carlo
-standard errors below nominal, and both reach or exceed nominal by $J=100$.
-Neither surrogate is consistently the more under-covering, so
-Table~\ref{tab:ci1D}'s length advantage for DNN-ABC is better evidence of real
-precision than it would be if its intervals were also the least calibrated.
-Separately, exact ABC-MCMC is itself below nominal at $J=10$ ($0.775$--$0.850$)
-despite calling the true simulator at the correct $J$; this is a property of the
-synthetic-likelihood kernel at this culture count, not of any surrogate.
+shortfall: at $J=10$ DNN-ABC covers at $\soneDnnCovJOneZeroMin$--$\soneDnnCovJOneZeroMax$, GPS-ABC at $\soneGpsCovJOneZeroMin$--$\soneGpsCovJOneZeroMax$ and exact ABC-MCMC at
+$\soneAbcCovJOneZeroMin$--$\soneAbcCovJOneZeroMax$; at $J=100$ they cover at $\soneDnnCovJOneZeroZeroMin$--$\soneDnnCovJOneZeroZeroMax$, $\soneGpsCovJOneZeroZeroMin$--$\soneGpsCovJOneZeroZeroMax$ and
+$\soneAbcCovJOneZeroZeroMin$--$\soneAbcCovJOneZeroZeroMax$. Averaged over the nine cells the coverage is $\soneDnnCovMean$ for DNN-ABC, $\soneGpsCovMean$ for GPS-ABC and $\soneAbcCovMean$ for exact
+ABC-MCMC, against a Monte Carlo standard error of about $\soneCovMcseMedian$ per cell. DNN-ABC is therefore slightly the least covering of the three, most visibly at $p=10^{-2}$ where GPS-ABC is conservative,
+so part of DNN-ABC's length advantage in Table~\ref{tab:ci1D} is the same shortfall seen from the other side rather than extra precision. Exact ABC-MCMC is itself below nominal at $J=10$
+despite calling the true simulator at the correct $J$; this is a property of the synthetic-likelihood kernel at this culture count, not of any surrogate.
 
 The residual $J=10$ gap should not be explained away. Split-conformal calibration
 is a marginal guarantee over the training distribution and does not size the
@@ -1293,8 +1247,8 @@ iterations per chain, not the original study's $20{,}000$, because one chain tak
 the neural methods is therefore indicative, and what it establishes firmly is its cost. The fast simulator is that of the original
 paper; its $p$ is not the per-division probability of the exact simulator (Section~\ref{sec:groundtruth3D}), which does not affect any comparison here but
 matters for interpreting the estimates. Our data generator is tested against the original authors' released training data at their
-design points, not against their observed data sets, which are not public. Study I uses $40$ replicates against
-\citeauthor{lu2023}'s $100$, and we report Monte Carlo standard errors throughout so that unresolved differences are not
+design points, not against their observed data sets, which are not public. Study I uses $\soneR$ replicates, as
+\citeauthor{lu2023} do, and we report Monte Carlo standard errors throughout so that unresolved differences are not
 over-interpreted. The prior is bounded to the original study's box. NPE is trained on data sets with $\bar d>0$ and so does not
 answer for data with no mutants at all. Finally, the diagnosis that the Markov chain, not the surrogate, is overconfident is established for DNN-ABC; we did not repeat it for GPS-ABC's own sampler.
 
@@ -1335,7 +1289,7 @@ authors' released training data (it needs those files, which are not redistribut
 % =============================================================================
 
 A heteroscedastic neural surrogate, calibrated by split-conformal prediction and substituted for the Gaussian process inside
-\citeauthor{lu2023}'s ABC-MCMC sampler, gives tighter intervals at matched accuracy and a $68$ to $2{,}381$-fold speedup over
+\citeauthor{lu2023}'s ABC-MCMC sampler, gives tighter intervals at matched accuracy and a $\soneSpeedupMin$ to $\soneSpeedupMax$-fold speedup over
 the exact sampler in the one-dimensional benchmark. In the four-parameter two-stage model, which is the main study and is run in the
 original study's own regime, the surrogate has to represent a response that is exactly zero for $30\%$ of data sets, spans four
 decades and has two strongly correlated features; a zero-aware network does this at the data's noise floor where a Gaussian
