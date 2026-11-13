@@ -893,9 +893,14 @@ objective is $p(\theta\mid x)$ at every $x$ in the support of the training data,
 whatever its marginal, so discarding the rows where $\log_{10}\bar d$ is undefined
 leaves the posterior at any observed $\bar d>0$ unchanged; every observed data set
 here has $\bar d>0$. The prior is uniform on the box, to which the paper's
-$\mathrm{TN}(\cdot,20)$ priors are flat to within a few per cent. We fit a
-neural spline flow and a mixture-density network and keep the one with the higher
-held-out log-probability on unseen design points, never one chosen on observed data.
+$\mathrm{TN}(\cdot,20)$ priors are flat to within a few per cent. We tried
+several implementations of the estimator on the same rows and design-point split: a neural spline flow and a
+mixture-density network (\texttt{sbi}), and the coupling flows of BayesFlow
+\citep{radev2020,radev2023bayesflow}, in an affine and a spline version. We keep the one with the higher
+held-out log-probability on unseen design points, never one chosen on observed data. This is the \texttt{sbi}
+neural spline flow (mean held-out $\log q(\theta\mid x)$ of $\pbfNsfHeldoutLogq$, against
+$\pbfAffineHeldoutLogq$ for the affine and $\pbfSplineHeldoutLogq$ for the spline BayesFlow flow, whose densities are renormalised to the prior box so that the
+values are comparable). The best BayesFlow flow is close, so the NPE results do not hinge on this choice.
 
 \subsection{Surrogate fit and calibration}
 \label{sec:sim3D_fit}
@@ -1267,7 +1272,7 @@ is included unmodified; the one function we replace for the GPS-ABC runs, and th
 disagree, with the side we took, are listed in \texttt{paper\_code\_discrepancy.md}.
 
 \noindent\textbf{Environment.} All code is Python (\texttt{numpy}, \texttt{pandas}, \texttt{scipy}, \texttt{matplotlib},
-\texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE; minimum versions in
+\texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE (and \texttt{bayesflow} for the alternative implementation compared in Section~\ref{sec:methods2}, which we did not use for the results); minimum versions in
 \texttt{requirements.txt}) except the GPS-ABC baseline, which is the authors' MATLAB (R2022b with the Statistics and Parallel
 Computing toolboxes). No GPU is required. The heavy steps were run on a 32-core server; on it the architecture search takes
 under an hour, the DNN-ABC chains for $200$ data sets about thirty minutes, NPE training about six hours and each GPS-ABC chain days.
