@@ -64,7 +64,7 @@
 \author[1]{\fnm{Xiaowei} \sur{Wu}}\email{xwwu@vt.edu}
 \affil*[1]{\orgdiv{Department of Statistics}, \orgname{Virginia Tech}, \orgaddress{\city{Blacksburg}, \state{VA}, \postcode{24061}, \country{USA}}}
 
-\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate can make the same substitution, and when a surrogate pipeline is worth using at all. A one-dimensional benchmark shows that it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter two-stage model, run in the original study's regime, the summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it, and matches the accuracy of GPS-ABC in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are sharper than nominal; we trace this to the chain, not the surrogate, since sampling the same surrogate posterior exactly is calibrated. A neural posterior estimator (NPE), chosen from seven candidates, is the better default for calibrated inference. The summary statistic identifies two of the four parameters; six extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
+\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate can make the same substitution, and when a surrogate pipeline is worth using at all. A one-dimensional benchmark shows that it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter two-stage model, run in the original study's regime, the summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it, and matches the accuracy of GPS-ABC for the second mutation probability, with shorter intervals, in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are sharper than nominal; we trace this to the chain, not the surrogate, since sampling the same surrogate posterior exactly is calibrated. A neural posterior estimator (NPE), chosen from seven candidates, is the better default for calibrated inference. The summary statistic identifies two of the four parameters; six extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; simulation-based calibration; heteroscedastic
@@ -382,7 +382,7 @@ replace, simulation-based calibration and posterior contraction
 
 Study I is evaluated over $R=\soneR$ independent replicated data sets per cell. Study II
 uses $100$ observed data sets per truth case for DNN-ABC and NPE and, because one
-GPS-ABC chain takes days (Section~\ref{sec:gps}), the first five of the same data sets
+GPS-ABC chain takes days (Section~\ref{sec:gps}), the first twenty of the same data sets
 for GPS-ABC, so every comparison with it is paired. Every comparison carries its Monte
 Carlo standard error: for $e_r = (\hat p_r - p)^2$,
 $\widehat{\mathrm{MCSE}} = \mathrm{sd}(e_r)/\sqrt{R}$. For two methods we report
@@ -1053,20 +1053,20 @@ Rank histograms are in Online Resource 1, Figure~S1.
 \subsection{Comparison with GPS-ABC}
 \label{sec:gps}
 
-We ran the original authors' MATLAB GPS-ABC on the first five of the $100$ observed data sets of each case, so that
+We ran the original authors' MATLAB GPS-ABC on the first twenty of the $100$ observed data sets of each case, so that
 every comparison with it is paired, with the settings of Online Resource 1, Table~S4. One chain at the original $20{,}000$
 iterations is not feasible at this scale: the Gaussian process is refit, and grows by ten design points, whenever an accept/reject
 decision is uncertain, so the cost per iteration rises as the chain runs. We therefore analyse every chain at its first $2{,}000$
 iterations, discarding the first $500$ (the paper's burn-in fraction), and report what that costs. A chain took between
-$4.4$ and $18.6$ hours for those $2{,}000$ iterations, $10.6$ hours on average (on two cores of a shared $32$-core server), so
+$2.0$ and $46$ hours for those $2{,}000$ iterations, $10.2$ hours on average (on two cores of a shared $32$-core server), so
 $20{,}000$ iterations would take at least four days; a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds.
 
 \begin{table*}[t]
 \centering
-\caption{Study II, paired comparison on the first five data sets of each case. GPS-ABC chains are analysed at
+\caption{Study II, paired comparison on the first twenty data sets of each case. GPS-ABC chains are analysed at
 $2{,}000$ iterations with the first $500$ discarded; the last column is its wall-clock time for those $2{,}000$ iterations,
 and for the others the time per data set (NPE: sampling only). RMSE is of the posterior median, interval length is the mean $95\%$
-interval length on the $\log_{10}$ scale ($\tau$ in time units). Coverage of a single truth over five data sets takes values in steps of $0.2$.}
+interval length on the $\log_{10}$ scale ($\tau$ in time units). Coverage of a single truth over twenty data sets takes values in steps of $0.05$.}
 \label{tab:recGPS}
 \small
 \input{tables/tab_recovery_paired_4d}
@@ -1075,23 +1075,23 @@ interval length on the $\log_{10}$ scale ($\tau$ in time units). Coverage of a s
 \noindent\textbf{Our GPS-ABC reproduces the published one.} Table~4 of \citet{lu2023}, averaged over $100$ replications, reports $95\%$
 intervals for $p_2$ of $[9.9\times10^{-10},2.5\times10^{-8}]$ in case~1 and $[1.1\times10^{-8},9.3\times10^{-8}]$ in case~2, that is
 $1.4$ and $0.94$ in $\log_{10}$ units, and for $\delta$ of $[0.52,1.76]$ and $[0.52,1.62]$, about $0.5$ in $\log_{10}$ units, with
-posterior medians close to the truth. Our runs of the same sampler give $1.38$ and $0.62$ for $p_2$ and $0.49$ and $0.41$
-for $\delta$, with errors of the median of $0.09$ and $0.05$ for $\log_{10}p_2$. Their interval for $\tau$ ($[4.8,17.8]$) is not comparable to ours
+posterior medians close to the truth. Our runs of the same sampler give $1.60$ and $1.02$ for $p_2$ and $0.50$ and $0.42$
+for $\delta$, with errors of the median of $0.08$ and $0.09$ for $\log_{10}p_2$, within about fifteen per cent of the published lengths. Their interval for $\tau$ ($[4.8,17.8]$) is not comparable to ours
 because their released code ran it on $[4,18]$ and not on the paper's $[0.1,19.9]$ (Section~\ref{sec:groundtruth3D}).
 
-\noindent\textbf{Same accuracy, much shorter intervals.} On the identified parameters the posterior medians of the three methods are about equally close to
-the truth: the RMSE of $\log_{10}p_2$ is $0.085$ and $0.054$ for GPS-ABC in the two cases, $0.085$ and $0.097$ for DNN-ABC and $0.068$ and $0.066$
-for NPE, and for $\log_{10}\delta$ it is $0.04$ for GPS-ABC against $0.06$--$0.08$ and $0.05$--$0.07$ for the others. With five data sets per case none of these differences
-is resolved. The intervals differ. GPS-ABC's $95\%$ interval for $\log_{10}p_2$ is $1.38$ and $0.62$ long, against $0.39$ and $0.36$ for DNN-ABC
-($3.6$ and $1.7$ times longer) and $0.60$ and $0.40$ for NPE ($2.3$ and $1.6$ times). For $\delta$ and for $p_1$ and $\tau$, whose intervals are close to the prior for every method,
-the lengths agree. Distances between posteriors show the same thing: the Wasserstein distance from the DNN-ABC posterior for $\log_{10}p_2$ to the GPS-ABC posterior is
-$0.165$ and $0.093$ (NPE: $0.140$ and $0.073$), small beside GPS-ABC's own standard deviation of $0.39$ and $0.20$, and for $\delta$ about $0.05$ against $0.13$ and $0.11$
-(Table~\ref{tab:fid4D}). The neural methods put their posteriors in the same place as GPS-ABC and make them narrower.
+\noindent\textbf{Same accuracy for $p_2$, much shorter intervals.} For $\log_{10}p_2$ the posterior medians of the three methods are about equally close to
+the truth: the RMSE is $0.078$ and $0.085$ for GPS-ABC in the two cases, $0.080$ and $0.082$ for DNN-ABC and $0.072$ and $0.071$
+for NPE, and with twenty data sets per case none of these differences is resolved (the $95\%$ bootstrap interval for each difference in RMSE includes zero). For $\log_{10}\delta$ GPS-ABC is
+more accurate: its RMSE is $0.033$ and $0.036$ against $0.060$ and $0.055$ for DNN-ABC and $0.059$ and $0.041$ for NPE, a difference that is resolved for DNN-ABC in both cases and for NPE in case~1. The intervals for $p_2$ differ. GPS-ABC's $95\%$ interval for $\log_{10}p_2$ is $1.60$ and $1.02$ long, against $0.43$ and $0.39$ for DNN-ABC
+($3.7$ and $2.6$ times longer) and $0.64$ and $0.50$ for NPE ($2.5$ and $2.0$ times). For $p_1$ and $\tau$, whose intervals are close to the prior for every method,
+the lengths agree, as they do for $\delta$ to within $0.1$. Distances between posteriors show the same thing: the Wasserstein distance from the DNN-ABC posterior for $\log_{10}p_2$ to the GPS-ABC posterior is
+$0.165$ and $0.130$ (NPE: $0.142$ and $0.110$), small beside GPS-ABC's own posterior standard deviation of $0.40$ and $0.28$, and for $\delta$ about $0.05$ against $0.14$ and $0.11$
+(Table~\ref{tab:fid4D}). The neural methods put their posteriors in the same place as GPS-ABC for $p_2$ and make them narrower.
 
 \begin{table}[t]
 \centering
 \caption{Wasserstein distance of each posterior from the GPS-ABC posterior for the same data set, per parameter ($\log_{10}$ units for
-$p_1,p_2,\delta$; mean $\pm$ s.e.\ over five data sets).}
+$p_1,p_2,\delta$; mean $\pm$ s.e.\ over twenty data sets).}
 \label{tab:fid4D}
 \small
 \input{tables/tab_fidelity_4d}
@@ -1099,7 +1099,7 @@ $p_1,p_2,\delta$; mean $\pm$ s.e.\ over five data sets).}
 
 \noindent\textbf{How to read the extra width.} GPS-ABC's wider interval is a loss of precision, not accuracy. Its surrogate carries the Gaussian-process error
 ($1.45$ times the noise floor at the original design size, on $\log_{10}\bar d$ alone) into the acceptance step, which inflates the posterior. Whether that inflation is warranted cannot be tested
-directly, since calibrating GPS-ABC over prior draws would need hundreds of chains. The calibrated method, NPE, lies between the two ($0.60$ and $0.40$), and the simulation-based
+directly, since calibrating GPS-ABC over prior draws would need hundreds of chains. The calibrated method, NPE, lies between the two ($0.64$ and $0.50$), and the simulation-based
 calibration above shows that DNN-ABC's shorter intervals are a little too short (Table~\ref{tab:sbc4D}); so the honest reading is that GPS-ABC is conservative, DNN-ABC is sharp and mildly
 overconfident, and NPE is closest to calibrated, with the neural methods costing seconds where GPS-ABC costs days.
 
@@ -1125,7 +1125,7 @@ deviations, against $\ptwoSummaryDnnAbcLogPTwoMeanDiffSd$ for DNN-ABC. NPE is wi
 return essentially the prior-limited interval, so their lengths agree with the reference and say nothing about quality. The shorter GPS-ABC-versus-DNN-ABC intervals
 for $p_2$ are therefore not by themselves evidence of overconfidence relative to a likelihood-free reference; the overconfidence
 reported next is a property of the rank statistics over prior draws, which a reference on eight data sets cannot replace.
-Simulation-based calibration of GPS-ABC itself is infeasible: a chain of $2{,}000$ iterations takes about seven hours on this server, so $K=500$ prior draws would need roughly $3{,}500$ chain-hours.
+Simulation-based calibration of GPS-ABC itself is infeasible: a chain of $2{,}000$ iterations takes about ten hours on this server, so $K=500$ prior draws would need roughly $3{,}500$ chain-hours.
 
 \begin{table*}[t]
 \centering
@@ -1220,9 +1220,9 @@ intervals than a GP and a flat query cost. In Study II it binds more: the respon
 surface is zero-inflated, spans four decades and has strongly correlated features, and a
 Gaussian process fit to the original design's $1{,}500$ points sits at $1.45$ times the data's noise
 floor ($2.4$ at $300$ points) while the network sits at $0.93$ times it, and at $0.96$ when trained on the same $1{,}500$ points. The cost is the other half: one
-GPS-ABC chain of $20{,}000$ iterations is projected to take at least four days (linear extrapolation from the $10.6$ hours that $2{,}000$ iterations took, with the cost per iteration rising as the chain runs), because the Gaussian process is refit, and grows,
+GPS-ABC chain of $20{,}000$ iterations is projected to take at least four days (linear extrapolation from the $10.2$ hours that $2{,}000$ iterations took, with the cost per iteration rising as the chain runs), because the Gaussian process is refit, and grows,
 whenever an accept/reject decision is uncertain, while a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds
-and NPE returns independent draws in four seconds once trained. On the same data sets and against the original authors' own sampler, DNN-ABC and NPE are not distinguishable from GPS-ABC in the accuracy of the posterior median for the identified parameters and give a $95\%$ interval for $p_2$ that is $1.6$ to $3.6$ times shorter (Section~\ref{sec:gps}); the shorter intervals are sharper than GPS-ABC's and, for DNN-ABC, a little too short.
+and NPE returns independent draws in four seconds once trained. On the same data sets and against the original authors' own sampler, DNN-ABC and NPE are not distinguishable from GPS-ABC in the accuracy of the posterior median for $p_2$ (GPS-ABC is more accurate for $\delta$) and give a $95\%$ interval for $p_2$ that is $2.0$ to $3.7$ times shorter (Section~\ref{sec:gps}); the shorter intervals are sharper than GPS-ABC's and, for DNN-ABC, a little too short.
 The noise-floor measurement is cheap and tells which regime one is in; we recommend making it before any
 surrogate comparison.
 
@@ -1263,7 +1263,7 @@ architecture family \citep{radev2022} and to measure the floor before searching.
 
 \noindent\textbf{Limitations.} This is a simulation study under known ground truth, with no application to real
 fluctuation-experiment data as in \citet{lu2023}; only that can speak to misspecification. Study II has two truth cases with
-$100$ data sets each for the neural methods. GPS-ABC is run on five of those data sets per case and for $2{,}000$ (the first $500$ discarded)
+$100$ data sets each for the neural methods. GPS-ABC is run on twenty of those data sets per case and for $2{,}000$ (the first $500$ discarded)
 iterations per chain, not the original study's $20{,}000$, because one chain takes days; its comparison with
 the neural methods is therefore indicative, and what it establishes firmly is its cost. The fast simulator is that of the original
 paper; its $p$ is not the per-division probability of the exact simulator (Section~\ref{sec:groundtruth3D}), which does not affect any comparison here but
@@ -1314,11 +1314,11 @@ A heteroscedastic neural surrogate, calibrated by split-conformal prediction and
 the exact sampler in the one-dimensional benchmark. In the four-parameter two-stage model, which is the main study and is run in the
 original study's own regime, the surrogate has to represent a response that is exactly zero for $30\%$ of data sets, spans four
 decades and has two strongly correlated features; a zero-aware network does this at the data's noise floor where a Gaussian
-process fit to the original design's $1{,}500$ points is $1.45$ times above it, and it needs no more than those $1{,}500$ design points to do so. Against the original authors' own sampler, run on the same data sets, it matches GPS-ABC's accuracy on the identified parameters with $95\%$ intervals for $p_2$ that are $1.7$ to $3.6$ times shorter, in about forty seconds per data set where a GPS-ABC chain takes days; the shorter intervals are mildly overconfident.
+process fit to the original design's $1{,}500$ points is $1.45$ times above it, and it needs no more than those $1{,}500$ design points to do so. Against the original authors' own sampler, run on the same data sets, it matches GPS-ABC's accuracy for $p_2$ (GPS-ABC is more accurate for $\delta$), with $95\%$ intervals for $p_2$ that are $2.6$ to $3.7$ times shorter, in about forty seconds per data set where a GPS-ABC chain takes days; the shorter intervals are mildly overconfident.
 An amortized NPE trained on the same simulations agrees with it on what the data identify: $p_2$ well, $\delta$ loosely, and $p_1$ and $\tau$ barely from the pair $(\bar d,s)$, and six extra statistics of the culture counts raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}. NPE is the better calibrated of the two approaches over truths drawn from the prior. The surrogate-based
 Markov-chain samplers are sharper and mildly overconfident, and we trace this to the chain: sampling the same surrogate posterior exactly is calibrated for all four parameters. In our experiments a zero-aware NPE does everything the surrogate pipeline does, so the surrogate's role is as a fast, repairable replacement for GPS-ABC, not a rival to NPE.
 
-Two limits of the present evidence should be stated. The GPS-ABC comparison rests on a small number of data sets per case analysed at a fraction of the original $20{,}000$ iterations, so it is indicative and what it establishes firmly is cost. We also run a single model family on simulated data, with no application to real fluctuation-experiment data, and the diagnosis of the overconfidence is established for DNN-ABC and not repeated for GPS-ABC's own sampler.
+Two limits of the present evidence should be stated. The GPS-ABC comparison rests on twenty data sets per case analysed at a fraction of the original $20{,}000$ iterations, so it is indicative and what it establishes firmly is cost. We also run a single model family on simulated data, with no application to real fluctuation-experiment data, and the diagnosis of the overconfidence is established for DNN-ABC and not repeated for GPS-ABC's own sampler.
 
 The general lessons are three. Measure the noise floor before comparing architectures or surrogates, because it predicts whether
 a comparison can report anything. Do not read a surrogate's regression calibration as the calibration of the posterior built on it;
