@@ -234,16 +234,17 @@ NPE-Z & \ricknNpeZAllLogRCovNineFive & \ricknNpeZAllLogRChiTwoP & \ricknNpeZAllS
 
 \section{Amortized posterior estimators compared}
 \begin{table}[h]\centering\small
-\caption{Candidate amortized estimators trained on the same rows and design-point split and scored on $\pnpecNsfNDesigns$ held-out designs (single run each): mean $\log q(\theta\mid x)$ renormalized to the prior box, mean coverage of the $95\%$ interval over the four parameters (nominal $0.95$), smallest rank-uniformity $p$-value, posterior contraction of $\log_{10}p_2$ and $\log_{10}\delta$, and seconds to draw $500$ samples for one data set. NSF: neural spline flow; MAF: masked autoregressive flow; MDN: mixture-density network; FMPE: flow matching; NPSE: score-based; BF: BayesFlow coupling flow.}\label{tab:npecand}
+\caption{Candidate amortized estimators trained on the same rows and design-point split and scored on $\pnpecNsfNDesigns$ held-out designs, means over $\pnpecNsfNSeeds$ training seeds: mean $\log q(\theta\mid x)$ renormalized to the prior box (seed standard deviation in brackets), mean coverage of the $95\%$ interval over the four parameters (nominal $0.95$), smallest rank-uniformity $p$-value, posterior contraction of $\log_{10}p_2$ and $\log_{10}\delta$, and seconds to draw $500$ samples for one data set. NSF: neural spline flow; MAF: masked autoregressive flow; MDN: mixture-density network; FMPE: flow matching; NPSE: score-based; BF: BayesFlow coupling flow.}\label{tab:npecand}
 \begin{tabular}{lrrrrrr}
-\hline Estimator & $\log q$ & Cov. & Min $p$ & Contr.\ $p_2$ & Contr.\ $\delta$ & s per 500 \\ \hline
-NSF (used) & \pnpecNsfHeldoutLogq & \pnpecNsfMeanCovNineFive & \pnpecNsfMinChiTwoP & \pnpecNsfContractionLogPTwo & \pnpecNsfContractionLogDelta & \pnpecNsfSampleSFiveZeroZeroDraws \\
-MAF & \pnpecMafHeldoutLogq & \pnpecMafMeanCovNineFive & \pnpecMafMinChiTwoP & \pnpecMafContractionLogPTwo & \pnpecMafContractionLogDelta & \pnpecMafSampleSFiveZeroZeroDraws \\
-MDN & \pnpecMdnHeldoutLogq & \pnpecMdnMeanCovNineFive & \pnpecMdnMinChiTwoP & \pnpecMdnContractionLogPTwo & \pnpecMdnContractionLogDelta & \pnpecMdnSampleSFiveZeroZeroDraws \\
-FMPE & \pnpecFmpeHeldoutLogq & \pnpecFmpeMeanCovNineFive & \pnpecFmpeMinChiTwoP & \pnpecFmpeContractionLogPTwo & \pnpecFmpeContractionLogDelta & \pnpecFmpeSampleSFiveZeroZeroDraws \\
-BF affine & \pnpecBfAffineHeldoutLogq & \pnpecBfAffineMeanCovNineFive & \pnpecBfAffineMinChiTwoP & \pnpecBfAffineContractionLogPTwo & \pnpecBfAffineContractionLogDelta & \pnpecBfAffineSampleSFiveZeroZeroDraws \\
-NPSE & \pnpecNpseHeldoutLogq & \pnpecNpseMeanCovNineFive & \pnpecNpseMinChiTwoP & \pnpecNpseContractionLogPTwo & \pnpecNpseContractionLogDelta & \pnpecNpseSampleSFiveZeroZeroDraws \\
-BF spline & \pnpecBfSplineHeldoutLogq & \pnpecBfSplineMeanCovNineFive & \pnpecBfSplineMinChiTwoP & \pnpecBfSplineContractionLogPTwo & \pnpecBfSplineContractionLogDelta & \pnpecBfSplineSampleSFiveZeroZeroDraws \\ \hline
+\hline Estimator & $\log q$ (s.d.) & Cov. & Min $p$ & Contr.\ $p_2$ & Contr.\ $\delta$ & s per 500 \\ \hline
+NSF (used) & \pnpecNsfHeldoutLogq{} (\pnpecNsfHeldoutLogqSd) & \pnpecNsfMeanCovNineFive & \pnpecNsfMinChiTwoP & \pnpecNsfContractionLogPTwo & \pnpecNsfContractionLogDelta & \pnpecNsfSampleSFiveZeroZeroDraws \\
+MAF & \pnpecMafHeldoutLogq{} (\pnpecMafHeldoutLogqSd) & \pnpecMafMeanCovNineFive & \pnpecMafMinChiTwoP & \pnpecMafContractionLogPTwo & \pnpecMafContractionLogDelta & \pnpecMafSampleSFiveZeroZeroDraws \\
+MDN & \pnpecMdnHeldoutLogq{} (\pnpecMdnHeldoutLogqSd) & \pnpecMdnMeanCovNineFive & \pnpecMdnMinChiTwoP & \pnpecMdnContractionLogPTwo & \pnpecMdnContractionLogDelta & \pnpecMdnSampleSFiveZeroZeroDraws \\
+BF affine & \pnpecBfAffineHeldoutLogq{} (\pnpecBfAffineHeldoutLogqSd) & \pnpecBfAffineMeanCovNineFive & \pnpecBfAffineMinChiTwoP & \pnpecBfAffineContractionLogPTwo & \pnpecBfAffineContractionLogDelta & \pnpecBfAffineSampleSFiveZeroZeroDraws \\
+FMPE & \pnpecFmpeHeldoutLogq{} (\pnpecFmpeHeldoutLogqSd) & \pnpecFmpeMeanCovNineFive & \pnpecFmpeMinChiTwoP & \pnpecFmpeContractionLogPTwo & \pnpecFmpeContractionLogDelta & \pnpecFmpeSampleSFiveZeroZeroDraws \\
+BF spline & \pnpecBfSplineHeldoutLogq{} (\pnpecBfSplineHeldoutLogqSd) & \pnpecBfSplineMeanCovNineFive & \pnpecBfSplineMinChiTwoP & \pnpecBfSplineContractionLogPTwo & \pnpecBfSplineContractionLogDelta & \pnpecBfSplineSampleSFiveZeroZeroDraws \\
+NPSE & \pnpecNpseHeldoutLogq{} (\pnpecNpseHeldoutLogqSd) & \pnpecNpseMeanCovNineFive & \pnpecNpseMinChiTwoP & \pnpecNpseContractionLogPTwo & \pnpecNpseContractionLogDelta & \pnpecNpseSampleSFiveZeroZeroDraws \\
+\hline
 \end{tabular}\end{table}
 
 \end{document}
