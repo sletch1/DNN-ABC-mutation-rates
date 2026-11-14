@@ -893,14 +893,26 @@ objective is $p(\theta\mid x)$ at every $x$ in the support of the training data,
 whatever its marginal, so discarding the rows where $\log_{10}\bar d$ is undefined
 leaves the posterior at any observed $\bar d>0$ unchanged; every observed data set
 here has $\bar d>0$. The prior is uniform on the box, to which the paper's
-$\mathrm{TN}(\cdot,20)$ priors are flat to within a few per cent. We tried
-several implementations of the estimator on the same rows and design-point split: a neural spline flow and a
-mixture-density network (\texttt{sbi}), and the coupling flows of BayesFlow
-\citep{radev2020,radev2023bayesflow}, in an affine and a spline version. We keep the one with the higher
-held-out log-probability on unseen design points, never one chosen on observed data. This is the \texttt{sbi}
-neural spline flow (mean held-out $\log q(\theta\mid x)$ of $\pbfNsfHeldoutLogq$, against
-$\pbfAffineHeldoutLogq$ for the affine and $\pbfSplineHeldoutLogq$ for the spline BayesFlow flow, whose densities are renormalised to the prior box so that the
-values are comparable). The best BayesFlow flow is close, so the NPE results do not hinge on this choice.
+$\mathrm{TN}(\cdot,20)$ priors are flat to within a few per cent.
+
+\noindent\textbf{Which NPE.} Recent work offers many variants, and we chose candidates by whether they answer the question of this study: an amortized
+posterior from the same simulations and the same two features. Seven were trained on the same rows and the same design-point split
+(Online Resource~1, Table~S9): the mixture-density network of the original NPE \citep{papamakarios2016}; a masked autoregressive flow
+\citep{papamakarios2017} and a neural spline flow \citep{durkan2019}, the workhorses of \texttt{sbi}; flow-matching posterior estimation
+\citep{wildberger2023}; neural posterior score estimation, a conditional diffusion model \citep{sharrock2024}; and the affine and spline
+coupling flows of BayesFlow \citep{radev2022,radev2023bayesflow}. We left out variants that answer a different question. Sequential methods
+(SNPE-C, truncated SNPE; \citealp{greenberg2019,deistler2022}) concentrate the simulations on one observed data set, which defeats the amortized
+calibration over hundreds of data sets used here. Robust and preconditioned robust NPE \citep{ward2022,kelly2026} address misspecified simulators,
+and ours generates the data. Multifidelity NPE \citep{krouglova2026} needs a cheap low-fidelity simulator, which this model does not have. The
+$\beta$-amortized generalized-Bayes estimator \citep{sun2026} targets tempered posteriors, and we want the posterior at $\beta=1$.
+We select by the mean held-out $\log q(\theta\mid x)$ on $\pnpecNsfNDesigns$ unseen design points, with every density renormalized to the prior box so that none
+is favoured by probability mass outside it, and never on the observed data. The \texttt{sbi} neural spline flow is best ($\pnpecNsfHeldoutLogq$), then the
+masked autoregressive flow ($\pnpecMafHeldoutLogq$), the mixture-density network ($\pnpecMdnHeldoutLogq$), flow matching ($\pnpecFmpeHeldoutLogq$), the affine BayesFlow flow
+($\pnpecBfAffineHeldoutLogq$), score-based estimation ($\pnpecNpseHeldoutLogq$) and the spline BayesFlow flow ($\pnpecBfSplineHeldoutLogq$). Each is a single run, so differences of a few hundredths
+are not resolved, but the lead of the neural spline flow over the next candidate is $\pnpecNsfLeadOverMaf$ nats. It also has the highest mean coverage of the $95\%$ interval ($\pnpecNsfMeanCovNineFive$)
+and, with flow matching and score-based estimation needing $\pnpecFmpeSampleSFiveZeroZeroDraws$ and $\pnpecNpseSampleSFiveZeroZeroDraws$ seconds for $500$ draws against $\pnpecNsfSampleSFiveZeroZeroDraws$ for a flow, it is the only
+top-ranked candidate that is cheap to sample. We therefore use the neural spline flow throughout. Training times are not compared: several runs shared a machine that was suspended part of the time.
+
 
 \subsection{Surrogate fit and calibration}
 \label{sec:sim3D_fit}
@@ -1272,7 +1284,7 @@ is included unmodified; the one function we replace for the GPS-ABC runs, and th
 disagree, with the side we took, are listed in \texttt{paper\_code\_discrepancy.md}.
 
 \noindent\textbf{Environment.} All code is Python (\texttt{numpy}, \texttt{pandas}, \texttt{scipy}, \texttt{matplotlib},
-\texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE (and \texttt{bayesflow} for the alternative implementation compared in Section~\ref{sec:methods2}, which we did not use for the results); minimum versions in
+\texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE (and \texttt{bayesflow} for the BayesFlow candidates, which are not used for the results); minimum versions in
 \texttt{requirements.txt}) except the GPS-ABC baseline, which is the authors' MATLAB (R2022b with the Statistics and Parallel
 Computing toolboxes). No GPU is required. The heavy steps were run on a 32-core server; on it the architecture search takes
 under an hour, the DNN-ABC chains for $200$ data sets about thirty minutes, NPE training about six hours and each GPS-ABC chain days.

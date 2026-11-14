@@ -1,0 +1,66 @@
+{
+ "bf_affine": {
+  "heldout_logq": -1.748552839731331,
+  "mean_cov95": 0.9191666666666667,
+  "min_chi2_p": 0.03292282173775307,
+  "contraction_log10_p2": 0.8955504894256592,
+  "contraction_log10_delta": 0.6524147987365723,
+  "sample_s_500_draws": 0.02155536413192749,
+  "n_designs": 300
+ },
+ "bf_spline": {
+  "heldout_logq": -1.8351775130218155,
+  "mean_cov95": 0.9291666666666667,
+  "min_chi2_p": 1.5187277803807575e-05,
+  "contraction_log10_p2": 0.8603249788284302,
+  "contraction_log10_delta": 0.6099756956100464,
+  "sample_s_500_draws": 0.05108848253885905,
+  "n_designs": 300
+ },
+ "fmpe": {
+  "heldout_logq": -1.7206244945526123,
+  "mean_cov95": 0.9216666666666666,
+  "min_chi2_p": 0.024631972485906983,
+  "contraction_log10_p2": 0.884273886680603,
+  "contraction_log10_delta": 0.6167872548103333,
+  "sample_s_500_draws": 86.51871378660202,
+  "n_designs": 300
+ },
+ "maf": {
+  "heldout_logq": -1.6226238770534596,
+  "mean_cov95": 0.8991666666666667,
+  "min_chi2_p": 0.0030458182560999525,
+  "contraction_log10_p2": 0.9111045002937317,
+  "contraction_log10_delta": 0.6842709183692932,
+  "sample_s_500_draws": 0.02744266430536906,
+  "n_designs": 300
+ },
+ "mdn": {
+  "heldout_logq": -1.6910100929439067,
+  "mean_cov95": 0.9016666666666666,
+  "min_chi2_p": 6.783205919180801e-08,
+  "contraction_log10_p2": 0.8776944875717163,
+  "contraction_log10_delta": 0.6630162596702576,
+  "sample_s_500_draws": 0.0017446597417195638,
+  "n_designs": 300
+ },
+ "npse": {
+  "heldout_logq": -1.7777299785614014,
+  "mean_cov95": 0.9275,
+  "min_chi2_p": 0.05194163979552402,
+  "contraction_log10_p2": 0.8753910660743713,
+  "contraction_log10_delta": 0.6276599168777466,
+  "sample_s_500_draws": 6.547333830197652,
+  "n_designs": 300
+ },
+ "nsf": {
+  "heldout_logq": -1.5486650495883076,
+  "mean_cov95": 0.9375,
+  "min_chi2_p": 0.010732002667870888,
+  "contraction_log10_p2": 0.87529456615448,
+  "contraction_log10_delta": 0.6074371337890625,
+  "sample_s_500_draws": 0.01925681670506795,
+  "n_designs": 300,
+  "lead_over_maf": 0.07395882746515192
+ }
+}

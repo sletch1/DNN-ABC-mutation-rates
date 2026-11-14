@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = {  # prefix -> file
     "pfc": "4D/results/p3/feature_checks.json", "psc": "4D/results/p3/sbc_selfconsistent.json", "pbase": "4D/results/p3/sbc_base.json",
     "pst": "4D/results/p3/sbc_student_t20.json", "peps": "4D/results/p3/sbc_eps0.1.json", "pepsf": "4D/results/p3/sbc_eps0.05.json", "pepst": "4D/results/p3/sbc_eps0.02.json", "pisself": "4D/results/p3/is_check.json", "pissim": "4D/results/p3/is_check_simulator.json", "pcmp": "4D/results/p3/compare_summary.json", "pscl": "4D/results/p3/sbc_selfconsistent_long.json", "pbl": "4D/results/p3/sbc_base_long.json",
-    "prc": "4D/results/p3/recal.json", "pfour": "4D/results/p4.json", "pbf": "4D/results/bayesflow_comparison.json", "ptwo": "4D/results/tables/p2_oracle.json",
+    "prc": "4D/results/p3/recal.json", "pfour": "4D/results/p4.json", "pnpec": "4D/results/npe_candidates_summary.json", "ptwo": "4D/results/tables/p2_oracle.json",
     "pseven": "4D/results/p7_summary.json", "pval": "4D/results/validation_extended_summary.json",
     "rick": "Ricker/results/sbc_ricker.json", "rickn": "Ricker/results/npe_ricker.json", "sone": "1D/results/tables/study1_summary.json",
 }

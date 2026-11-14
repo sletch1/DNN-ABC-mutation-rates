@@ -93,11 +93,11 @@ def train(path, depth=6, seed=0, max_epochs=300, patience=20, batch_size=512, tr
     return post, time.time() - t0, lp
 
 
-def fit(th, x, box, seed=0, depth=6, max_epochs=300, patience=20, batch_size=512, val_frac=0.1):
+def fit(th, x, box, seed=0, depth=6, max_epochs=300, patience=20, batch_size=512, val_frac=0.1, transform="affine", width=128):
     """Train on arbitrary (theta, x) arrays (used for the variants with other features); a random val_frac of rows is held out for early stopping."""
     import keras, bayesflow as bf
     pm = np.random.default_rng(seed).permutation(len(th)); th = np.asarray(th, dtype=np.float32)[pm]; x = np.asarray(x, dtype=np.float32)[pm]; n = len(th); nv = int(val_frac * n)
-    appx = _approximator(depth, seed); appx.compile(optimizer=keras.optimizers.Adam(learning_rate=1e-3))
+    appx = _approximator(depth, seed, transform, width); appx.compile(optimizer=keras.optimizers.Adam(learning_rate=1e-3))
     ds = bf.OfflineDataset(dict(theta=th[:n - nv], x=x[:n - nv]), batch_size=batch_size, adapter=appx.adapter)
     vd = bf.OfflineDataset(dict(theta=th[n - nv:], x=x[n - nv:]), batch_size=batch_size, adapter=appx.adapter)
     appx.fit(dataset=ds, validation_data=vd, epochs=max_epochs, verbose=0, callbacks=[keras.callbacks.EarlyStopping(monitor="val_loss", patience=patience, restore_best_weights=True)])
