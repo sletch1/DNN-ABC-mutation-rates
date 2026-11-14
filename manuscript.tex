@@ -64,7 +64,7 @@
 \author[1]{\fnm{Xiaowei} \sur{Wu}}\email{xwwu@vt.edu}
 \affil*[1]{\orgdiv{Department of Statistics}, \orgname{Virginia Tech}, \orgaddress{\city{Blacksburg}, \state{VA}, \postcode{24061}, \country{USA}}}
 
-\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate, whose regression is calibrated by split-conformal prediction, can make the same substitution. A one-dimensional benchmark shows that it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. The main study is the four-parameter two-stage model, run in the original study's regime. The summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it. Against the original authors' own sampler on the same data sets, it matches the accuracy of GPS-ABC with shorter intervals for the second mutation probability, in about forty seconds per data set. Simulation-based calibration shows that the surrogate-based samplers are sharper but mildly overconfident, and that a neural posterior estimator (NPE) trained on the same simulations is better calibrated.}
+\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate can make the same substitution, and when a surrogate pipeline is worth using at all. A one-dimensional benchmark shows that it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter two-stage model, run in the original study's regime, the summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it, and matches the accuracy of GPS-ABC in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are sharper than nominal; we trace this to the chain, not the surrogate, since sampling the same surrogate posterior exactly is calibrated. A neural posterior estimator (NPE), chosen from seven candidates, is the better default for calibrated inference. The summary statistic identifies two of the four parameters; six extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; simulation-based calibration; heteroscedastic
@@ -136,23 +136,17 @@ that our data generator reproduces theirs at their own design points: over $\pva
 Kolmogorov--Smirnov tests of the probability-integral transform have $p$ between $\pvalFourKsPMin$ and $\pvalFourKsPMax$, the mean cell count differs by $\pvalFourMeanRelDiffPct\%$ and the
 largest decile deviation is $\pvalFourPitMaxRelDevPct\%$ (a difference of this size is detectable only with a very large sample, so ``consistent with'' rather than ``identical to''). A control trained on only the original design size separates the effect
 of more simulation from the effect of the surrogate.
-\item \emph{A neural posterior estimator as an independent reference.} NPE (chosen from seven candidate estimators on held-out log-probability, Section~\ref{sec:methods2}) learns the
-posterior directly from the same simulations, with no surrogate likelihood, no kernel
-and no Markov chain. It matters here for three reasons. It shows whether the surrogate
-and sampler are needed at all in four dimensions, since it uses exactly the same data and
-features. It separates the two ways a surrogate-based posterior can go wrong, the
-surrogate's variance model and the sampler, because it has neither. And, being
-amortized, it returns posterior draws for a new data set in seconds with no further
-simulation, which GPS-ABC and DNN-ABC cannot do.
-\item \emph{Identifiability, not the surrogate, limits accuracy.} The data identify
-$p_2$ and, loosely, $\delta$, and not $p_1$ or $\tau$. A neural posterior estimator (NPE)
-trained on the same simulations and the surrogate-based sampler agree on this, which
-makes it a property of the summary statistic and not of either method.
-\item \emph{Calibration diagnostics that do not saturate.} Coverage at a fixed
-truth is $1.000$ for any nearly unidentified parameter because the interval spans the
-prior. We use simulation-based calibration over truths drawn from the prior
-\citep{talts2018} together with posterior contraction: NPE is calibrated and less sharp,
-the surrogate-based samplers sharper and mildly overconfident.
+\item \emph{The overconfidence belongs to the sampler, and exact sampling repairs it.} Over truths drawn from the prior, the surrogate-based
+Markov-chain samplers are sharper than nominal while a neural posterior estimator is calibrated. A Student-$t$ predictive, chains five times longer and a wider kernel do not repair it. Sampling the same
+surrogate posterior exactly, by importance resampling, is calibrated for all four parameters (coverage $0.95$ to $0.96$) at a sharpness close to the estimator's, so the chain misses a long
+tail of $\log_{10}p_2$ and the surrogate does not. We use simulation-based calibration \citep{talts2018} together with posterior contraction, because coverage at a fixed
+truth is $1.000$ for any nearly unidentified parameter.
+\item \emph{Identifiability is a property of the summary statistic, and richer summaries change it.} The data identify $p_2$ and, loosely, $\delta$, and not $p_1$ or $\tau$. An NPE trained on the same
+simulations and the surrogate-based sampler agree on this, so it is not a limit of either method. Six extra statistics of the culture counts raise the posterior contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}
+and that of $\log_{10}p_1$ from \psevenBaseLogPOneContraction{} to \psevenExtrasLogPOneContraction{}.
+\item \emph{A decision guide against NPE.} An amortized NPE (chosen from seven candidate estimators on held-out log-probability, Section~\ref{sec:methods2}) uses exactly the same data and features, with no surrogate, kernel or Markov chain. It is the
+better default for calibrated inference: a zero-aware version answers the data sets with no mutants, and a change of prior needs no retraining (Section~\ref{sec:edge}). In our experiments the surrogate pipeline does not beat it on any criterion we measured; its
+role is as a fast and repairable replacement for GPS-ABC, which it matches at a fraction of the cost.
 \item \emph{A one-dimensional benchmark.} The one setting where surrogate error
 does bind: the network's input-dependent variance yields tighter
 intervals than the GP at a mean coverage of $\soneDnnCovMean$ against $\soneGpsCovMean$, and DNN-ABC is $\soneSpeedupMin$ to $\soneSpeedupMax$
@@ -1250,10 +1244,15 @@ coverage of the posterior built on it. Over truths drawn from the prior, NPE is 
 less sharp on $p_2$ (it removes $0.87$ of the prior variance, against $0.98$ for DNN-ABC), while the surrogate-based
 samplers are sharper and overconfident ($0.885$ for $p_2$, nearly six standard errors below nominal, and $0.90$--$0.93$ for
 the others). At a fixed truth, the two look alike. We therefore recommend simulation-based calibration over prior draws, together with posterior
-contraction, as the routine check for any surrogate-based likelihood-free sampler. The overconfidence comes from the Markov chain rather than from the surrogate (Section~\ref{sec:diagnose}). We found that the two features are correlated ($0.61$) and that GPS-ABC's treatment of them as independent is wrong
-in that sense; modelling the correlation improves the held-out joint likelihood and the uniformity of the ranks but not the coverage
-($0.896$ for $p_2$), so it is not the main cause. The Gaussian form of the predictive density, which NPE does not assume, and
-surrogate error away from the training points are the remaining candidates.
+contraction, as the routine check for any surrogate-based likelihood-free sampler. The overconfidence comes from the Markov chain rather than from the surrogate (Section~\ref{sec:diagnose}): sampling the same surrogate posterior exactly is calibrated for all four parameters, with contractions
+of $\pissimContractionLogPTwo$ for $\log_{10}p_2$ and $\pissimContractionLogDelta$ for $\log_{10}\delta$, close to NPE's. We also found that the two features are correlated ($0.61$) and that GPS-ABC's treatment of them as independent is wrong
+in that sense; modelling the correlation improves the held-out joint likelihood and the uniformity of the ranks but not the coverage of the chain ($0.896$ for $p_2$), so it is not the cause. Neither the Gaussian predictive density nor surrogate error is
+responsible, since both are present in the exactly sampled posterior that is calibrated.
+
+\noindent\textbf{A decision guide.} Our results give a plain answer to when a surrogate pipeline earns its place. For calibrated inference on a simulator cheap enough to generate a training set, an amortized NPE is the better default: it is calibrated, it answers
+every data set once it sees a zero indicator, it adapts to a new prior by reweighting, and richer summaries raise its contraction (Section~\ref{sec:edge}). A surrogate-likelihood pipeline did not beat it on any criterion we measured. Its value is
+relative to the Gaussian-process pipeline it replaces: it matches GPS-ABC's accuracy in about forty seconds per data set where a GPS-ABC chain takes days, and with exact sampling in place of the Markov chain it is calibrated. We did not find a setting in this model where
+a surrogate likelihood is preferable to a zero-aware NPE.
 
 Two architectural lessons recur. In Study I the dominant factor was not the activation function but the presence of
 BatchNorm \citep{ioffe2015}: its per-minibatch statistics are counter-productive for a smooth regression on a bounded,
@@ -1316,16 +1315,15 @@ the exact sampler in the one-dimensional benchmark. In the four-parameter two-st
 original study's own regime, the surrogate has to represent a response that is exactly zero for $30\%$ of data sets, spans four
 decades and has two strongly correlated features; a zero-aware network does this at the data's noise floor where a Gaussian
 process fit to the original design's $1{,}500$ points is $1.45$ times above it, and it needs no more than those $1{,}500$ design points to do so. Against the original authors' own sampler, run on the same data sets, it matches GPS-ABC's accuracy on the identified parameters with $95\%$ intervals for $p_2$ that are $1.7$ to $3.6$ times shorter, in about forty seconds per data set where a GPS-ABC chain takes days; the shorter intervals are mildly overconfident.
-An amortized NPE trained on the same simulations agrees with it on what the data identify: $p_2$ well, $\delta$ loosely, and $p_1$ and $\tau$ not at all
-from the pair $(\bar d,s)$. NPE is the better calibrated of the neural approaches over truths drawn from the prior, and the
-surrogate-based samplers are sharper and mildly overconfident.
+An amortized NPE trained on the same simulations agrees with it on what the data identify: $p_2$ well, $\delta$ loosely, and $p_1$ and $\tau$ barely from the pair $(\bar d,s)$, and six extra statistics of the culture counts raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}. NPE is the better calibrated of the two approaches over truths drawn from the prior. The surrogate-based
+Markov-chain samplers are sharper and mildly overconfident, and we trace this to the chain: sampling the same surrogate posterior exactly is calibrated for all four parameters. In our experiments a zero-aware NPE does everything the surrogate pipeline does, so the surrogate's role is as a fast, repairable replacement for GPS-ABC, not a rival to NPE.
 
-Two limits of the present evidence should be stated. The GPS-ABC comparison rests on five data sets per case analysed at $2{,}000$ of the original $20{,}000$ iterations, and the surrogate-based samplers have not been compared with an independent reference posterior, so interval length is reported only alongside simulation-based calibration. We also run a single model family on simulated data. The cause of the overconfidence is not yet diagnosed.
+Two limits of the present evidence should be stated. The GPS-ABC comparison rests on a small number of data sets per case analysed at a fraction of the original $20{,}000$ iterations, so it is indicative and what it establishes firmly is cost. We also run a single model family on simulated data, with no application to real fluctuation-experiment data, and the diagnosis of the overconfidence is established for DNN-ABC and not repeated for GPS-ABC's own sampler.
 
 The general lessons are three. Measure the noise floor before comparing architectures or surrogates, because it predicts whether
 a comparison can report anything. Do not read a surrogate's regression calibration as the calibration of the posterior built on it;
 check the latter with simulation-based calibration over prior draws and posterior contraction, because fixed-truth coverage
-saturates at one for weakly identified parameters. And do not expect a better emulator to repair a parameter the data do not identify. These
+saturates at one for weakly identified parameters. Sample a surrogate posterior exactly when the dimension allows, because the Markov chain can be the source of overconfidence. And do not expect a better emulator to repair a parameter the data do not identify. These
 conclusions should apply beyond this model to ABC procedures built on a regression surrogate for an expensive simulator.
 
 % =============================================================================

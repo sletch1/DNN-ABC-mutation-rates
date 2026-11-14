@@ -37,6 +37,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("candidate"); ap.add_argument("--data", default=str(HERE.parent / "data" / "slow_data_4D.csv"))
     ap.add_argument("--threads", type=int, default=2); ap.add_argument("--n_lp", type=int, default=300, help="held-out designs scored for log q")
     ap.add_argument("--n_sbc", type=int, default=300, help="held-out designs used for SBC"); ap.add_argument("--L", type=int, default=500); ap.add_argument("--epochs", type=int, default=300)
+    ap.add_argument("--seed", type=int, default=0, help="training seed (the held-out designs are the same for every seed)")
     ap.add_argument("--out", default=str(HERE.parent / "results" / "npe_candidates")); a = ap.parse_args()
     os.environ["OMP_NUM_THREADS"] = str(a.threads); import torch; torch.set_num_threads(a.threads)
     X, zero, y, des, idx = A.load(a.data); keep = zero < .5; box = BOX[4]; lo, hi = zip(*box)
@@ -46,18 +47,18 @@ def main():
     if c.startswith("bf_"):
         import bflow
         cfg = dict(depth=8, transform="affine", width=256) if c == "bf_affine" else dict(depth=6, transform="spline", width=128)
-        post = bflow.fit(X[tr], y[tr], box, seed=0, patience=50, **cfg)
+        post = bflow.fit(X[tr], y[tr], box, seed=a.seed, patience=50, **cfg)
         draw = lambda x_, n, s: post.sample(n, x_, seed=s); logq = lambda th, x_: post.log_prob(th, x_)
     else:
         from sbi.inference import NPE, FMPE, NPSE
         from sbi.utils import BoxUniform
-        prior = BoxUniform(torch.tensor(lo, dtype=torch.float32), torch.tensor(hi, dtype=torch.float32)); torch.manual_seed(0)
+        prior = BoxUniform(torch.tensor(lo, dtype=torch.float32), torch.tensor(hi, dtype=torch.float32)); torch.manual_seed(a.seed)
         inf = {"nsf": lambda: NPE(prior=prior, density_estimator="nsf", show_progress_bars=False), "maf": lambda: NPE(prior=prior, density_estimator="maf", show_progress_bars=False),
                "mdn": lambda: NPE(prior=prior, density_estimator="mdn", show_progress_bars=False), "fmpe": lambda: FMPE(prior=prior, show_progress_bars=False),
                "npse": lambda: NPSE(prior=prior, show_progress_bars=False)}[c]()
         inf.append_simulations(torch.tensor(X[tr], dtype=torch.float32), torch.tensor(y[tr], dtype=torch.float32))
         p = inf.build_posterior(inf.train(max_num_epochs=a.epochs, training_batch_size=512))
-        draw = lambda x_, n, s: (torch.manual_seed(s), p.sample((n,), x=torch.tensor(np.asarray(x_, np.float32).reshape(1, -1)), show_progress_bars=False))[1].numpy()
+        draw = lambda x_, n, s: (torch.manual_seed(s + 1000 * a.seed), p.sample((n,), x=torch.tensor(np.asarray(x_, np.float32).reshape(1, -1)), show_progress_bars=False))[1].numpy()
         logq = lambda th, x_: np.array([float(p.log_prob(torch.tensor(t[None], dtype=torch.float32), x=torch.tensor(xx[None], dtype=torch.float32))) for t, xx in zip(th, x_)])
     train_s = time.time() - t0; print(c, "trained", round(train_s), "s", flush=True)
     t1 = time.time(); lp = float(np.mean(logq(X[te[:a.n_lp]], y[te[:a.n_lp]]))); lp_s = time.time() - t1; print(c, "heldout logq", round(lp, 3), flush=True)
@@ -65,8 +66,8 @@ def main():
     for k, i in enumerate(te[:a.n_sbc]):
         s = draw(y[i:i + 1], a.L, k); R.append((s < X[i]).sum(0)); V.append(s.var(0))
     sample_s = (time.time() - t1) / a.n_sbc
-    res = dict(candidate=c, train_s=train_s, heldout_logq=lp, n_lp=int(a.n_lp), n_sbc=int(a.n_sbc), L=a.L, sample_s_per_dataset_L=sample_s, logq_s=lp_s, sbc=summarise(np.array(R), np.array(V), a.L, box))
-    Path(a.out).mkdir(parents=True, exist_ok=True); json.dump(res, open(Path(a.out) / f"{c}.json", "w"), indent=1); print(json.dumps(res, indent=1))
+    res = dict(candidate=c, seed=a.seed, train_s=train_s, heldout_logq=lp, n_lp=int(a.n_lp), n_sbc=int(a.n_sbc), L=a.L, sample_s_per_dataset_L=sample_s, logq_s=lp_s, sbc=summarise(np.array(R), np.array(V), a.L, box))
+    Path(a.out).mkdir(parents=True, exist_ok=True); json.dump(res, open(Path(a.out) / (f"{c}.json" if a.seed == 0 else f"{c}_seed{a.seed}.json"), "w"), indent=1); print(json.dumps(res, indent=1))
 
 
 if __name__ == "__main__":
