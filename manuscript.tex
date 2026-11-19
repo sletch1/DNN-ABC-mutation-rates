@@ -1060,7 +1060,15 @@ iterations is not feasible at this scale: the Gaussian process is refit, and gro
 decision is uncertain, so the cost per iteration rises as the chain runs. We therefore analyse every chain at its first $2{,}000$
 iterations, discarding the first $500$ (the paper's burn-in fraction), and report what that costs. A chain took between
 $2.0$ and $46$ hours for those $2{,}000$ iterations, $10.2$ hours on average (on two cores of a shared $32$-core server), so
-$20{,}000$ iterations would take at least four days; a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds.
+$20{,}000$ iterations would take days (measured below); a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds.
+
+To test the truncation directly we ran the first data set of each case to the full $20{,}000$ iterations (the first $5{,}000$ discarded), which took
+$\gtrCaseTwoHours$ hours (case 2) and $\gtrCaseOneHours$ hours (case 1) of wall-clock time. Against the same chain truncated at $2{,}000$ iterations, the
+$95\%$ interval for $\log_{10}p_2$ changed in length by a factor of $\gtrCaseOneLogPTwoLengthRatio$ (case 1) and $\gtrCaseTwoLogPTwoLengthRatio$ (case 2), and that for
+$\log_{10}\delta$ by $\gtrCaseOneLogDeltaLengthRatio$ and $\gtrCaseTwoLogDeltaLengthRatio$; the medians of $\log_{10}p_2$ moved by $\gtrCaseOneLogPTwoMedianShift$ and
+$\gtrCaseTwoLogPTwoMedianShift$, and every interval, at both lengths, covers the truth. The median of the unidentified $\tau$ moved by $\gtrCaseOneTauMedianShift$ and
+$\gtrCaseTwoTauMedianShift$ within an interval about $18$ units wide. Truncation therefore does not drive the comparison with the neural methods, whose $p_2$ intervals are $2.0$ to $3.7$
+times shorter, but this rests on one data set per case.
 
 \begin{table*}[t]
 \centering
@@ -1221,7 +1229,7 @@ intervals than a GP and a flat query cost. In Study II it binds more: the respon
 surface is zero-inflated, spans four decades and has strongly correlated features, and a
 Gaussian process fit to the original design's $1{,}500$ points sits at $1.45$ times the data's noise
 floor ($2.4$ at $300$ points) while the network sits at $0.93$ times it, and at $0.96$ when trained on the same $1{,}500$ points. The cost is the other half: one
-GPS-ABC chain of $20{,}000$ iterations is projected to take at least four days (linear extrapolation from the $10.2$ hours that $2{,}000$ iterations took, with the cost per iteration rising as the chain runs), because the Gaussian process is refit, and grows,
+GPS-ABC chain of $20{,}000$ iterations took $\gtrCaseTwoHours$ and $\gtrCaseOneHours$ hours in the two cases we ran in full (against $10.2$ hours on average for $2{,}000$ iterations, because the cost per iteration rises as the chain runs), because the Gaussian process is refit, and grows,
 whenever an accept/reject decision is uncertain, while a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds
 and NPE returns independent draws in four seconds once trained. On the same data sets and against the original authors' own sampler, DNN-ABC and NPE are not distinguishable from GPS-ABC in the accuracy of the posterior median for $p_2$ (GPS-ABC is more accurate for $\delta$) and give a $95\%$ interval for $p_2$ that is $2.0$ to $3.7$ times shorter (Section~\ref{sec:gps}); the shorter intervals are sharper than GPS-ABC's and, for DNN-ABC, a little too short.
 The noise-floor measurement is cheap and tells which regime one is in; we recommend making it before any
@@ -1265,8 +1273,9 @@ architecture family \citep{radev2022} and to measure the floor before searching.
 \noindent\textbf{Limitations.} This is a simulation study under known ground truth, with no application to real
 fluctuation-experiment data as in \citet{lu2023}; only that can speak to misspecification. Study II has two truth cases with
 $100$ data sets each for the neural methods. GPS-ABC is run on twenty of those data sets per case and for $2{,}000$ (the first $500$ discarded)
-iterations per chain, not the original study's $20{,}000$, because one chain takes days; its comparison with
-the neural methods is therefore indicative, and what it establishes firmly is its cost. The fast simulator is that of the original
+iterations per chain, not the original study's $20{,}000$, because one chain takes days; running one data set per case to $20{,}000$ iterations changed its $\log_{10}p_2$ interval lengths by at most
+$\gtrCaseOneLogPTwoLengthRatio$-fold (Section~\ref{sec:gps}), but that check covers a single data set per case, so its comparison with
+the neural methods remains indicative, and what it establishes firmly is its cost. The fast simulator is that of the original
 paper; its $p$ is not the per-division probability of the exact simulator (Section~\ref{sec:groundtruth3D}), which does not affect any comparison here but
 matters for interpreting the estimates. Our data generator is tested against the original authors' released training data at their
 design points, not against their observed data sets, which are not public. Study I uses $\soneR$ replicates, as
