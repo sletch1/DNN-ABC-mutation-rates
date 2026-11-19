@@ -52,3 +52,7 @@ lit_review/*.pdf
 4D/results/*.log
 4D/figures/*.png
 tables/revision_numbers_index.txt
+
+# private working notes and drafts
+STATUS.md
+cover_letter_DRAFT.md

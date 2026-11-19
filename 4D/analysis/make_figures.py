@@ -13,8 +13,10 @@ import numpy as np, pandas as pd, matplotlib
 matplotlib.use("Agg"); import matplotlib.pyplot as plt
 import study2_analysis as A
 
-plt.rcParams.update({"font.size": 9, "axes.spines.top": False, "axes.spines.right": False, "figure.dpi": 150, "savefig.bbox": "tight"})
+plt.rcParams.update({"pdf.fonttype": 42, "ps.fonttype": 42, "font.family": "sans-serif", "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"], "font.size": 9, "axes.spines.top": False, "axes.spines.right": False, "figure.dpi": 150, "savefig.bbox": "tight"})
 COL = {"GPS-ABC": "#7a7a7a", "DNN-ABC": "#0b5fa5", "DNN-ABC (1,500)": "#7fb2d9", "DNN-ABC-rho": "#5b3fa0", "DNN-ABC-rho (1,500)": "#b3a3d6", "NPE": "#d1495b", "ABC-sim": "#2e8b57"}
+HATCH = {"GPS-ABC": "", "DNN-ABC": "///", "DNN-ABC-rho": "xxx", "NPE": "...", "DNN-ABC (1,500)": "\\\\\\", "DNN-ABC-rho (1,500)": "++", "ABC-sim": "--"}   # patterns as well as colour (journal: figures must read in black and white)
+MARK = {"GPS-ABC": "o", "DNN-ABC": "s", "DNN-ABC-rho": "^", "NPE": "D"}
 LAB = {"log10 p1": r"$\log_{10}p_1$", "log10 p2": r"$\log_{10}p_2$", "tau": r"$\tau$", "log10 delta": r"$\log_{10}\delta$"}
 
 
@@ -38,7 +40,7 @@ def fig_recovery(res, model, out):
     ax = fig.add_subplot(gs[0, :]); names = A.NAMES[:D]; w = 0.8 / len(meths)
     for j, m in enumerate(meths):
         v = [(R[(R.method == m) & (R.param == nm)].eval("(hi - lo)") / PRIOR_W[nm]) for nm in names]
-        ax.bar(np.arange(D) + (j - (len(meths) - 1) / 2) * w, [x.mean() for x in v], w * .92, yerr=[x.std() / np.sqrt(len(x)) for x in v], color=COL[m], label=m, capsize=2)
+        ax.bar(np.arange(D) + (j - (len(meths) - 1) / 2) * w, [x.mean() for x in v], w * .92, yerr=[x.std() / np.sqrt(len(x)) for x in v], color=COL[m], label=m, capsize=2, hatch=HATCH.get(m, ""), edgecolor="k", linewidth=.5)
     ax.set_xticks(range(D)); ax.set_xticklabels([LAB[n] for n in names]); ax.set_ylim(0, 1.05); ax.axhline(1, color="k", lw=.6, ls=":")
     ax.set_ylabel("95% interval / prior range"); ax.legend(frameon=False, ncol=3, fontsize=8, loc="upper center", bbox_to_anchor=(.5, 1.18))
     for c, case in enumerate((1, 2)):
@@ -49,7 +51,7 @@ def fig_recovery(res, model, out):
             for j, m in enumerate(meths):
                 d = R[(R.case == case) & (R.method == m) & (R.param == nm)].sort_values("dataset").head(20)
                 if d.empty: continue
-                a2.errorbar(np.arange(len(d)) + (j - (len(meths) - 1) / 2) * .25, d["median"], yerr=[d["median"] - d.lo, d.hi - d["median"]], fmt="o", ms=2.2, lw=.8, color=COL[m])
+                a2.errorbar(np.arange(len(d)) + (j - (len(meths) - 1) / 2) * .25, d["median"], yerr=[d["median"] - d.lo, d.hi - d["median"]], fmt=MARK.get(m, "o"), ms=2.6, lw=.8, color=COL[m])
             a2.axhline(tv[kk], color="k", ls="--", lw=.8); a2.set_title(f"case {case}: {LAB[nm]}", fontsize=9); a2.set_xlabel("dataset")
     fig.tight_layout(); fig.savefig(Path(out) / f"fig_recovery_{model}.pdf"); plt.close(fig)
 

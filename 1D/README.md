@@ -71,7 +71,7 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
 
 ## 1. The neural network
 
-![DNN architecture](1D/results/figures/architecture.svg)
+![DNN architecture](results/figures/architecture.svg)
 
 ### Input / output
 
@@ -91,7 +91,7 @@ across the mutation-rate range.
 **Depth — 2 hidden layers.** The target `E[log10(d̄) | log10 p]` is a *smooth,
 monotone 1-D curve* (paper Fig. 2). Two hidden layers already make the network a
 universal approximator for a function this simple; a third layer only adds
-parameters and overfitting risk on 505 training rows with no accuracy gain (a
+parameters and overfitting risk on 550 training rows with no accuracy gain (a
 3-layer variant was tested — no improvement), while one layer under-fits the
 curvature. Two is the sweet spot.
 
@@ -145,15 +145,15 @@ calibration set gives **0.955 test-set coverage**.
 ### Training data & split
 
 Ground truth is the **exact/slow simulator** (Algorithm 2, `mut_bmbp_slow`),
-delivered as `data/slow_data_1D.csv`: 101 log-spaced `p` in
-`log10(p) ∈ [−8,−2]`, 10 replicates each (1010 rows), `a = δ = Z0 = 1`, `J = 100`.
+delivered as `data/slow_data_1D.csv`: 110 log-spaced `p` in
+`log10(p) ∈ [−8,−1.46]`, 10 replicates each (1100 rows), `a = δ = Z0 = 1`, `J = 100`.
 Split **by replicate** so every grid point appears in every split with no leakage:
 
 | split | replicates | rows | purpose |
 |---|---|---|---|
-| train | 1–5 | 505 | fit network weights |
-| calibration / early-stop | 6–8 | 303 | conformal calibration + early stopping |
-| test | 9–10 | 202 | held-out evaluation only |
+| train | 1–5 | 550 | fit network weights |
+| calibration / early-stop | 6–8 | 330 | conformal calibration + early stopping |
+| test | 9–10 | 220 | held-out evaluation only |
 
 The GP baseline (GPS-ABC) is fit on the **same** data budget (reps 1–8) so the
 comparison is apples-to-apples; neither surrogate ever sees the test replicates.
@@ -250,12 +250,12 @@ dimensions (target #2).
 
 | split | n | MSE(log10 d̄) | MAE(log10 d̄) | 95% coverage |
 |---|---|---|---|---|
-| train | 505 | 0.00424 | 0.0515 | 0.964 |
-| calibration | 303 | 0.00533 | 0.0538 | 0.954 |
-| **test** | 202 | **0.00434** | **0.0525** | **0.955** |
+| train | 550 | 0.00391 | 0.0487 | 0.967 |
+| calibration | 330 | 0.00497 | 0.0506 | 0.955 |
+| **test** | 220 | **0.00404** | **0.0499** | **0.950** |
 
-![surrogate fit](1D/results/figures/surrogate_fit.png)
-![test parity](1D/results/figures/surrogate_parity.png)
+![surrogate fit](results/figures/surrogate_fit.png)
+![test parity](results/figures/surrogate_parity.png)
 
 The calibrated 95% band achieves 0.955 coverage on held-out data; the test
 parity plot is tight across the full 3-order-of-magnitude range.
@@ -274,7 +274,7 @@ parity plot is tight across the full 3-order-of-magnitude range.
 | 1e-2 | 50 | 7.71e-6 (0.28) | 1.17e-5 (0.34) | 4.78e-6 (0.22) | 5.98e-6 (0.24) | **2.36e-6 (0.15)** |
 | 1e-2 | 100 | 4.01e-6 (0.20) | 6.08e-6 (0.25) | 2.62e-6 (0.16) | 6.22e-6 (0.25) | **2.48e-6 (0.16)** |
 
-![Table 1 visualized](1D/results/figures/fig_table1_mse.png)
+![Table 1 visualized](results/figures/fig_table1_mse.png)
 
 **Reading this against GPS-ABC (the method to beat):** DNN-ABC's nRMSE is lower in
 7 of 9 cells and marginally higher in the other 2 (`p=1e-3`, `J∈{10,100}`) — every
@@ -379,7 +379,7 @@ condition — cannot reveal.
 | 1e-2 | 50 | 44.34 | 0.124 | 0.144 | **309×** |
 | 1e-2 | 100 | 88.22 | 0.124 | 0.144 | **614×** |
 
-![timing](1D/results/figures/fig_timing.png)
+![timing](results/figures/fig_timing.png)
 
 **The efficiency gap is the headline.** ABC-MCMC's per-iteration cost explodes with
 `p` and `J` (it runs the exact simulator every step); both surrogates are **flat at
@@ -392,7 +392,7 @@ larger training sets and higher dimensions.
 
 ### 4.5 Calibrated, input-dependent uncertainty (DNN vs GP)
 
-![uncertainty](1D/results/figures/fig_uncertainty.png)
+![uncertainty](results/figures/fig_uncertainty.png)
 
 This is the DNN's clearest methodological edge over GPS-ABC. The empirical
 replicate noise of `log10(d̄)` varies with `p`; the DNN's heteroscedastic head
@@ -403,7 +403,7 @@ to the surrogate's role in the sampler.
 
 ### 4.6 The three ABC posteriors agree
 
-![posterior](1D/results/figures/fig_posterior.png)
+![posterior](results/figures/fig_posterior.png)
 
 On a single dataset, the posteriors from ABC-MCMC, GPS-ABC and DNN-ABC concentrate
 on the true `p`, confirming the surrogates faithfully reproduce the exact method's
@@ -551,7 +551,7 @@ seconds to minutes.
 The ground-truth data (`1D/data/slow_data_1D.csv`) is already
 committed, so no simulation needs to be regenerated first.
 
-Everything below is wrapped by one script, [`1D/run_all.py`](1D/run_all.py).
+Everything below is wrapped by one script, [`1D/run_all.py`](run_all.py).
 Open it in an IDE (Spyder, VS Code, PyCharm) and press **Run**, or from a
 terminal:
 
@@ -562,7 +562,7 @@ python run_all.py          # asks: [1] quick smoke test, or [2] the paper's sett
 
 It takes no command-line arguments — it asks in the console — and runs with
 whatever interpreter is active, offering to install anything missing. See
-[`1D/HOW_TO_RUN.md`](1D/HOW_TO_RUN.md) for what to expect at each
+[`1D/HOW_TO_RUN.md`](HOW_TO_RUN.md) for what to expect at each
 step and how long the full run takes.
 
 To drive the steps yourself instead:

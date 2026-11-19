@@ -7,7 +7,7 @@
 %   pdflatex  -> tells the class we are compiling with pdflatex, which skips
 %                the class's own attempt to load the DVI/PS-only "breakurl"
 %                package (breakurl is incompatible with pdflatex; xurl below
-%                supplies the same URL-breaking behaviour under pdflatex).
+%                supplies the same URL-breaking behavior under pdflatex).
 % ---------------------------------------------------------------------------
 \documentclass[sn-basic,iicol,pdflatex]{sn-jnl}
 
@@ -64,7 +64,7 @@
 \author[1]{\fnm{Xiaowei} \sur{Wu}}\email{xwwu@vt.edu}
 \affil*[1]{\orgdiv{Department of Statistics}, \orgname{Virginia Tech}, \orgaddress{\city{Blacksburg}, \state{VA}, \postcode{24061}, \country{USA}}}
 
-\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as the branching-process models used to estimate mutation rates in Luria--Delbr\"uck experiments, make it infeasible. A standard remedy substitutes a Gaussian-process (GP) surrogate inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC), but the GP's cubic fitting cost limits the simulator output it can use, and in the original four-parameter study one chain takes days. We ask whether a zero-aware neural-network surrogate can make the same substitution, and when a surrogate pipeline is worth using at all. A one-dimensional benchmark shows that it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter two-stage model, run in the original study's regime, the summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor where a GP fit to the original $1{,}500$ points is $1.45$ times above it, and matches the accuracy of GPS-ABC for the second mutation probability, with shorter intervals, in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are sharper than nominal; we trace this to the chain, not the surrogate, since sampling the same surrogate posterior exactly is calibrated. A neural posterior estimator (NPE), chosen from seven candidates, is the better default for calibrated inference. The summary statistic identifies two of the four parameters; six extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
+\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference for stochastic simulators, but slow simulators, such as branching-process models of mutation rates, make it infeasible. Gaussian-process (GP) surrogates inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC) help, yet the GP's cubic fitting cost limits the simulator output it can use, and a $20{,}000$-iteration chain in the original four-parameter study took \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours. No one has tested a neural substitute, or checked whether such surrogate-based samplers are calibrated. We do both with DNN-ABC, a zero-aware neural surrogate with a conformally calibrated regression. In one dimension it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter model the summary statistic is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor, where a GP on the original $1{,}500$ points is $1.45$ times above it, and matches GPS-ABC for the second mutation probability, with shorter intervals, in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are overconfident; sampling the same surrogate posterior exactly is calibrated, so the chain, not the surrogate, is at fault. A neural posterior estimator (NPE) is the better default for calibrated inference, and on the zero-inflated Ricker map NPE is calibrated and DNN-ABC is not. The summary identifies two of four parameters; extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; simulation-based calibration; heteroscedastic
@@ -117,12 +117,14 @@ consumed directly, so a network must be built to produce one and then calibrated
 (Section~\ref{sec:method}). That requirement, rather than the regression
 itself, makes the substitution non-trivial.
 
-\noindent\textbf{Contributions.} The paper's centre of gravity is the four-parameter
+\noindent\textbf{Terminology.} \emph{DNN-ABC} is ABC-MCMC with the neural surrogate in place of the Gaussian process, and \emph{GPS-ABC} is the same sampler with the Gaussian process. Both are \emph{surrogate-based Markov-chain samplers}. The \emph{surrogate pipeline} is the surrogate together with its likelihood, the ABC kernel and the sampler, so a statement about the surrogate itself (its regression) is distinguished from one about the pipeline's posterior.
+
+\noindent\textbf{Contributions.} The paper's center of gravity is the four-parameter
 two-stage model of \citeauthor{lu2023}'s Simulation Study~2 (Study II); the
 one-dimensional model (Study I) is the benchmark that shows where a surrogate
 matters.
 \begin{enumerate}[label=(\roman*),leftmargin=*,itemsep=2pt,topsep=2pt]
-\item \emph{A calibrated, zero-aware neural surrogate.} A heteroscedastic network
+\item \emph{A zero-aware neural surrogate with a conformally calibrated regression.} A heteroscedastic network
 with split-conformal calibration \citep{lei2018} that substitutes for the GP in
 \citeauthor{lu2023}'s sampler with no other change to the inference algorithm. In
 the two-stage model the summary statistic is exactly zero on about $30\%$ of data
@@ -147,14 +149,14 @@ and that of $\log_{10}p_1$ from \psevenBaseLogPOneContraction{} to \psevenExtras
 \item \emph{A decision guide against NPE.} An amortized NPE (chosen from seven candidate estimators on held-out log-probability, Section~\ref{sec:methods2}) uses exactly the same data and features, with no surrogate, kernel or Markov chain. It is the
 better default for calibrated inference: a zero-aware version answers the data sets with no mutants, and a change of prior needs no retraining (Section~\ref{sec:edge}). In our experiments the surrogate pipeline does not beat it on any criterion we measured; its
 role is as a fast and repairable replacement for GPS-ABC, which it matches at a fraction of the cost.
-\item \emph{A one-dimensional benchmark.} The one setting where surrogate error
-does bind: the network's input-dependent variance yields tighter
-intervals than the GP at a mean coverage of $\soneDnnCovMean$ against $\soneGpsCovMean$, and DNN-ABC is $\soneSpeedupMin$ to $\soneSpeedupMax$
-times faster than exact ABC-MCMC.
+\item \emph{A one-dimensional validation against exact ABC.} The one setting where surrogate error
+does bind and exact ABC-MCMC is still feasible. DNN-ABC matches the exact sampler at $\soneSpeedupMin$ to $\soneSpeedupMax$
+times lower cost. Its intervals are shorter than the GP's, but its mean coverage ($\soneDnnCovMean$) is slightly below that of GPS-ABC ($\soneGpsCovMean$), so part of the extra sharpness is undercoverage, not extra precision.
+\item \emph{A second zero-inflated benchmark.} On the stochastic Ricker map, a zero-aware NPE is calibrated and DNN-ABC is not (its rank histograms are non-uniform), the same ordering as in Study II.
 \item \emph{Negative results we report rather than tune away.} More training
 data does not help once the surrogate is at the noise floor ($1{,}500$ design points
 are as good as $10{,}000$), residual networks are no better than plain MLPs, and
-modelling the correlation of the two features improves the likelihood but does not
+modeling the correlation of the two features improves the likelihood but does not
 restore nominal coverage.
 \end{enumerate}
 
@@ -184,7 +186,7 @@ an instance of the same failure mode.
 
 The paper proceeds as follows. Section~\ref{sec:background} reviews the model
 and GPS-ABC, Section~\ref{sec:method} develops the surrogate, and
-Sections~\ref{sec:sim1D} and \ref{sec:sim3D} report the two studies.
+Sections~\ref{sec:sim1D} and \ref{sec:sim3D} report the two studies and Section~\ref{sec:ricker} a second zero-inflated benchmark, the stochastic Ricker map.
 Section~\ref{sec:discussion} discusses implications and limitations and
 Section~\ref{sec:repro} describes the reproducible pipeline.
 
@@ -195,7 +197,7 @@ Section~\ref{sec:repro} describes the reproducible pipeline.
 
 \subsection{The mutation model and the observed statistic}
 
-The model descends from the fluctuation experiment of \citet{luria1943}, whose mutant-count distribution was characterised by \citet{lea1949}; \citet{zheng2021} reviews current estimators. Following \citet{lu2023}, a population initiated by a single wild-type cell
+The model descends from the fluctuation experiment of \citet{luria1943}, whose mutant-count distribution was characterized by \citet{lea1949}; \citet{zheng2021} reviews current estimators. Following \citet{lu2023}, a population initiated by a single wild-type cell
 grows for a fixed observation period under a two-type Markov branching process
 (MBP). Three quantities govern it: the per-division mutation probability $p$,
 the division-rate parameter $a$ (which sets the time scale), and the mutant
@@ -237,7 +239,7 @@ $v(\theta')$, and score $\dbar_{\mathrm{obs}}$ against a matched Gaussian,
 \hat\pi_\epsilon(\dbar_{\mathrm{obs}} \mid \theta') \;=\;
 \mathcal{N}\!\left(\dbar_{\mathrm{obs}};\; m(\theta'),\; \epsilon^2 + v(\theta')\right).
 \]
-Its Gaussian assumption on the summary statistics can fail, which is the motivation for Gaussianising transformations of the statistics \citep{nguyen2025}. This is exactly the likelihood form the surrogates use, with a predicted
+Its Gaussian assumption on the summary statistics can fail, which is the motivation for Gaussianizing transformations of the statistics \citep{nguyen2025}. This is exactly the likelihood form the surrogates use, with a predicted
 variance $\sigma_\phi(\theta')^2$ in place of $v(\theta')$, so every column of
 the result tables shares one likelihood and differs only in how
 $(m(\theta), v(\theta))$ is obtained. Algorithm~\ref{alg:abcmcmc} states the
@@ -348,8 +350,8 @@ release the training sets they used for GPS-ABC: for the four-parameter model,
 $1{,}500$ design points at which they ran their fast simulator five times, and
 for the constant-rate model, $1{,}500$ points $\times$ ten runs at each of five
 mutation rates. At each of their design points we draw $400$ values from our
-simulator and compute the randomised probability-integral transform of each
-value they stored (the statistic has an atom at zero, so ties are randomised).
+simulator and compute the randomized probability-integral transform of each
+value they stored (the statistic has an atom at zero, so ties are randomized).
 If the two simulators agree at every design point, the transforms are i.i.d.
 uniform, which a Kolmogorov--Smirnov test checks, overall and within quarters of
 each parameter's range. The four-parameter data are not rejected
@@ -365,16 +367,16 @@ is random; what we match is the mechanism.
 \subsection{Simulation design and reporting}
 \label{sec:ademp}
 
-We follow the ADEMP structure of \citet{morris2019}. \emph{Aims}: compare MOM,
-MLE, exact ABC-MCMC, GPS-ABC and DNN-ABC in Study I, and GPS-ABC, DNN-ABC and NPE in
+We follow the ADEMP structure (aims, data-generating mechanisms, estimands, methods, performance measures) of \citet{morris2019}. \emph{Aims}: compare the method-of-moments (MOM) and
+maximum-likelihood (MLE) estimators, exact ABC-MCMC, GPS-ABC and DNN-ABC in Study I, and GPS-ABC, DNN-ABC and NPE in
 Study II (the constant-rate MOM and MLE do not apply there, and exact ABC-MCMC is out
 of reach at $t_p=20$), on point accuracy, interval precision, calibration and cost.
 \emph{Data-generating mechanisms}: the simulators of \citet{lu2023}, checked against
 the training data they released (Section~\ref{sec:validation}), at the parameter
 settings of Sections~\ref{sec:sim1D_results} and \ref{sec:groundtruth3D}.
 \emph{Estimands}: $p$ (via $\theta=\log_{10}p$) in Study I and
-$(p_1,p_2,\tau,\delta)$ jointly in Study II. \emph{Performance measures}: MSE and
-normalized RMSE of $\hat p$, mean 95\% credible-interval length, empirical coverage, and
+$(p_1,p_2,\tau,\delta)$ jointly in Study II. \emph{Performance measures}: mean squared error (MSE) and
+normalized root mean squared error (RMSE) of $\hat p$, mean 95\% credible-interval length, empirical coverage, and
 wall-clock time (per 100 MCMC iterations in Study I, per data set in Study II); for
 Study II also the distance of each posterior from the GPS-ABC posterior it is meant to
 replace, simulation-based calibration and posterior contraction
@@ -382,12 +384,12 @@ replace, simulation-based calibration and posterior contraction
 
 Study I is evaluated over $R=\soneR$ independent replicated data sets per cell. Study II
 uses $100$ observed data sets per truth case for DNN-ABC and NPE and, because one
-GPS-ABC chain takes days (Section~\ref{sec:gps}), the first twenty of the same data sets
+GPS-ABC chain takes from hours to days (Section~\ref{sec:gps}), the first twenty of the same data sets
 for GPS-ABC, so every comparison with it is paired. Every comparison carries its Monte
-Carlo standard error: for $e_r = (\hat p_r - p)^2$,
+Carlo standard error (MCSE): for $e_r = (\hat p_r - p)^2$,
 $\widehat{\mathrm{MCSE}} = \mathrm{sd}(e_r)/\sqrt{R}$. For two methods we report
 the MSE gap in units of its combined MCSE (the $\Delta/\mathrm{SE}$ column of
-Table~\ref{tab:mse1D}). This is a descriptive diagnostic of whether a point
+the MSE table in Section~\ref{sec:sim1D_results}). This is a descriptive diagnostic of whether a point
 comparison is resolved at the replicate count, not a hypothesis test; we call a
 difference resolved when $|\Delta/\mathrm{SE}|>2$.
 
@@ -399,11 +401,11 @@ difference resolved when $|\Delta/\mathrm{SE}|>2$.
 Study I reproduces \citeauthor{lu2023}'s constant-rate benchmark: $a=\delta=Z_0=1$
 and only $p$ varying. Its role in this paper is to show \emph{where} a surrogate
 matters; the multi-parameter inference question is Study II. Ground truth is
-$101$ log-spaced values of $p$ with $\log_{10}p \in [-8,-2]$, ten replicates each
-($1{,}010$ rows), $J=100$. We split \emph{by replicate} rather than by grid
-point, so every $p$ appears in every split and a split tests generalisation to
-fresh noise, with no leakage: replicates 1--5 train ($505$ rows), 6--8 calibrate
-and early-stop ($303$), 9--10 are held out ($202$). The GPS-ABC baseline is fit
+$110$ log-spaced values of $p$ with $\log_{10}p \in [-8,-1.46]$, ten replicates each
+($1{,}100$ rows), $J=100$. We split \emph{by replicate} rather than by grid
+point, so every $p$ appears in every split and a split tests generalization to
+fresh noise, with no leakage: replicates 1--5 train ($550$ rows), 6--8 calibrate
+and early-stop ($330$), 9--10 are held out ($220$). The GPS-ABC baseline is fit
 on replicates 1--8, so both surrogates see the same data and neither sees the
 test replicates.
 
@@ -417,11 +419,11 @@ Section~\ref{sec:sim1D_coverage} shows why this matters.
 \subsection{Architecture}
 \label{sec:arch1D}
 
-The network is a shallow funnel MLP: input $\theta=\log_{10}p$, two
+The network is a shallow funnel multilayer perceptron (MLP): input $\theta=\log_{10}p$, two
 GELU-activated dense layers of width $32$ and $16$ ($626$ parameters), and the
 two linear heads of Section~\ref{sec:hetero}. It is trained with Adam under
-early stopping on calibration-split NLL, weight decay $10^{-5}$ and no dropout.
-The width is the outcome of a two-stage search (activation and normalisation at
+early stopping on calibration-split negative log-likelihood (NLL), weight decay $10^{-5}$ and no dropout.
+The width is the outcome of a two-stage search (activation and normalization at
 a $128$--$64$ baseline, then capacity); full tables are in Online Resource 1,
 Material S1.
 
@@ -464,14 +466,14 @@ by split.
 \toprule
 Split & $n$ & MSE($\log_{10}\dbar$) & MAE($\log_{10}\dbar$) & 95\% coverage \\
 \midrule
-Train & 505 & 0.00424 & 0.0515 & 0.964 \\
-Calibration & 303 & 0.00533 & 0.0538 & 0.954 \\
-\textbf{Test} & \textbf{202} & \textbf{0.00434} & \textbf{0.0525} & \textbf{0.9554} \\
+Train & 550 & 0.00391 & 0.0487 & 0.967 \\
+Calibration & 330 & 0.00497 & 0.0506 & 0.955 \\
+\textbf{Test} & \textbf{220} & \textbf{0.00404} & \textbf{0.0499} & \textbf{0.9500} \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Held-out coverage of $0.9554$ ($193$ of $202$ points) is within sampling noise
+Held-out coverage of $0.9500$ ($209$ of $220$ points) is within sampling noise
 of the nominal $0.95$, as the guarantee of \citet{lei2018} predicts.
 Figure~\ref{fig:calib1D} shows the calibrated band and compares the network's
 input-dependent predictive standard deviation with the GP's flat one.
@@ -480,19 +482,14 @@ input-dependent predictive standard deviation with the GP's flat one.
 \begin{figure*}[t]
 \centering
 \begin{subfigure}{0.48\textwidth}
-\includegraphics[width=\linewidth]{1D/results/figures/surrogate_fit.png}
+\includegraphics[width=\linewidth]{1D/results/figures/surrogate_fit.pdf}
 \caption{Calibrated 95\% predictive band}
 \end{subfigure}\hfill
 \begin{subfigure}{0.48\textwidth}
-\includegraphics[width=\linewidth]{1D/results/figures/fig_uncertainty.png}
+\includegraphics[width=\linewidth]{1D/results/figures/fig_uncertainty.pdf}
 \caption{Input-dependent uncertainty vs.\ the GP}
 \end{subfigure}
-\caption{One-dimensional surrogate calibration. Left: the calibrated 95\%
-predictive band tracks the response curve across the full range of $\theta$.
-Right: the network's heteroscedastic predictive standard deviation (which
-enters the ABC acceptance kernel directly) tracks the true input-dependent
-replicate noise, while the GP's single homoscedastic noise term is flat by
-construction.}
+\caption{One-dimensional surrogate: calibrated 95\% predictive band (left) and input-dependent predictive standard deviation against the Gaussian process's flat one (right)}
 \label{fig:calib1D}
 \end{figure*}
 
@@ -505,7 +502,7 @@ exact iteration, and prior $\theta \sim \mathrm{TruncExp}$ on $[-5,-2]$ (bounded
 so the exact simulator in the loop stays feasible; the surrogates are trained on
 $[-8,-2]$ and queried in range), on the grid $p \in \{10^{-4}, 10^{-3},
 10^{-2}\} \times J \in \{10, 50, 100\}$. MOM and MLE follow \citeauthor{lu2023}'s
-closed forms as classical baselines.
+closed forms as classical baselines. Tables~\ref{tab:mse1D} and \ref{tab:ci1D} report the mean squared error and the interval length.
 
 
 \begin{table*}[t]
@@ -527,7 +524,7 @@ $p$ & $J$ & MOM & MLE & ABC-MCMC & GPS-ABC & DNN-ABC & $\Delta/\mathrm{SE}$ \\
 \end{table*}
 
 Study I is a validation against exact ABC, not a contest between surrogates. DNN-ABC's point estimate is lower than GPS-ABC's in \soneNDnnMseLower\ of \soneNCells\ cells and higher in the rest.
-Only one difference is resolved, $\soneMaxAbsDse$ standard errors at $p=10^{\soneMaxDsePExp}$, $J=\soneMaxDseJ$, in favour of GPS-ABC; every other cell is a statistical tie, consistent with a GP on a comparable
+Only one difference is resolved, $\soneMaxAbsDse$ standard errors at $p=10^{\soneMaxDsePExp}$, $J=\soneMaxDseJ$, in favor of GPS-ABC; every other cell is a statistical tie, consistent with a GP on a comparable
 design already being close to optimal for a one-dimensional smooth curve. Both surrogates match, and in several cells slightly improve on, exact ABC-MCMC, and all ABC methods substantially outperform
 MOM and MLE, reproducing \citeauthor{lu2023}'s central finding. The point of the study is that the cheap surrogates reproduce exact ABC.
 
@@ -563,7 +560,7 @@ $p$ & $J$ & ABC-MCMC & GPS-ABC & DNN-ABC & Speedup \\
 \end{tabular}
 \end{table*}
 
-DNN-ABC runs at about $\soneDnnSPerOneZeroZeroMin$--$\soneDnnSPerOneZeroZeroMax$\,s per 100 iterations regardless of $p$ or
+In Table~\ref{tab:time1D}, DNN-ABC runs at about $\soneDnnSPerOneZeroZeroMin$--$\soneDnnSPerOneZeroZeroMax$\,s per 100 iterations regardless of $p$ or
 $J$, because its query cost does not depend on training-set size. GPS-ABC is about five times faster at $J=100$ (a $550$-point design) than at
 $J \in \{10, 50\}$ (a $2{,}750$-point design), tracking the GP's $O(n)$ query cost against the $5\times$ larger design: the
 clearest direct demonstration in this paper of the scaling difference of
@@ -575,9 +572,8 @@ three posteriors concentrating on the same true $p$ on a representative data set
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{1D/results/figures/fig_posterior.png}
-\caption{Study I: ABC-MCMC, GPS-ABC, and DNN-ABC posteriors for $\theta$ on a
-single representative data set.}
+\includegraphics[width=0.85\linewidth]{1D/results/figures/fig_posterior.pdf}
+\caption{Study I: ABC-MCMC, GPS-ABC and DNN-ABC posteriors for $\theta$ on a single representative data set}
 \label{fig:posterior1D}
 \end{figure*}
 
@@ -663,13 +659,14 @@ disagree we follow the paper: the parameter box for $\tau$, the threshold $\xi$
 for refining the surrogate, the prior on $\tau$, and the order of the
 parameters in $\theta$ (the code lists $\log_{10}\delta$ first).
 
-\begin{table*}[t]
+\begin{table*}[!t]
 \centering
 \caption{Study II settings. Everything in the first block is the original study's
 (Section~3.2 and the released code); the second block is what differs because
 the surrogate is a neural network.}
 \label{tab:settings}
 \small
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ll}
 \toprule
 \multicolumn{2}{l}{\textit{Shared with \citet{lu2023}}} \\
@@ -686,7 +683,7 @@ Initial design & Latin hypercube over the box \\
 Design size & $10{,}000$ design points $\times$ $5$ replicates $\times$ $100$ cultures (GPS-ABC: $1{,}500$ points $\times$ $5$ single cultures) \\
 Surrogate & zero-aware neural network, trained once; no refinement step \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table*}
 
 \noindent\textbf{Training data.} A Latin hypercube over the box, built by the
@@ -787,7 +784,7 @@ $\rho_\phi(\theta)=0.99\tanh(\cdot)$, replacing the diagonal covariance in
 Eq.~\eqref{eq:hurdle} by one with correlation $\rho_\phi(\theta)$ and the same variances, and call
 that version DNN-ABC-$\rho$. Its held-out joint negative log-likelihood of the two features is $-3.26$
 against $-2.90$ for the independent version (nats per data set, same test designs; the
-fitted mean $|\rho_\phi|$ is $0.60$). Training minimises the binary
+fitted mean $|\rho_\phi|$ is $0.60$). Training minimizes the binary
 cross-entropy of the logistic head plus the Gaussian negative log-likelihood of
 Eq.~\eqref{eq:nll} summed over the two features on the rows with $\bar d>0$,
 with a mean-squared-error warm-up for the first twenty epochs so that the
@@ -817,11 +814,11 @@ validation loss only; test metrics are reported but never used to choose. We
 fix the rule in advance, in the spirit of \citeauthor{lu2023}'s warning about cost: take the best mean validation
 loss, and choose the cheapest model, by single-query latency, whose validation loss is within one
 standard error of it. Alongside the accuracy criteria we report calibration of the conformal $95\%$ interval, the
-ranking quality (AUC) of the zero head, and latency, since a surrogate that is accurate but slow or
+ranking quality (area under the ROC curve, AUC) of the zero head, and latency, since a surrogate that is accurate but slow or
 miscalibrated is no use inside the sampler. The Gaussian-process baseline is fit to the same data on the nonzero part only, because a GP cannot
 represent the zero mass, at the original design size of $1{,}500$ points and, for reference, at $300$. Table~\ref{tab:arch4D} reports the search.
 
-\begin{table*}[t]
+\begin{table*}[!t]
 \centering
 \caption{Architecture search on held-out design points, five seeds each
 (mean $\pm$ s.d.). Accuracy is test MSE as a multiple of the irreducible noise
@@ -831,6 +828,7 @@ $10^5$. The chosen model is in bold. The GP baseline models $\log_{10}\bar d$ on
 nonzero rows only.}
 \label{tab:arch4D}
 \small
+\footnotesize\setlength{\tabcolsep}{3pt}
 \input{tables/tab_arch_4d}
 \end{table*}
 
@@ -881,7 +879,7 @@ DNN-ABC and exact ABC-MCMC can, so it shows what is gained, and what is paid
 (about six hours of training), by amortizing. Because it conditions on the same two
 features, it also gives a reference for how much the pair $(\bar d,s)$ can identify, which
 is what supports the identifiability claim as a property of the statistic and not of either method. We
-train on the rows with $\bar d>0$ only. The population minimiser of the NPE
+train on the rows with $\bar d>0$ only. The population minimizer of the NPE
 objective is $p(\theta\mid x)$ at every $x$ in the support of the training data,
 whatever its marginal, so discarding the rows where $\log_{10}\bar d$ is undefined
 leaves the posterior at any observed $\bar d>0$ unchanged; every observed data set
@@ -895,9 +893,8 @@ posterior from the same simulations and the same two features. Seven were traine
 \citep{wildberger2023}; neural posterior score estimation, a conditional diffusion model \citep{sharrock2024}; and the affine and spline
 coupling flows of BayesFlow \citep{radev2022,radev2023bayesflow}. We left out variants that answer a different question. Sequential methods
 (SNPE-C, truncated SNPE; \citealp{greenberg2019,deistler2022}; surveyed by \citealp{peng2026}) concentrate the simulations on one observed data set, which defeats the amortized
-calibration over hundreds of data sets used here. Robust and preconditioned robust NPE \citep{ward2022,kelly2026} address misspecified simulators,
-and ours generates the data. Multifidelity NPE \citep{krouglova2026} needs a cheap low-fidelity simulator, which this model does not have. The
-$\beta$-amortized generalized-Bayes estimator \citep{sun2026} targets tempered posteriors, and we want the posterior at $\beta=1$.
+calibration over hundreds of data sets used here. Robust NPE \citep{ward2022} addresses misspecified simulators,
+and ours generates the data. Multifidelity NPE \citep{krouglova2026} needs a cheap low-fidelity simulator, which this model does not have. Generalized-Bayes estimators that target tempered posteriors do not apply, since we want the posterior at $\beta=1$.
 We select by the mean held-out $\log q(\theta\mid x)$ on $\pnpecNsfNDesigns$ unseen design points, never on the observed data. This is a proper scoring rule: the expected log density
 that an estimator assigns to the true parameter equals, up to a constant that does not depend on the estimator, minus the Kullback--Leibler divergence from the true posterior,
 so a higher value is a closer posterior. Every density is renormalized to the prior box, so that none is favoured by probability mass outside it. Each candidate was trained with $\pnpecNsfNSeeds$ seeds, and we report means. The \texttt{sbi} neural spline flow
@@ -968,7 +965,7 @@ the $\log_{10}$ scale for $p_1,p_2,\delta$), the mean length of the $95\%$ credi
 coverage of the truth, and the cost per dataset; Figure~\ref{fig:rec4D} shows how much of
 the prior range each method's interval spans.
 
-\begin{table*}[t]
+\begin{table*}[!t]
 \centering
 \caption{Study II: recovery of $(\log_{10}p_1,\log_{10}p_2,\tau,\log_{10}\delta)$ from $100$ observed data sets per case.
 RMSE is of the posterior median; interval length is the mean $95\%$ interval length
@@ -977,24 +974,22 @@ for NPE the sampling time only (training took $5.6$\,h once; DNN-ABC training ta
 Truth: $p_1=10^{-9}$, $\tau=14$, $\delta=0.8$; case~1 $p_2=10^{-8}$, case~2 $p_2=5\times10^{-8}$.
 Case labels are in the first column.}
 \label{tab:rec4D}
-\small
+\scriptsize\renewcommand{\arraystretch}{0.92}\setlength{\tabcolsep}{3pt}
 \input{tables/tab_recovery_4d}
 \end{table*}
 
-\begin{figure}[t]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\linewidth]{4D/figures/fig_recovery_4d.pdf}
-\caption{Study II: what each method learns about each parameter. Top: mean length of the $95\%$ interval as a
-fraction of the prior range (error bars: standard error over the data sets). Bottom: intervals for $\log_{10}p_2$ and
-$\log_{10}\delta$ for the first twenty data sets of each case; the dashed line is the truth.}
+\caption{Study II: mean $95\%$ interval length as a fraction of the prior range, with standard errors over data sets (top), and intervals for $\log_{10}p_2$ and $\log_{10}\delta$ on the first twenty data sets of each case, dashed line at the truth (bottom)}
 \label{fig:rec4D}
 \end{figure}
 
 The data identify two parameters and not the other two. The $95\%$ interval for $\log_{10}p_2$ covers about $10$--$15\%$ of its prior range for the neural methods ($40\%$ and $25\%$ in the two cases for GPS-ABC) and that for $\log_{10}\delta$ about $70\%$; those for $\log_{10}p_1$
 and $\tau$ cover $94\%$ and $92\%$, which is to say the prior. Posterior medians
-for $p_1$ and $\tau$ sit near the prior's centre, so their RMSE says more about where the truth
-lies in the box than about the method: the $p_1$ truth is at the centre of its box, so its RMSE is
-small ($0.08$--$0.32$ in $\log_{10}$ units across methods, the larger values being GPS-ABC's) for any method that returns the prior, while the $\tau$ truth is $4$ units from the centre and its RMSE is $2.3$--$4.6$ across methods. This is the
+for $p_1$ and $\tau$ sit near the prior's center, so their RMSE says more about where the truth
+lies in the box than about the method: the $p_1$ truth is at the center of its box, so its RMSE is
+small ($0.08$--$0.32$ in $\log_{10}$ units across methods, the larger values being GPS-ABC's) for any method that returns the prior, while the $\tau$ truth is $4$ units from the center and its RMSE is $2.3$--$4.6$ across methods. This is the
 asymmetry of \citeauthor{lu2023}'s Figures~3--4, with multimodal $p_1$ and $\tau$ marginals, and it
 is set by what the pair $(\bar d,s)$ carries, not by the method.
 
@@ -1005,14 +1000,16 @@ A DNN-ABC chain of $35{,}000$ iterations ($10{,}000$ for adapting the proposal \
 $20{,}000$ retained) takes about $40$ seconds on one core; training the surrogate
 takes about ten minutes. NPE, once trained, returns $20{,}000$ independent draws for a new data set in about four
 seconds, but training the neural spline flow took $5.6$ hours on the shared server
-(the mixture-density alternative took $49$ minutes and had the lower held-out log-probability, $-1.734$ against $-1.678$).
+(in the first two-way selection, on up to $1{,}000$ held-out design points, the mixture-density alternative took $49$ minutes and had the lower held-out log-probability, $-1.734$ against $-1.678$; the later seven-candidate comparison of Section~\ref{sec:methods2}, with three seeds and $300$ held-out design points, gives $-1.665$ against $-1.567$).
+
+A $20{,}000$-iteration GPS-ABC chain is a different order of cost: it took \gtrCaseTwoHours{} hours (case 2) and \gtrCaseOneHours{} hours (case 1), about $5{,}500$ and $14{,}000$ times the $40$ seconds of a DNN-ABC chain, and the truncated $2{,}000$-iteration chains used in the comparison below averaged $10.2$ hours, about $900$ times as much. These ratios are indicative. The two long chains are single runs, not averages over data sets; the timings are wall-clock on a shared server under load, in different languages (MATLAB on two cores, Python on one); and they compare one chain with one chain, so they leave out the one-off training cost of the neural methods (about ten minutes for the surrogate, $5.6$ hours for NPE).
 
 \subsection{Calibration over prior draws}
 \label{sec:sim3D_sbc}
 
 Coverage at a fixed truth cannot separate a calibrated posterior from an uninformative one: an
 interval that spans the prior covers any truth, and in Table~\ref{tab:rec4D} the intervals for $p_1$
-and $\tau$ nearly do. We therefore evaluate calibration by simulation-based calibration \citep{cook2006,talts2018,modrak2025}, which \citet{reiser2025} extend to two-step surrogate-based inference; prior-draw SBC asks whether inference works across data sets plausible under the prior, whereas posterior SBC \citep{sailynoja2026} validates it conditional on one observed data set
+and $\tau$ nearly do. We therefore evaluate calibration by simulation-based calibration (SBC) \citep{cook2006,talts2018,modrak2025}, which \citet{reiser2025} extend to two-step surrogate-based inference; prior-draw SBC asks whether inference works across data sets plausible under the prior, whereas posterior SBC \citep{sailynoja2026} validates it conditional on one observed data set
 over truths drawn from the prior. For each of $K=500$ truths drawn uniformly from the box we simulate a data set of
 $J=100$ cultures, compute each method's posterior and record the rank of the truth among $1{,}000$ posterior
 draws; a calibrated posterior gives uniform ranks and central intervals with their nominal coverage,
@@ -1021,17 +1018,17 @@ variance removed, $1-\overline{\mathrm{Var}}_{\mathrm{post}}/\mathrm{Var}_{\math
 NPE is trained on data sets with $\bar d>0$ and so can only be scored on those ($364$ of the $500$);
 ranks are uniform conditionally on any event defined by the data if the posterior is correct, so the
 restriction is valid, and we score DNN-ABC on the same $364$. GPS-ABC is not included: it would need
-hundreds of chains, each of which takes days.
+hundreds of chains, each of which takes hours to days (Section~\ref{sec:gps}).
 
-\begin{table}[t]
+\begin{table*}[!t]
 \centering
 \caption{Simulation-based calibration over $500$ prior draws ($364$ with $\bar d>0$; binomial s.e.\ of a coverage
 near $0.95$ is $0.011$). Coverage is of central $50$, $90$ and $95\%$ intervals; the rank $p$-value is of a
-$\chi^2$ test of uniformity on ten bins (a graphical alternative is the ECDF-difference test of \citealp{sailynoja2022}); contraction is the share of prior variance removed.}
+$\chi^2$ test of uniformity on ten bins (a graphical alternative is the empirical-CDF (ECDF) difference test of \citealp{sailynoja2022}); contraction is the share of prior variance removed.}
 \label{tab:sbc4D}
 \small
 \input{tables/tab_sbc_4d}
-\end{table}
+\end{table*}
 
 Table~\ref{tab:sbc4D} separates two things that the fixed-truth coverage runs together. NPE is the best calibrated method overall: its $95\%$ intervals cover $0.942$, $0.964$, $0.948$ and $0.942$ of the truths for
 $\log_{10}p_1$, $\log_{10}p_2$, $\tau$ and $\log_{10}\delta$, all within about $1.3$ standard errors of nominal, and
@@ -1053,10 +1050,10 @@ Rank histograms are in Online Resource 1, Figure~S1.
 We ran the original authors' MATLAB GPS-ABC on the first twenty of the $100$ observed data sets of each case, so that
 every comparison with it is paired, with the settings of Online Resource 1, Table~S4. One chain at the original $20{,}000$
 iterations is not feasible at this scale: the Gaussian process is refit, and grows by ten design points, whenever an accept/reject
-decision is uncertain, so the cost per iteration rises as the chain runs. We therefore analyse every chain at its first $2{,}000$
+decision is uncertain, so the cost per iteration rises as the chain runs. We therefore analyze every chain at its first $2{,}000$
 iterations, discarding the first $500$ (the paper's burn-in fraction), and report what that costs. A chain took between
 $2.0$ and $46$ hours for those $2{,}000$ iterations, $10.2$ hours on average (on two cores of a shared $32$-core server), so
-$20{,}000$ iterations would take days (measured below); a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds.
+$20{,}000$ iterations take far longer (measured below); a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds.
 
 To test the truncation directly we ran the first data set of each case to the full $20{,}000$ iterations (the first $5{,}000$ discarded), which took
 $\gtrCaseTwoHours$ hours (case 2) and $\gtrCaseOneHours$ hours (case 1) of wall-clock time. Against the same chain truncated at $2{,}000$ iterations, the
@@ -1073,14 +1070,14 @@ change in interval length on truncation is therefore within the Monte Carlo nois
 Against the synthetic-likelihood reference of Section~\ref{sec:oracle} (this data set is one of the four on which it was run), the $20{,}000$-iteration $95\%$ interval for $\log_{10}p_2$ is $\glcCaseOneLogPTwoLenRatioOracle$ times as long in case 1 and
 $\glcCaseTwoLogPTwoLenRatioOracle$ times in case 2, and a difference in means (GPS-ABC minus reference) of $\glcCaseOneLogPTwoMeanDiffOracleSd$ and $\glcCaseTwoLogPTwoMeanDiffOracleSd$ reference standard deviations: a tail towards small $p_2$ that the reference does not have. This agrees with reading GPS-ABC as the conservative method, but it is one data set per case.
 
-\begin{table*}[t]
+\begin{table*}[!t]
 \centering
-\caption{Study II, paired comparison on the first twenty data sets of each case. GPS-ABC chains are analysed at
+\caption{Study II, paired comparison on the first twenty data sets of each case. GPS-ABC chains are analyzed at
 $2{,}000$ iterations with the first $500$ discarded; the last column is its wall-clock time for those $2{,}000$ iterations,
 and for the others the time per data set (NPE: sampling only). RMSE is of the posterior median, interval length is the mean $95\%$
 interval length on the $\log_{10}$ scale ($\tau$ in time units). Coverage of a single truth over twenty data sets takes values in steps of $0.05$.}
 \label{tab:recGPS}
-\small
+\scriptsize\renewcommand{\arraystretch}{0.92}\setlength{\tabcolsep}{3pt}
 \input{tables/tab_recovery_paired_4d}
 \end{table*}
 
@@ -1092,7 +1089,7 @@ for $\delta$, with errors of the median of $0.08$ and $0.09$ for $\log_{10}p_2$,
 because their released code ran it on $[4,18]$ and not on the paper's $[0.1,19.9]$ (Section~\ref{sec:groundtruth3D}).
 
 \noindent\textbf{Same accuracy for $p_2$, much shorter intervals.} For $\log_{10}p_2$ the posterior medians of the three methods are about equally close to
-the truth: the RMSE is $0.078$ and $0.085$ for GPS-ABC in the two cases, $0.080$ and $0.082$ for DNN-ABC and $0.072$ and $0.071$
+the truth (Table~\ref{tab:recGPS}): the RMSE is $0.078$ and $0.085$ for GPS-ABC in the two cases, $0.080$ and $0.082$ for DNN-ABC and $0.072$ and $0.071$
 for NPE, and with twenty data sets per case none of these differences is resolved (the $95\%$ bootstrap interval for each difference in RMSE includes zero). For $\log_{10}\delta$ GPS-ABC is
 more accurate: its RMSE is $0.033$ and $0.036$ against $0.060$ and $0.055$ for DNN-ABC and $0.059$ and $0.041$ for NPE, a difference that is resolved for DNN-ABC in both cases and for NPE in case~1. The intervals for $p_2$ differ. GPS-ABC's $95\%$ interval for $\log_{10}p_2$ is $1.60$ and $1.02$ long, against $0.43$ and $0.39$ for DNN-ABC
 ($3.7$ and $2.6$ times longer) and $0.64$ and $0.50$ for NPE ($2.5$ and $2.0$ times). For $p_1$ and $\tau$, whose intervals are close to the prior for every method,
@@ -1100,20 +1097,20 @@ the lengths agree, as they do for $\delta$ to within $0.1$. Distances between po
 $0.165$ and $0.130$ (NPE: $0.142$ and $0.110$), small beside GPS-ABC's own posterior standard deviation of $0.40$ and $0.28$, and for $\delta$ about $0.05$ against $0.14$ and $0.11$
 (Table~\ref{tab:fid4D}). The neural methods put their posteriors in the same place as GPS-ABC for $p_2$ and make them narrower.
 
-\begin{table}[t]
+\begin{table}[!t]
 \centering
 \caption{Wasserstein distance of each posterior from the GPS-ABC posterior for the same data set, per parameter ($\log_{10}$ units for
 $p_1,p_2,\delta$; mean $\pm$ s.e.\ over twenty data sets).}
 \label{tab:fid4D}
 \small
+\scriptsize\setlength{\tabcolsep}{2pt}
 \input{tables/tab_fidelity_4d}
 \end{table}
 
 \noindent\textbf{How to read the extra width.} GPS-ABC's wider interval is a loss of precision, not accuracy. Its surrogate carries the Gaussian-process error
 ($1.45$ times the noise floor at the original design size, on $\log_{10}\bar d$ alone) into the acceptance step, which inflates the posterior. Whether that inflation is warranted cannot be tested
 directly, since calibrating GPS-ABC over prior draws would need hundreds of chains. The calibrated method, NPE, lies between the two ($0.64$ and $0.50$), and the simulation-based
-calibration above shows that DNN-ABC's shorter intervals are a little too short (Table~\ref{tab:sbc4D}); so the honest reading is that GPS-ABC is conservative, DNN-ABC is sharp and mildly
-overconfident, and NPE is closest to calibrated, with the neural methods costing seconds where GPS-ABC costs days.
+calibration above shows that DNN-ABC's shorter intervals are too short (Table~\ref{tab:sbc4D}; $0.885$ coverage for $p_2$); so the honest reading is that GPS-ABC is conservative, DNN-ABC is sharp and overconfident, and NPE is closest to calibrated, with the neural methods costing seconds where a $20{,}000$-iteration GPS-ABC chain costs \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours.
 
 
 % =============================================================================
@@ -1123,8 +1120,7 @@ overconfident, and NPE is closest to calibrated, with the neural methods costing
 Interval length is only a virtue if the interval is right, and the three methods disagree about how wide it should be. We therefore
 built a reference that uses neither a Gaussian process nor a neural surrogate: synthetic-likelihood ABC-MCMC
 \citep{wood2010,price2018} with the fast simulator in the loop ($n_s=100$ simulated data sets of $J=100$ cultures at every proposal,
-the same priors, box and adaptive random walk as DNN-ABC, $12{,}000$ iterations of which $4{,}000$ are discarded;
-\texttt{4D/inference/p2\_oracle.py}). It was run on the first four data sets of each case. It is a reference, not the truth: it models
+the same priors, box and adaptive random walk as DNN-ABC, $12{,}000$ iterations of which $4{,}000$ are discarded). It was run on the first four data sets of each case. It is a reference, not the truth: it models
 the features $(\log_{10}\bar d,\log_{10}s)$ as bivariate Gaussian given $\theta$, an approximation that DNN-ABC shares and that the feature
 checks of Section~\ref{sec:diagnose} show to be imperfect for $\log_{10}s$. Its Monte Carlo floor, measured by splitting its own chain,
 is a Wasserstein distance of \ptwoMcFloorWOneLogPTwo\ for $\log_{10}p_2$.
@@ -1139,10 +1135,10 @@ for $p_2$ are therefore not by themselves evidence of overconfidence relative to
 reported next is a property of the rank statistics over prior draws, which a reference on eight data sets cannot replace.
 Simulation-based calibration of GPS-ABC itself is infeasible: a chain of $2{,}000$ iterations takes about ten hours on this server, so $K=500$ prior draws would need roughly $3{,}500$ chain-hours.
 
-\begin{table*}[t]
+\begin{table*}[!t]
 \centering
 \caption{Study II: distance of each method's posterior from the synthetic-likelihood reference, $4$ data sets in each of the $2$ cases
-(means over data sets). $W_1$ is in parameter units ($\log_{10}$ units for the rates); GPS-ABC is analysed at $2{,}000$ iterations.}
+(means over data sets). $W_1$ is in parameter units ($\log_{10}$ units for the rates); GPS-ABC is analyzed at $2{,}000$ iterations.}
 \label{tab:oracle}
 \small
 \input{tables/tab_oracle_4d.tex}
@@ -1152,10 +1148,11 @@ Simulation-based calibration of GPS-ABC itself is infeasible: a chain of $2{,}00
 \label{sec:diagnose}
 
 The surrogate-based samplers are sharper than nominal for $\log_{10}p_2$ and $\log_{10}\delta$ (Table~\ref{tab:sbc4D}), and Section~\ref{sec:sim3D_sbc} could not say why.
-We separate two candidates, a misspecified surrogate density and the sampler, with three checks (\texttt{4D/inference/p3\_overconfidence.py}).
+We separate two candidates, a misspecified surrogate density and the sampler, with three checks.
+The checks reuse the $500$ prior draws and data sets of Table~\ref{tab:sbc4D} but run the random-walk chain again, so their baseline differs from the table by Monte Carlo noise in the chain: it covers $\pbaseAllLogPTwoCovNineFive$ for $\log_{10}p_2$ over all $500$ data sets (the table's run: $0.902$) and $0.896$ over the $364$ with $\bar d>0$ (the table: $0.885$).
 
-\emph{Feature-level checks on held-out simulator output.} On the \pfcNTestNonzero\ held-out data sets with $\bar d>0$, the standardised residuals of
-$\log_{10}\bar d$ are close to Gaussian (skewness \pfcLogDbarSkew, excess kurtosis \pfcLogDbarExcessKurt, PIT Kolmogorov--Smirnov $p=\pfcLogDbarPitKsP$) but those of $\log_{10}s$ are
+\emph{Feature-level checks on held-out simulator output.} On the \pfcNTestNonzero\ held-out data sets with $\bar d>0$, the standardized residuals of
+$\log_{10}\bar d$ are close to Gaussian (skewness \pfcLogDbarSkew, excess kurtosis \pfcLogDbarExcessKurt, probability-integral-transform (PIT) Kolmogorov--Smirnov $p=\pfcLogDbarPitKsP$) but those of $\log_{10}s$ are
 not (skewness \pfcLogSSkew, excess kurtosis \pfcLogSExcessKurt, $p=\pfcLogSPitKsP$). The two residuals are correlated (\pfcJointCorr), and the nominal-$95\%$ joint ellipse of the
 independent-Gaussian predictive covers $\pfcJointMahalanobisCovZeroPtNineFive$ of held-out pairs ($\pfcJointMahalanobisCovZeroPtNineNine$ at the $99\%$ level). A Student-$t$
 predictive raises the held-out log-likelihood from \pfcValLoglikGauss\ to \pfcValLoglikT\ at $\nu=\pfcStudentTDf$, a modest departure from normality.
@@ -1190,25 +1187,26 @@ The aleatoric (irreducible) sources are the simulator's own noise and the surrog
 uncertainty or ignore it. Ignoring it (their ``Point'' method, which fits the surrogate once and uses it as if known) is expected to be overconfident unless the training set is large enough for the parameter uncertainty to collapse. DNN-ABC and GPS-ABC are both Point methods in this sense.
 Table~\ref{tab:errors} places each source of error we measured in this framework, with one addition that their taxonomy of statistical uncertainties does not contain: the computational error of the sampler.
 
-\begin{table*}[t]
+\begin{table*}[!t]
 \centering
 \caption{Error budget of the surrogate pipeline in the framework of \citet{reiser2025}. $\times$ floor is test mean-squared error as a multiple of the simulator's replicate noise (Section~\ref{sec:hurdle})}
 \label{tab:errors}
 \footnotesize
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{p{2.9cm}p{2.2cm}p{4.6cm}p{4.2cm}p{3.1cm}}
 \toprule
 Source & Type & Evidence in this paper & Size & Treatment \\
 \midrule
-Simulator noise & aleatoric & replicate-to-replicate scatter of $(\log_{10}\bar d,\log_{10}s)$ at a fixed $\theta$ & the noise floor of Table~\ref{tab:arch4D} & irreducible; modelled by the variance heads \\
+Simulator noise & aleatoric & replicate-to-replicate scatter of $(\log_{10}\bar d,\log_{10}s)$ at a fixed $\theta$ & the noise floor of Table~\ref{tab:arch4D} & irreducible; modeled by the variance heads \\
 Surrogate approximation error & aleatoric & misfit of the surrogate to the simulator's mean and variance (Section~\ref{sec:sim3D_fit}) & network $0.93\times$ floor; GP $1.45\times$ ($1{,}500$ points), $2.4\times$ ($300$) & variance heads and split-conformal scale ($0.99$, $1.03$) \\
 Surrogate-parameter uncertainty & epistemic (aleatoric once in the inference step) & finite training set: network on $1{,}500$ against $10{,}000$ design points (Section~\ref{sec:matched}) & $0.03$ and $0.04$ floor units worse; posteriors close; seed spread $\pm0.004$ & ignored (Point), not propagated \\
-Likelihood form & part of approximation error & Gaussian, independent features (Section~\ref{sec:diagnose}) & $\log_{10}s$ not Gaussian; residual correlation $0.61$ & Student-$t$ and correlation head tested; coverage barely moves \\
+Likelihood form & part of approximation error & Gaussian, independent features (Section~\ref{sec:diagnose}) & $\log_{10}s$ not Gaussian; residual correlation $0.35$ & Student-$t$ and correlation head tested; coverage barely moves \\
 ABC kernel width $\epsilon$ & approximation of the target & width added to the predictive standard deviation (Section~\ref{sec:diagnose}) & raises coverage only by blurring the likelihood & kept at the paper's value \\
 Measurement model & aleatoric, inference step & data are drawn from the same simulator & not tested; no real data & stated as a limitation \\
 Sampler & computational & random-walk chain against exact importance resampling of the same posterior (Section~\ref{sec:diagnose}) & $95\%$ coverage of $\log_{10}p_2$: $\pbaseAllLogPTwoCovNineFive$ (chain) against $\pissimLogPTwoCovNineFiveAll$ (exact) & repaired by exact sampling \\
 Summary statistic & information loss & $(\bar d,s)$ identify $p_2$ and $\delta$ only (Section~\ref{sec:sim3D_identifiability}) & contraction of $\tau$: $\psevenBaseTauContraction$, $\psevenExtrasTauContraction$ with six extra statistics & reported; main comparison keeps $(\bar d,s)$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table*}
 
 Three readings follow. First, the aleatoric part of the surrogate is at the floor for the network and well above it for the Gaussian process: the GP's extra error, not the network's, is what GPS-ABC carries into its acceptance step.
@@ -1237,7 +1235,7 @@ skewness), with $\psevenSeeds$ training seeds and $\psevenNTest$ held-out design
 $\psevenExtrasTauContraction$, of $\log_{10}p_1$ from $\psevenBaseLogPOneContraction$ to $\psevenExtrasLogPOneContraction$, of $\log_{10}p_2$ from $\psevenBaseLogPTwoContraction$ to
 $\psevenExtrasLogPTwoContraction$ and of $\log_{10}\delta$ from $\psevenBaseLogDeltaContraction$ to $\psevenExtrasLogDeltaContraction$, and the held-out log posterior density of the truth from
 $\psevenBaseHeldoutLogq$ to $\psevenExtrasHeldoutLogq$. A surrogate-likelihood method must model the joint density of every summary it uses, whereas NPE absorbs them without a likelihood; richer summaries are therefore a further
-point in favour of NPE rather than of the surrogate.
+point in favor of NPE rather than of the surrogate.
 
 \section{A second zero-inflated benchmark: the stochastic Ricker map}\label{sec:ricker}
 To check that the method is not specific to the Luria--Delbr\"uck model we apply it to a second simulator whose summary statistics are zero-inflated, the stochastic Ricker map with extinction
@@ -1252,7 +1250,7 @@ not uniform (chi-square $p=\rickDnnAllLogRChiTwoP$, $\rickDnnAllSigmaChiTwoP$, $
 ($\rickSlAllLogRCovNineFive$, $\rickSlAllSigmaCovNineFive$, $\rickSlAllPhiCovNineFive$) although its ranks are closer to uniform, and takes $\rickSlSecPerDataset$ seconds per data set against
 $\rickDnnSecPerDataset$ for DNN-ABC. NPE-Z is calibrated for all three parameters (coverage $\ricknNpeZAllLogRCovNineFive$, $\ricknNpeZAllSigmaCovNineFive$, $\ricknNpeZAllPhiCovNineFive$; rank
 $p=\ricknNpeZAllLogRChiTwoP$, $\ricknNpeZAllSigmaChiTwoP$, $\ricknNpeZAllPhiChiTwoP$) and contracts more than DNN-ABC (for $\log r$, $\ricknNpeZAllLogRContraction$ against $\rickDnnAllLogRContraction$). As in Study~II,
-the surrogate-likelihood method is faster than the exact-likelihood alternative, but an amortised NPE that sees the zero indicator is the better default when calibration and sharpness are the goal.
+the surrogate-likelihood method is faster than the exact-likelihood alternative, but an amortized NPE that sees the zero indicator is the better default when calibration and sharpness are the goal.
 
 \section{Discussion}
 \label{sec:discussion}
@@ -1261,14 +1259,13 @@ the surrogate-likelihood method is faster than the exact-likelihood alternative,
 The two studies answer the question of Section~\ref{sec:intro} with a condition,
 not a verdict. \emph{A surrogate improves an ABC inference where surrogate error
 is what limits it, and a neural surrogate removes the cost that limits a GP.}
-In Study I surrogate error binds: a heteroscedastic network gives tighter
-intervals than a GP and a flat query cost. In Study II it binds more: the response
+In Study I surrogate error binds: a heteroscedastic network matches exact ABC-MCMC at a fraction of the cost and has a flat query cost; its intervals are shorter than the GP's, partly because its coverage is slightly lower (Section~\ref{sec:sim1D_coverage}). In Study II it binds more: the response
 surface is zero-inflated, spans four decades and has strongly correlated features, and a
 Gaussian process fit to the original design's $1{,}500$ points sits at $1.45$ times the data's noise
 floor ($2.4$ at $300$ points) while the network sits at $0.93$ times it, and at $0.96$ when trained on the same $1{,}500$ points. The cost is the other half: one
 GPS-ABC chain of $20{,}000$ iterations took $\gtrCaseTwoHours$ and $\gtrCaseOneHours$ hours in the two cases we ran in full (against $10.2$ hours on average for $2{,}000$ iterations, because the cost per iteration rises as the chain runs), because the Gaussian process is refit, and grows,
 whenever an accept/reject decision is uncertain, while a DNN-ABC chain of $35{,}000$ iterations takes about $40$ seconds
-and NPE returns independent draws in four seconds once trained. On the same data sets and against the original authors' own sampler, DNN-ABC and NPE are not distinguishable from GPS-ABC in the accuracy of the posterior median for $p_2$ (GPS-ABC is more accurate for $\delta$) and give a $95\%$ interval for $p_2$ that is $2.0$ to $3.7$ times shorter (Section~\ref{sec:gps}); the shorter intervals are sharper than GPS-ABC's and, for DNN-ABC, a little too short.
+and NPE returns independent draws in four seconds once trained. On the same data sets and against the original authors' own sampler, DNN-ABC and NPE are not distinguishable from GPS-ABC in the accuracy of the posterior median for $p_2$ (GPS-ABC is more accurate for $\delta$) and give a $95\%$ interval for $p_2$ that is $2.0$ to $3.7$ times shorter (Section~\ref{sec:gps}); the shorter intervals are sharper than GPS-ABC's and, for DNN-ABC, too short ($0.885$ simulation-based-calibration coverage for $p_2$).
 The noise-floor measurement is cheap and tells which regime one is in; we recommend making it before any
 surrogate comparison.
 
@@ -1292,12 +1289,12 @@ samplers are sharper and overconfident ($0.885$ for $p_2$, nearly six standard e
 the others). At a fixed truth, the two look alike. We therefore recommend simulation-based calibration over prior draws, together with posterior
 contraction, as the routine check for any surrogate-based likelihood-free sampler. The overconfidence comes from the Markov chain rather than from the surrogate (Section~\ref{sec:diagnose}): sampling the same surrogate posterior exactly is calibrated for all four parameters, with contractions
 of $\pissimContractionLogPTwo$ for $\log_{10}p_2$ and $\pissimContractionLogDelta$ for $\log_{10}\delta$, close to NPE's. We also found that the two features are correlated ($0.61$) and that GPS-ABC's treatment of them as independent is wrong
-in that sense; modelling the correlation improves the held-out joint likelihood and the uniformity of the ranks but not the coverage of the chain ($0.896$ for $p_2$), so it is not the cause. Neither the Gaussian predictive density nor surrogate error is
+in that sense; modeling the correlation improves the held-out joint likelihood and the uniformity of the ranks but not the coverage of the chain ($0.896$ for $p_2$), so it is not the cause. Neither the Gaussian predictive density nor surrogate error is
 responsible, since both are present in the exactly sampled posterior that is calibrated.
 
 \noindent\textbf{A decision guide.} Our results give a plain answer to when a surrogate pipeline earns its place. For calibrated inference on a simulator cheap enough to generate a training set, an amortized NPE is the better default: it is calibrated, it answers
 every data set once it sees a zero indicator, it adapts to a new prior by reweighting, and richer summaries raise its contraction (Section~\ref{sec:edge}). A surrogate-likelihood pipeline did not beat it on any criterion we measured. Its value is
-relative to the Gaussian-process pipeline it replaces: it matches GPS-ABC's accuracy in about forty seconds per data set where a GPS-ABC chain takes days, and with exact sampling in place of the Markov chain it is calibrated. We did not find a setting in this model where
+relative to the Gaussian-process pipeline it replaces: it matches GPS-ABC's accuracy in about forty seconds per data set where a $20{,}000$-iteration GPS-ABC chain took \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours, and with exact sampling in place of the Markov chain it is calibrated. We did not find a setting in this model where
 a surrogate likelihood is preferable to a zero-aware NPE.
 
 Two architectural lessons recur. In Study I the dominant factor was not the activation function but the presence of
@@ -1310,7 +1307,7 @@ architecture family \citep{radev2022} and to measure the floor before searching.
 \noindent\textbf{Limitations.} This is a simulation study under known ground truth, with no application to real
 fluctuation-experiment data as in \citet{lu2023}; only that can speak to misspecification. Study II has two truth cases with
 $100$ data sets each for the neural methods. GPS-ABC is run on twenty of those data sets per case and for $2{,}000$ (the first $500$ discarded)
-iterations per chain, not the original study's $20{,}000$, because one chain takes days; running one data set per case to $20{,}000$ iterations changed its $\log_{10}p_2$ interval lengths by at most
+iterations per chain, not the original study's $20{,}000$, because a chain takes from $2.0$ to $46$ hours even at $2{,}000$ iterations; running one data set per case to $20{,}000$ iterations changed its $\log_{10}p_2$ interval lengths by at most
 $\gtrCaseOneLogPTwoLengthRatio$-fold (Section~\ref{sec:gps}), but that check covers a single data set per case, the chains' effective sample sizes are in the hundreds (tens for $\tau$), so its comparison with
 the neural methods remains indicative, and what it establishes firmly is its cost. The fast simulator is that of the original
 paper; its $p$ is not the per-division probability of the exact simulator (Section~\ref{sec:groundtruth3D}), which does not affect any comparison here but
@@ -1338,14 +1335,16 @@ disagree, with the side we took, are listed in \texttt{paper\_code\_discrepancy.
 \texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE (and \texttt{bayesflow} for the BayesFlow candidates, which are not used for the results); minimum versions in
 \texttt{requirements.txt}) except the GPS-ABC baseline, which is the authors' MATLAB (R2022b with the Statistics and Parallel
 Computing toolboxes). No GPU is required. The heavy steps were run on a 32-core server; on it the architecture search takes
-under an hour, the DNN-ABC chains for $200$ data sets about thirty minutes, NPE training about six hours and each GPS-ABC chain days.
+under an hour, the DNN-ABC chains for $200$ data sets about thirty minutes, NPE training about six hours and each $20{,}000$-iteration GPS-ABC chain \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours.
 
 \noindent\textbf{Running it.} Study I has a single entry point, \texttt{1D/run\_all.py}. Study II is a short sequence of
-scripts documented in \texttt{4D/README.md}: data generation, the architecture search (\texttt{server/run\_search\_4d.sh}), DNN-ABC,
+scripts documented in \texttt{4D/README.md}: data generation, the architecture search and final fit (\texttt{model/arch\_search.py}, \texttt{model/select\_and\_report.py}), DNN-ABC,
 NPE and calibration (\texttt{server/run\_study2.sh}), the matched-budget and correlated-feature variants
 (\texttt{server/run\_matched.sh}, \texttt{server/run\_corr.sh}), GPS-ABC (\texttt{server/run\_gps\_case.sh}) and the analysis
 (\texttt{analysis/study2\_analysis.py}, which writes every table and figure that the manuscript includes).
-All Study II tables are generated as \LaTeX{} fragments by \texttt{analysis/make\_tables\_tex.py}, so no number in them is copied by hand.
+All Study II tables are generated as \LaTeX{} fragments by \texttt{analysis/make\_tables\_tex.py}, so no number in them is copied by hand; numbers in the running text come either from generated macros (\texttt{tables/revision\_numbers.tex}) or were typed and then checked against the result files.
+
+\noindent\textbf{Scripts for the diagnostics.} The synthetic-likelihood reference posterior of Section~\ref{sec:oracle} is \texttt{4D/inference/p2\_oracle.py}, and the three checks that locate the overconfidence (Section~\ref{sec:diagnose}) are in \texttt{4D/inference/p3\_overconfidence.py}.
 
 \noindent\textbf{Validation scripts.} \texttt{4D/tests/validate\_vs\_published.py} tests the data generator against the original
 authors' released training data (it needs those files, which are not redistributed);
@@ -1356,16 +1355,15 @@ authors' released training data (it needs those files, which are not redistribut
 \label{sec:conclusion}
 % =============================================================================
 
-A heteroscedastic neural surrogate, calibrated by split-conformal prediction and substituted for the Gaussian process inside
-\citeauthor{lu2023}'s ABC-MCMC sampler, gives tighter intervals at matched accuracy and a $\soneSpeedupMin$ to $\soneSpeedupMax$-fold speedup over
-the exact sampler in the one-dimensional benchmark. In the four-parameter two-stage model, which is the main study and is run in the
+A heteroscedastic neural surrogate, whose regression intervals are calibrated by split-conformal prediction (a guarantee about the regression, not about the posterior) and which is substituted for the Gaussian process inside
+\citeauthor{lu2023}'s ABC-MCMC sampler, matches the exact sampler's accuracy at a $\soneSpeedupMin$ to $\soneSpeedupMax$-fold speedup in the one-dimensional benchmark, with slightly lower coverage than GPS-ABC and exact ABC-MCMC. In the four-parameter two-stage model, which is the main study and is run in the
 original study's own regime, the surrogate has to represent a response that is exactly zero for $30\%$ of data sets, spans four
 decades and has two strongly correlated features; a zero-aware network does this at the data's noise floor where a Gaussian
-process fit to the original design's $1{,}500$ points is $1.45$ times above it, and it needs no more than those $1{,}500$ design points to do so. Against the original authors' own sampler, run on the same data sets, it matches GPS-ABC's accuracy for $p_2$ (GPS-ABC is more accurate for $\delta$), with $95\%$ intervals for $p_2$ that are $2.6$ to $3.7$ times shorter, in about forty seconds per data set where a GPS-ABC chain takes days; the shorter intervals are mildly overconfident.
+process fit to the original design's $1{,}500$ points is $1.45$ times above it, and it needs no more than those $1{,}500$ design points to do so. Against the original authors' own sampler, run on the same data sets, it matches GPS-ABC's accuracy for $p_2$ (GPS-ABC is more accurate for $\delta$), with $95\%$ intervals for $p_2$ that are $2.6$ to $3.7$ times shorter, in about forty seconds per data set where a $20{,}000$-iteration GPS-ABC chain took \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours; the shorter intervals are overconfident ($0.885$ simulation-based-calibration coverage for $p_2$).
 An amortized NPE trained on the same simulations agrees with it on what the data identify: $p_2$ well, $\delta$ loosely, and $p_1$ and $\tau$ barely from the pair $(\bar d,s)$, and six extra statistics of the culture counts raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}. NPE is the better calibrated of the two approaches over truths drawn from the prior. The surrogate-based
-Markov-chain samplers are sharper and mildly overconfident, and we trace this to the chain: sampling the same surrogate posterior exactly is calibrated for all four parameters. In our experiments a zero-aware NPE does everything the surrogate pipeline does, so the surrogate's role is as a fast, repairable replacement for GPS-ABC, not a rival to NPE.
+Markov-chain samplers are sharper than nominal ($0.885$ coverage for $p_2$), and we trace this to the chain: sampling the same surrogate posterior exactly is calibrated for all four parameters. In our experiments a zero-aware NPE does everything the surrogate pipeline does, so the surrogate's role is as a fast, repairable replacement for GPS-ABC, not a rival to NPE.
 
-Two limits of the present evidence should be stated. The GPS-ABC comparison rests on twenty data sets per case analysed at a fraction of the original $20{,}000$ iterations, so it is indicative and what it establishes firmly is cost. We also run a single model family on simulated data, with no application to real fluctuation-experiment data, and the diagnosis of the overconfidence is established for DNN-ABC and not repeated for GPS-ABC's own sampler.
+Two limits of the present evidence should be stated. The GPS-ABC comparison rests on twenty data sets per case analyzed at a fraction of the original $20{,}000$ iterations, so it is indicative and what it establishes firmly is cost. We also run a single model family on simulated data, with no application to real fluctuation-experiment data, and the diagnosis of the overconfidence is established for DNN-ABC and not repeated for GPS-ABC's own sampler.
 
 The general lessons are three. Measure the noise floor before comparing architectures or surrogates, because it predicts whether
 a comparison can report anything. Do not read a surrogate's regression calibration as the calibration of the posterior built on it;
@@ -1379,7 +1377,7 @@ conclusions should apply beyond this model to ABC procedures built on a regressi
 \section*{Statements and Declarations}
 
 \bmhead{Data availability}
-The ground-truth data sets analysed in this study (Section~\ref{sec:sim1D}
+The ground-truth data sets analyzed in this study (Section~\ref{sec:sim1D}
 for the one-dimensional constant-rate model and Section~\ref{sec:groundtruth3D}
 for the four-parameter two-stage model) are committed as plain-text CSV files in the code
 repository accompanying this paper, \url{https://github.com/sletch1/DNN-ABC-mutation-rates}.

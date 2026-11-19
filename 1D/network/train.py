@@ -203,16 +203,17 @@ def make_plots(surr, splits, outdir):
     lo, hi = mg - Z_975 * sg, mg + Z_975 * sg
 
     fig, ax = plt.subplots(figsize=(7, 5))
-    ax.scatter(x_tr, 10 ** y_tr, s=10, alpha=0.35, color="tab:gray", label="train")
-    ax.scatter(x_va, 10 ** y_va, s=10, alpha=0.6, color="tab:blue", label="val")
-    ax.scatter(x_te, 10 ** y_te, s=10, alpha=0.6, color="tab:orange", label="test")
+    # marker shape as well as colour, so the three splits stay distinguishable in black and white
+    ax.scatter(x_tr, 10 ** y_tr, s=10, alpha=0.35, color="tab:gray", marker="o", label="train")
+    ax.scatter(x_va, 10 ** y_va, s=14, alpha=0.6, color="tab:blue", marker="s", label="val")
+    ax.scatter(x_te, 10 ** y_te, s=16, alpha=0.6, color="tab:orange", marker="^", label="test")
     ax.plot(xg, 10 ** mg, color="red", lw=2, label="DNN mean")
     ax.fill_between(xg, 10 ** lo, 10 ** hi, color="red", alpha=0.15,
                     label="95% predictive interval (calibrated)")
     ax.set_xlabel("log10(p)"); ax.set_ylabel("d_bar = mean sqrt(X/Z)")
-    ax.set_title("Heteroscedastic DNN surrogate vs. exact-simulator data (1D)")
+    # no in-figure title: the journal forbids titles inside the image (caption carries it)
     ax.legend(); fig.tight_layout()
-    fig.savefig(Path(outdir) / "surrogate_fit.png", dpi=150); plt.close(fig)
+    fig.savefig(Path(outdir) / "surrogate_fit.png", dpi=150); fig.savefig(Path(outdir) / "surrogate_fit.pdf"); plt.close(fig)
 
     m_te, _ = surr.predict(x_te)
     fig, ax = plt.subplots(figsize=(5, 5))

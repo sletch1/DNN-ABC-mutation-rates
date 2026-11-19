@@ -25,6 +25,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import argparse
 
+# Journal figure rules: embedded fonts, Helvetica/Arial lettering, vector output (PDF) next to the PNG.
+matplotlib.rcParams.update({"pdf.fonttype": 42, "ps.fonttype": 42, "font.family": "sans-serif",
+                            "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"]})
+
 import numpy as np
 import pandas as pd
 
@@ -37,6 +41,7 @@ from paths import DATA, MODEL_DIR, TABLE_DIR, FIG_DIR
 
 warnings.filterwarnings("ignore")
 
+LINESTYLES = {"ABC-MCMC": "-", "GPS-ABC": "--", "DNN-ABC": ":"}
 METHOD_COLORS = {"MOM": "#9e9e9e", "MLE": "#607d8b", "ABC-MCMC": "#e53935",
                  "GPS-ABC": "#43a047", "DNN-ABC": "#1e88e5"}
 
@@ -70,11 +75,11 @@ def fig_uncertainty(dnn, gp, df):
             label="GP predictive sd (homoscedastic)")
     ax.set_xlabel("log10(p)")
     ax.set_ylabel("predictive std of log10(d_bar)")
-    ax.set_title("Calibrated predictive uncertainty: DNN tracks the true\n"
-                 "input-dependent noise; the GP's single noise term cannot")
+    # no in-figure title: the journal forbids titles inside the image (caption carries it)
     ax.legend(fontsize=8, loc="upper left")
     fig.tight_layout()
     fig.savefig(FIG_DIR / "fig_uncertainty.png", dpi=150)
+    fig.savefig(FIG_DIR / "fig_uncertainty.pdf")
     plt.close(fig)
 
 
@@ -126,16 +131,17 @@ def fig_posterior(dnn, gp, p_true=1e-3, J=100, n_mcmc=1500, burn=500):
         s, acc = run_abc_mcmc(obs, n_mcmc=n_mcmc, theta_init=th0, eps=0.005,
                               rng=np.random.default_rng(1), **kw)
         p_post = 10.0 ** s[burn:]
-        ax.hist(p_post, bins=60, density=True, histtype="step", lw=2,
+        # line style as well as colour, so the three methods stay distinguishable in black and white
+        ax.hist(p_post, bins=60, density=True, histtype="step", lw=2, ls=LINESTYLES[name],
                 color=METHOD_COLORS[name], label=f"{name} (acc {acc:.2f})")
     ax.axvline(p_true, color="black", ls="--", lw=1.5, label=f"true p = {p_true:.0e}")
     ax.set_xlabel("mutation probability p (posterior)")
     ax.set_ylabel("posterior density")
-    ax.set_title(f"Posterior of p from the three ABC methods agree\n"
-                 f"(single dataset, p={p_true:.0e}, J={J})")
+    # no in-figure title: the journal forbids titles inside the image (caption carries it)
     ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(FIG_DIR / "fig_posterior.png", dpi=150)
+    fig.savefig(FIG_DIR / "fig_posterior.pdf")
     plt.close(fig)
 
 
@@ -165,12 +171,17 @@ def main():
     ap.add_argument("--quick", action="store_true",
                     help="shrink the posterior figure's exact-simulator chain "
                          "(pipeline check only, not publication figures)")
+    ap.add_argument("--only", nargs="*", choices=["uncertainty", "table1", "timing", "posterior"],
+                    help="make only these figures (default: all). table1 and timing need the "
+                         "csv tables written by run_experiments.py")
     args = ap.parse_args()
+    want = set(args.only) if args.only else {"uncertainty", "table1", "timing", "posterior"}
 
     dnn, gp, df = _load()
-    print("fig_uncertainty..."); fig_uncertainty(dnn, gp, df)
-    print("fig_table1_mse..."); fig_table1(df)
-    print("fig_timing..."); fig_timing()
+    if "uncertainty" in want: print("fig_uncertainty..."); fig_uncertainty(dnn, gp, df)
+    if "table1" in want: print("fig_table1_mse..."); fig_table1(df)
+    if "timing" in want: print("fig_timing..."); fig_timing()
+    if "posterior" not in want: print("figures written to", FIG_DIR); return
     if args.quick:
         print("fig_posterior (QUICK: short chain, J=10 -- not a paper figure)...")
         fig_posterior(dnn, gp, J=10, n_mcmc=200, burn=60)

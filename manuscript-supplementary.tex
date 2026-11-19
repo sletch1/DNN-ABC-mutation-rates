@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{booktabs}
+\usepackage{float}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
@@ -14,15 +15,16 @@
 \large Deep Neural Network Surrogates for Approximate Bayesian Computation:\\
 A Simulation Study for Mutation-Rate Estimation\\
 in Markov Branching Processes}
-\author{}
+\author{Sachin Letchumanan, Hongxiao Zhu and Xiaowei Wu\\\small Department of Statistics, Virginia Tech, Blacksburg, VA 24061, USA}
 \date{}
 
 \input{tables/revision_numbers.tex}
+\setlength{\emergencystretch}{3em}
 \begin{document}
 \maketitle
 
 \noindent \textbf{Journal:} Statistics and Computing (submitted).
-\textbf{Corresponding author:} Sachin Letchumanan, Department of Statistics, Virginia Tech, Blacksburg, VA 24061, USA (sachin.letchumanan@gmail.com).
+\textbf{Corresponding author:} Sachin Letchumanan, Department of Statistics, Virginia Tech, Blacksburg, VA 24061, USA (sachin.letchumanan\allowbreak @gmail.com).
 
 \noindent This document contains the full architecture-, activation- and capacity-search tables for Study I
 (Section S1) and, for Study II, the full architecture search (S2), the GPS-ABC runs (S3), the check of our
@@ -30,14 +32,14 @@ data generator against the training sets released by the original authors (S4) a
 histograms (S5). Each table below corresponds to a numbered claim in the main text; the surrounding prose
 there states the headline conclusion and is not repeated here except as needed to make each table self-contained.
 
-\section{Study I: the full activation, normalisation and capacity search}
+\section{Study I: the full activation, normalization and capacity search}
 \label{ssec:s1-1d-arch}
 
 The deployed one-dimensional surrogate (Section~4.1 of the main text) is a
 shallow funnel multilayer perceptron, input $\theta=\log_{10}p$, two
 GELU-activated dense layers at width $32$--$16$ ($626$ parameters). That
 choice is the outcome of the two-stage search reported in full here:
-activation/normalisation first, at a $128$--$64$ baseline, then capacity,
+activation/normalization first, at a $128$--$64$ baseline, then capacity,
 once the activation question was settled.
 
 \begin{table}[h]
@@ -67,7 +69,7 @@ DNN, ReLU + BatchNorm + dropout (64, 64, 32) & $4.352\times10^{-3}$ & $+1035\%$ 
 The row that determines every downstream comparison in the main text is the
 last one: an otherwise-reasonable network carrying BatchNorm and dropout fits
 \emph{eleven times worse} than the same network without them. BatchNorm
-normalises per-minibatch statistics, useful in deep classification networks;
+normalizes per-minibatch statistics, useful in deep classification networks;
 but on a smooth scalar regression over a one-sided domain (the $\theta$-grid
 has a hard edge at $-8$) it injects batch-dependent noise and biases
 predictions near that boundary. A follow-up ablation isolating only the
@@ -127,7 +129,7 @@ is required, just not much capacity beyond that.
 
 Twelve architectures, five seeds each, on the four-parameter data ($10{,}000$ design points $\times$ $5$ replicates; split by design
 point $80/10/10$). Validation loss is the sum of the cross-entropy of the zero head and the Gaussian negative log-likelihood of
-the two features (standardised); the test columns are on held-out design points and were never used for selection. RMSE is in
+the two features (standardized); the test columns are on held-out design points and were never used for selection. RMSE is in
 $\log_{10}$ units. Selection: best mean validation loss, then the cheapest model within one standard error of it.
 
 \begin{table}[h]
@@ -135,6 +137,7 @@ $\log_{10}$ units. Selection: best mean validation loss, then the cheapest model
 \caption{Study II: full architecture search (mean over five seeds; $\pm$ s.d.\ for the validation loss).}
 \label{stab:arch4D}
 \scriptsize
+\scriptsize\setlength{\tabcolsep}{2pt}
 \input{tables/tab_arch_supp_4d}
 \end{table}
 
@@ -153,7 +156,7 @@ as in the authors' protocol. Chains are saved every $250$ iterations by a copy o
 \caption{GPS-ABC settings (paper values; where the paper and the released code differ, the paper's).}
 \label{stab:gps}
 \small
-\begin{tabular}{ll}
+\begin{tabular}{lp{0.66\linewidth}}
 \toprule
 Initial design & $1{,}500$ Latin-hypercube points $\times$ $5$ single-culture draws \\
 Refinement & $10$ new points when the unconditional error of the accept/reject decision exceeds $\xi=0.3$ \\
@@ -169,7 +172,7 @@ Priors & $\mathrm{TN}(\log_{10}\hat p_{\mathrm{MOM}},20)$, $\mathrm{TN}(\log_{10
 \label{ssec:s4-validate}
 
 The test of the main text (Section 3.3), in full. At each design point of the training sets released with the original
-code, we draw $400$ values from our simulator; the randomised probability-integral transform of each stored value is uniform
+code, we draw $400$ values from our simulator; the randomized probability-integral transform of each stored value is uniform
 if the generators agree. ``Smallest bin $p$'' is the smallest Kolmogorov--Smirnov $p$-value over quarters of each parameter's range
 ($16$ bins for the four-parameter set, $4$ for each constant-rate set); at $1{,}500$ draws per point the smallest four-parameter bin
 $p$-value rises from $0.005$ to $0.08$.
@@ -199,8 +202,8 @@ a flat histogram.
 \section{Study II: diagnosing the overconfidence of the Markov chain}
 Coverage of the $95\%$ interval for each parameter, by $500$ simulated data sets scored by simulation-based calibration. ``Chain'' is the adaptive Metropolis sampler of the main text;
 ``exact'' is importance sampling of the same surrogate posterior (the diagnosis subsection of the main text).
-\begin{table}[h]\centering\small
-\caption{Repairs of the overconfidence, scored on the same $500$ data sets (nominal $0.95$; the standard error is $0.010$).}\label{tab:repairs}
+\begin{table}[H]\centering\small
+\caption{Repairs of the overconfidence, scored on the same $500$ data sets (nominal $0.95$; the standard error is $0.010$). The chain is run again on the same $500$ prior draws as the main text's calibration table, so its original-chain coverage of $0.910$ for $\log_{10}p_2$ differs from that run's $0.902$ (and $0.885$ on the data sets with $\bar d>0$) by Monte Carlo noise.}\label{tab:repairs}
 \begin{tabular}{lcccc}
 \hline Sampler / repair & $\log_{10}p_1$ & $\log_{10}p_2$ & $\tau$ & $\log_{10}\delta$ \\ \hline
 Chain (original) & \pbaseAllLogPOneCovNineFive & \pbaseAllLogPTwoCovNineFive & \pbaseAllTauCovNineFive & \pbaseAllLogDeltaCovNineFive \\
@@ -214,7 +217,7 @@ Exact sampling (importance) & \pissimLogPOneCovNineFiveAll & \pissimLogPTwoCovNi
 \end{tabular}\end{table}
 
 \section{Study II: richer summaries for NPE}
-\begin{table}[h]\centering\small
+\begin{table}[H]\centering\small
 \caption{NPE contraction on $(\bar d,s)$ and on $(\bar d,s)$ plus six extra culture-count statistics (mean of $\psevenSeeds$ training seeds).}
 \begin{tabular}{lcccc}
 \hline Summaries & $\log_{10}p_1$ & $\log_{10}p_2$ & $\tau$ & $\log_{10}\delta$ \\ \hline
@@ -223,7 +226,7 @@ with extras & \psevenExtrasLogPOneContraction & \psevenExtrasLogPTwoContraction 
 \end{tabular}\end{table}
 
 \section{Ricker benchmark: calibration results}
-\begin{table}[h]\centering\small
+\begin{table}[H]\centering\small
 \caption{Coverage of the $95\%$ interval and rank-uniformity $p$-value, $\rickK$ held-out prior draws of the stochastic Ricker map.}
 \begin{tabular}{lcccccc}
 \hline Method & \multicolumn{2}{c}{$\log r$} & \multicolumn{2}{c}{$\sigma$} & \multicolumn{2}{c}{$\varphi$} \\ & cov. & $p$ & cov. & $p$ & cov. & $p$ \\ \hline
@@ -233,7 +236,7 @@ NPE-Z & \ricknNpeZAllLogRCovNineFive & \ricknNpeZAllLogRChiTwoP & \ricknNpeZAllS
 \end{tabular}\end{table}
 
 \section{Amortized posterior estimators compared}
-\begin{table}[h]\centering\small
+\begin{table}[H]\centering\small
 \caption{Candidate amortized estimators trained on the same rows and design-point split and scored on $\pnpecNsfNDesigns$ held-out designs, means over $\pnpecNsfNSeeds$ training seeds: mean $\log q(\theta\mid x)$ renormalized to the prior box (seed standard deviation in brackets), mean coverage of the $95\%$ interval over the four parameters (nominal $0.95$), smallest rank-uniformity $p$-value, posterior contraction of $\log_{10}p_2$ and $\log_{10}\delta$, and seconds to draw $500$ samples for one data set. NSF: neural spline flow; MAF: masked autoregressive flow; MDN: mixture-density network; FMPE: flow matching; NPSE: score-based; BF: BayesFlow coupling flow.}\label{tab:npecand}
 \begin{tabular}{lrrrrrr}
 \hline Estimator & $\log q$ (s.d.) & Cov. & Min $p$ & Contr.\ $p_2$ & Contr.\ $\delta$ & s per 500 \\ \hline

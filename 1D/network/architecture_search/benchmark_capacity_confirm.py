@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 warnings.filterwarnings("ignore")
 
-ROOT = Path("/Users/sachinletchumanan/Desktop/Research/Research-Code/DNN_ABC/Models/1D")
+ROOT = Path(__file__).resolve().parents[2]   # the 1D/ folder
 for d in (ROOT, ROOT / "network", ROOT / "network" / "architecture_search", ROOT / "abc"):
     sys.path.insert(0, str(d))
 

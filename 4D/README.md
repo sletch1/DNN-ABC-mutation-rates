@@ -24,7 +24,8 @@ results/      search tables, trained surrogates, chains, posterior draws
 python datagen/gen_training.py --model 4d --n 10000 --rep 5 --out data/slow_data_4D.csv
 for c in 1 2; do python datagen/gen_observed.py --model 4d --case $c --nsim 100 --out data/obs_4d_case$c.npz; done
 # 2. surrogate: 12 architectures x 5 seeds, selection on validation, final model + report
-bash server/run_search_4d.sh
+python model/arch_search.py --data data/slow_data_4D.csv --seeds 5 --out results/arch_search_4D
+python model/select_and_report.py --data data/slow_data_4D.csv --search results/arch_search_4D --out results
 # 3. DNN-ABC, NPE, simulation-based calibration, and the matched-budget control (1,500 design points)
 bash server/run_study2.sh 4d ; bash server/finish_study2.sh 4d      # DNN-ABC, NPE, calibration
 bash server/run_matched.sh ; bash server/run_corr.sh                  # 1,500-point control; correlated-feature surrogate (DNN-ABC-rho)

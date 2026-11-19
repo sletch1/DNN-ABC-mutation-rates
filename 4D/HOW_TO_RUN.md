@@ -66,7 +66,7 @@ Quick test of the generator only: `python datagen/gen_training.py --model 4d --n
 ### Step 2 — Train the surrogate: architecture search, then select and train the final model
 
 The 12 architectures x 5 seeds search, then the selection and final fit (these are the commands the
-`README.md` calls `server/run_search_4d.sh`; that script is not in the folder, so run them directly):
+`README.md` runs the same two commands):
 
 ```bash
 python model/arch_search.py --data data/slow_data_4D.csv --seeds 5 --out results/arch_search_4D
