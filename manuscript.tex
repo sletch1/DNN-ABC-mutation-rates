@@ -163,12 +163,12 @@ Gaussian processes to reduce simulator calls in likelihood-free inference:
 \citet{wilkinson2014} models the ABC log-likelihood surface directly,
 \citet{gutmann2016}'s BOLFI uses Bayesian optimization to place the next
 expensive simulation, and \citet{jarvenpaa2021,jarvenpaa2023} extend this to
-noisy, parallel and predictive settings. Surrogate-assisted MCMC is a broader tradition: \citet{conrad2016} refine local polynomial approximations during sampling, and \citet{reiser2025} propagate the uncertainty in a surrogate's own parameters into the posterior, with a simulation-based-calibration check extended to surrogate pipelines, because neglecting it can give biased or overconfident estimates, the closest issue to the overconfidence we measure in Study II. Their surrogates are trained once on a small design and the inference step is kept separate; ours is a point-estimate network trained on a large design whose predictive variance describes replicate noise, so the two address different sources of error. Neural networks have been used in ABC to learn summary statistics \citep{jiang2017} and for regression adjustment \citep{blum2010}, with semi-automatic summaries \citep{fearnhead2012}; recent \emph{Statistics and Computing} work on random-forest ABC-SMC \citep{dinh2025} and on summary-statistic selection \citep{hoffmann2026} addresses the same bottleneck from the side of the statistic and the proposal. None of these replaces the GP inside the acceptance step. All GP methods inherit the $O(n^3)$ fitting cost;
+noisy, parallel and predictive settings. Surrogate-assisted MCMC is a broader tradition: \citet{conrad2016} refine local polynomial approximations during sampling, \citet{perrin2026} refine a Gaussian-process surrogate of the log-likelihood sequentially and pair it with a gradient-based Metropolis-adjusted Langevin sampler, \citet{soldat2026} survey surrogate-based inference for expensive simulators and find that the choice of response variable, more than the surrogate family, governs efficiency (a scalar log-likelihood is a poor choice because it discards information), and \citet{reiser2025} propagate the uncertainty in a surrogate's own parameters into the posterior, with a simulation-based-calibration check extended to surrogate pipelines, because neglecting it can give biased or overconfident estimates, the closest issue to the overconfidence we measure in Study II. Their surrogates are trained once on a small design and the inference step is kept separate; ours is a point-estimate network trained on a large design whose predictive variance describes replicate noise, so the two address different sources of error. Neural networks have been used in ABC to learn summary statistics \citep{jiang2017} and for regression adjustment \citep{blum2010}, with semi-automatic summaries \citep{fearnhead2012}; recent \emph{Statistics and Computing} work on random-forest ABC-SMC \citep{dinh2025} and on summary-statistic selection \citep{hoffmann2026} addresses the same bottleneck from the side of the statistic and the proposal, and \citet{frazier2025} pool the posteriors from several summary vectors instead of choosing one. None of these replaces the GP inside the acceptance step. All GP methods inherit the $O(n^3)$ fitting cost;
 none substitutes a neural surrogate for the GP, which is the substitution
 studied here. A separate literature avoids the GP-versus-network choice by
 learning the posterior (or likelihood, or likelihood ratio) directly with a
 neural density estimator trained on simulator draws
-\citep{papamakarios2016,papamakarios2019,greenberg2019,cranmer2020,radev2022}, benchmarked by \citet{lueckmann2021}, and implemented in toolkits such
+\citep{papamakarios2016,papamakarios2019,greenberg2019,cranmer2020,radev2022}, reviewed by \citet{zammit2025} and benchmarked by \citet{lueckmann2021}, and implemented in toolkits such
 as \texttt{sbi} \citep{tejerocantero2020}. These methods are \emph{amortized}:
 training is paid once and new data sets need no further simulation or MCMC,
 which GPS-ABC, DNN-ABC and exact ABC-MCMC cannot offer. We include NPE in Study II, the higher-dimensional
@@ -237,7 +237,7 @@ $v(\theta')$, and score $\dbar_{\mathrm{obs}}$ against a matched Gaussian,
 \hat\pi_\epsilon(\dbar_{\mathrm{obs}} \mid \theta') \;=\;
 \mathcal{N}\!\left(\dbar_{\mathrm{obs}};\; m(\theta'),\; \epsilon^2 + v(\theta')\right).
 \]
-This is exactly the likelihood form the surrogates use, with a predicted
+Its Gaussian assumption on the summary statistics can fail, which is the motivation for Gaussianising transformations of the statistics \citep{nguyen2025}. This is exactly the likelihood form the surrogates use, with a predicted
 variance $\sigma_\phi(\theta')^2$ in place of $v(\theta')$, so every column of
 the result tables shares one likelihood and differs only in how
 $(m(\theta), v(\theta))$ is obtained. Algorithm~\ref{alg:abcmcmc} states the
@@ -337,7 +337,7 @@ calibration}, to distinguish it from the empirical coverage of the downstream
 ABC credible intervals, a different quantity with no equivalent guarantee
 (Sections~\ref{sec:sim1D_coverage} and \ref{sec:sim3D_sbc}). The calibrated
 $\hat c\,\sigma_\phi(x)$ is also what enters the acceptance kernel, so the
-uncertainty that is validated is the uncertainty the sampler uses.
+uncertainty that is validated is the uncertainty the sampler uses. Which of the surrogate's errors this scale does and does not cover is set out in Section~\ref{sec:errors}.
 
 \subsection{Simulator validation}
 \label{sec:validation}
@@ -895,7 +895,7 @@ posterior from the same simulations and the same two features. Seven were traine
 \citep{papamakarios2017} and a neural spline flow \citep{durkan2019}, the workhorses of \texttt{sbi}; flow-matching posterior estimation
 \citep{wildberger2023}; neural posterior score estimation, a conditional diffusion model \citep{sharrock2024}; and the affine and spline
 coupling flows of BayesFlow \citep{radev2022,radev2023bayesflow}. We left out variants that answer a different question. Sequential methods
-(SNPE-C, truncated SNPE; \citealp{greenberg2019,deistler2022}) concentrate the simulations on one observed data set, which defeats the amortized
+(SNPE-C, truncated SNPE; \citealp{greenberg2019,deistler2022}; surveyed by \citealp{peng2026}) concentrate the simulations on one observed data set, which defeats the amortized
 calibration over hundreds of data sets used here. Robust and preconditioned robust NPE \citep{ward2022,kelly2026} address misspecified simulators,
 and ours generates the data. Multifidelity NPE \citep{krouglova2026} needs a cheap low-fidelity simulator, which this model does not have. The
 $\beta$-amortized generalized-Bayes estimator \citep{sun2026} targets tempered posteriors, and we want the posterior at $\beta=1$.
@@ -1015,7 +1015,7 @@ seconds, but training the neural spline flow took $5.6$ hours on the shared serv
 
 Coverage at a fixed truth cannot separate a calibrated posterior from an uninformative one: an
 interval that spans the prior covers any truth, and in Table~\ref{tab:rec4D} the intervals for $p_1$
-and $\tau$ nearly do. We therefore evaluate calibration by simulation-based calibration \citep{cook2006,talts2018,modrak2025}, which \citet{reiser2025} extend to two-step surrogate-based inference
+and $\tau$ nearly do. We therefore evaluate calibration by simulation-based calibration \citep{cook2006,talts2018,modrak2025}, which \citet{reiser2025} extend to two-step surrogate-based inference; prior-draw SBC asks whether inference works across data sets plausible under the prior, whereas posterior SBC \citep{sailynoja2026} validates it conditional on one observed data set
 over truths drawn from the prior. For each of $K=500$ truths drawn uniformly from the box we simulate a data set of
 $J=100$ cultures, compute each method's posterior and record the rank of the truth among $1{,}000$ posterior
 draws; a calibrated posterior gives uniform ranks and central intervals with their nominal coverage,
@@ -1186,6 +1186,40 @@ the ranks non-uniform in $\log_{10}p_2$. Rank recalibration of the credible leve
 (from $\prcLogPTwoCovBefore$), but needs a nominal level of $\prcLogPTwoAdjustedLevel$ to do so, so it patches the symptom without explaining it. The only repair that restores nominal coverage with no loss of
 sharpness is exact sampling of the surrogate posterior. We therefore report the Markov-chain results as they were and recommend importance resampling of the surrogate posterior when four parameters or fewer are inferred.
 
+\subsection{An error budget for the surrogate pipeline}
+\label{sec:errors}
+
+\citet{reiser2025} classify the errors of surrogate-based inference by type and by the step in which they arise: a training step, in which the surrogate is fitted to simulator output, and an inference step, in which it replaces the simulator.
+The aleatoric (irreducible) sources are the simulator's own noise and the surrogate's approximation error; the epistemic (reducible) one is the uncertainty in the surrogate's parameters given a finite training set. The inference step can propagate that last
+uncertainty or ignore it. Ignoring it (their ``Point'' method, which fits the surrogate once and uses it as if known) is expected to be overconfident unless the training set is large enough for the parameter uncertainty to collapse. DNN-ABC and GPS-ABC are both Point methods in this sense.
+Table~\ref{tab:errors} places each source of error we measured in this framework, with one addition that their taxonomy of statistical uncertainties does not contain: the computational error of the sampler.
+
+\begin{table*}[t]
+\centering
+\caption{Error budget of the surrogate pipeline in the framework of \citet{reiser2025}. $\times$ floor is test mean-squared error as a multiple of the simulator's replicate noise (Section~\ref{sec:hurdle})}
+\label{tab:errors}
+\footnotesize
+\begin{tabular}{p{2.9cm}p{2.2cm}p{4.6cm}p{4.2cm}p{3.1cm}}
+\toprule
+Source & Type & Evidence in this paper & Size & Treatment \\
+\midrule
+Simulator noise & aleatoric & replicate-to-replicate scatter of $(\log_{10}\bar d,\log_{10}s)$ at a fixed $\theta$ & the noise floor of Table~\ref{tab:arch4D} & irreducible; modelled by the variance heads \\
+Surrogate approximation error & aleatoric & misfit of the surrogate to the simulator's mean and variance (Section~\ref{sec:sim3D_fit}) & network $0.93\times$ floor; GP $1.45\times$ ($1{,}500$ points), $2.4\times$ ($300$) & variance heads and split-conformal scale ($0.99$, $1.03$) \\
+Surrogate-parameter uncertainty & epistemic (aleatoric once in the inference step) & finite training set: network on $1{,}500$ against $10{,}000$ design points (Section~\ref{sec:matched}) & $0.03$ and $0.04$ floor units worse; posteriors close; seed spread $\pm0.004$ & ignored (Point), not propagated \\
+Likelihood form & part of approximation error & Gaussian, independent features (Section~\ref{sec:diagnose}) & $\log_{10}s$ not Gaussian; residual correlation $0.61$ & Student-$t$ and correlation head tested; coverage barely moves \\
+ABC kernel width $\epsilon$ & approximation of the target & width added to the predictive standard deviation (Section~\ref{sec:diagnose}) & raises coverage only by blurring the likelihood & kept at the paper's value \\
+Measurement model & aleatoric, inference step & data are drawn from the same simulator & not tested; no real data & stated as a limitation \\
+Sampler & computational & random-walk chain against exact importance resampling of the same posterior (Section~\ref{sec:diagnose}) & $95\%$ coverage of $\log_{10}p_2$: $\pbaseAllLogPTwoCovNineFive$ (chain) against $\pissimLogPTwoCovNineFiveAll$ (exact) & repaired by exact sampling \\
+Summary statistic & information loss & $(\bar d,s)$ identify $p_2$ and $\delta$ only (Section~\ref{sec:sim3D_identifiability}) & contraction of $\tau$: $\psevenBaseTauContraction$, $\psevenExtrasTauContraction$ with six extra statistics & reported; main comparison keeps $(\bar d,s)$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Three readings follow. First, the aleatoric part of the surrogate is at the floor for the network and well above it for the Gaussian process: the GP's extra error, not the network's, is what GPS-ABC carries into its acceptance step.
+Second, the epistemic part is small. A network trained on $1{,}500$ design points is within $0.03$ to $0.04$ floor units of one trained on $10{,}000$ and gives close posteriors, so a Point method should be close to calibrated by the argument of \citet{reiser2025}, and exact sampling of it is.
+Third, the overconfidence we measure therefore sits in neither of their categories but in the sampler, which is why exact sampling repairs it. One caveat limits the second reading: our calibration check holds the trained surrogate fixed, whereas theirs refits the surrogate for each
+replication and so also tests the epistemic term. Propagating that term, for example with an ensemble of surrogates trained on resampled design points, and re-running the check, is the natural next experiment and we have not done it.
+
 \subsection{Where a surrogate likelihood still helps}
 \label{sec:edge}
 
@@ -1198,7 +1232,7 @@ zero-aware NPE, only over an NPE that ignores the zeros.
 \emph{Changing the prior without retraining.} Under an informative normal prior, re-running the DNN-ABC chain takes \pfourBPriorChangeMeanDnnAbcRerunS\ seconds and re-training NPE
 \pfourBNpeRetrainTrainS\ seconds, but NPE need not be retrained: importance-reweighting its posterior by the new-to-old prior ratio takes \pfourBPriorChangeMeanNpeReweightS\ seconds and keeps an effective
 sample size of \pfourBPriorChangeMeanNpeEss\ of $20{,}000$ draws ($\pfourBPriorChangeMeanEssFrac$), agreeing with the re-run chain to a Wasserstein distance of at most
-\pfourBPriorChangeWassDnnVsNpeTau\ (for $\tau$) and \pfourBPriorChangeWassDnnVsNpeLogPTwo\ (for $\log_{10}p_2$). The surrogate's advantage there appears only for priors so narrow that reweighting
+\pfourBPriorChangeWassDnnVsNpeTau\ (for $\tau$) and \pfourBPriorChangeWassDnnVsNpeLogPTwo\ (for $\log_{10}p_2$). Amortized estimators also make it cheap to examine how a posterior depends on the prior across a class of priors \citep{wang2026}. The surrogate's advantage there appears only for priors so narrow that reweighting
 exhausts the sample, which we did not reach. We did not vary $J$: both methods are trained for $J=100$ and would be retrained for another $J$.
 
 \emph{Richer summaries for NPE.} The weak identification of $\tau$ and $p_1$ is partly a limit of the two features $(\bar d,s)$ rather than of the inference method. We trained NPE on the same
