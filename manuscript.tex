@@ -875,8 +875,7 @@ two features and the same design-point split, so any difference is the
 method, not the data. Second, it needs no chain, no acceptance step and no $\epsilon$, so it
 separates errors that come from the surrogate's variance model from errors that
 come from the kernel and sampler; this is what lets Section~\ref{sec:sim3D_sbc} attribute
-DNN-ABC's mild overconfidence to the Gaussian predictive density and the surrogate's
-error rather than to the sampler. Third, it is amortized: after training it returns
+DNN-ABC's overconfidence to the Markov chain rather than to the surrogate: the same surrogate posterior, sampled exactly, is calibrated. Third, it is amortized: after training it returns
 independent posterior draws for a new data set in about four seconds, which none of GPS-ABC,
 DNN-ABC and exact ABC-MCMC can, so it shows what is gained, and what is paid
 (about six hours of training), by amortizing. Because it conditions on the same two
@@ -991,13 +990,11 @@ $\log_{10}\delta$ for the first twenty data sets of each case; the dashed line i
 \label{fig:rec4D}
 \end{figure}
 
-The data identify two parameters and not the other two. The $95\%$ interval for $\log_{10}p_2$ covers
-about $10$--$15\%$ of its prior range and that for $\log_{10}\delta$ about $70\%$; those for $\log_{10}p_1$
+The data identify two parameters and not the other two. The $95\%$ interval for $\log_{10}p_2$ covers about $10$--$15\%$ of its prior range for the neural methods ($40\%$ and $25\%$ in the two cases for GPS-ABC) and that for $\log_{10}\delta$ about $70\%$; those for $\log_{10}p_1$
 and $\tau$ cover $94\%$ and $92\%$, which is to say the prior. Posterior medians
 for $p_1$ and $\tau$ sit near the prior's centre, so their RMSE says more about where the truth
 lies in the box than about the method: the $p_1$ truth is at the centre of its box, so its RMSE is
-small ($0.08$--$0.17$ in $\log_{10}$ units) for any method that returns the prior, while the $\tau$ truth
-is $4$ units from the centre and its RMSE is $2.3$--$3.8$ for all. This is the
+small ($0.08$--$0.32$ in $\log_{10}$ units across methods, the larger values being GPS-ABC's) for any method that returns the prior, while the $\tau$ truth is $4$ units from the centre and its RMSE is $2.3$--$4.6$ across methods. This is the
 asymmetry of \citeauthor{lu2023}'s Figures~3--4, with multimodal $p_1$ and $\tau$ marginals, and it
 is set by what the pair $(\bar d,s)$ carries, not by the method.
 
@@ -1036,10 +1033,9 @@ $\chi^2$ test of uniformity on ten bins (a graphical alternative is the ECDF-dif
 \input{tables/tab_sbc_4d}
 \end{table}
 
-Table~\ref{tab:sbc4D} separates two things that the fixed-truth coverage runs together. NPE is the best
-calibrated method: its $95\%$ intervals cover $0.942$, $0.964$, $0.948$ and $0.942$ of the truths for
+Table~\ref{tab:sbc4D} separates two things that the fixed-truth coverage runs together. NPE is the best calibrated method overall: its $95\%$ intervals cover $0.942$, $0.964$, $0.948$ and $0.942$ of the truths for
 $\log_{10}p_1$, $\log_{10}p_2$, $\tau$ and $\log_{10}\delta$, all within about $1.3$ standard errors of nominal, and
-its ranks are uniform at the $2\%$ level in every cell. The surrogate-in-MCMC methods are sharper and
+its ranks are uniform at the $2\%$ level in every cell but one: the rank test rejects for $\log_{10}p_2$ ($\chi^2$ $p=0.019$), where the intervals are conservative ($0.964$). The surrogate-in-MCMC methods are sharper and
 overconfident. DNN-ABC covers $0.885$ for $\log_{10}p_2$, nearly six standard errors short of $0.95$, and $0.909$ and
 $0.923$ for $\tau$ and $\log_{10}\delta$. It removes $0.98$ of the prior variance of $\log_{10}p_2$ against $0.87$ for NPE, which is where
 the extra sharpness, and the miscalibration, come from; and for $\tau$ it removes $0.14$ of the prior variance where NPE removes
