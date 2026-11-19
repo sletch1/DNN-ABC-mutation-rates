@@ -57,3 +57,8 @@ tables/revision_numbers_index.txt
 STATUS.md
 cover_letter_DRAFT.md
 declarations_DRAFT.md
+
+# third-party code: not redistributed (obtain from the original authors; see README)
+Original_Paper_Code/
+1D/matlab/
+4D/gps_abc/patched/

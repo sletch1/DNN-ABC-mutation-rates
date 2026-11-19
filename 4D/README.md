@@ -9,7 +9,7 @@ sim/          simulators (ports of the authors' MATLAB), Latin hypercube, settin
 datagen/      training data (CSV, same layout as Study I) and observed datasets (+ .mat export for MATLAB)
 model/        zero-aware two-feature network, architecture search, selection + report
 inference/    DNN-ABC sampler, NPE, step-width pilot, simulation-based calibration
-gps_abc/      MATLAB wrapper that runs the authors' GPS-ABC on our observed data (patched/ = memory-safe copy of one function)
+gps_abc/      MATLAB wrapper that runs the authors' GPS-ABC on our observed data (needs the original authors' code, not redistributed here; see the root README)
 analysis/     recovery / coverage / fidelity tables, figures, LaTeX tables for the manuscript
 server/       shell drivers for the multi-core server (dynamic core use)
 tests/        simulator checks; comparison with the training sets the original authors released

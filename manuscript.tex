@@ -1328,8 +1328,7 @@ the public repository \url{https://github.com/sletch1/DNN-ABC-mutation-rates}. T
 sets are committed as plain-text CSV files with self-documenting headers; the two-stage set is regenerated in about a minute by
 \texttt{4D/datagen/gen\_training.py}, and its observed data sets by \texttt{4D/datagen/gen\_observed.py}. Every random stream is
 seeded, and the output of the data generator does not depend on the number of cores. The original authors' released MATLAB code
-is included unmodified; the one function we replace for the GPS-ABC runs, and the checkpointing copy of their sampler, are in
-\texttt{4D/gps\_abc/patched/} with the reasons stated at the top of each file, and the places where the published paper and the released code
+is not redistributed here and must be obtained from them (place it in \texttt{Original\_Paper\_Code/}); our wrapper scripts are in \texttt{4D/gps\_abc/}, the two changes we make to their code (one replaced function and a checkpointing copy of their sampler) are described in the supplement (Section~S3), and the places where the published paper and the released code
 disagree, with the side we took, are listed in \texttt{paper\_code\_discrepancy.md}.
 
 \noindent\textbf{Environment.} All code is Python (\texttt{numpy}, \texttt{pandas}, \texttt{scipy}, \texttt{matplotlib},

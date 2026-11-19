@@ -479,7 +479,7 @@ network is not worse, not that it is provably better.
 current_version/
 ├── 1D/             Study I: constant mutation rate (this package)
 ├── 4D/             Study II: two-stage model, 4 parameters (and its 3-parameter special case)
-├── Original_Paper_Code/  the authors' MATLAB reference implementation
+├── (Original_Paper_Code/  the original authors' MATLAB code: not redistributed, obtain from them)
 ├── RCode/          R simulators and the 1-D ground-truth generators
 ├── manuscript.tex  the write-up
 ```
