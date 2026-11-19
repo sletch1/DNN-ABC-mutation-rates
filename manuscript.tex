@@ -1070,6 +1070,13 @@ $\gtrCaseTwoLogPTwoMedianShift$, and every interval, at both lengths, covers the
 $\gtrCaseTwoTauMedianShift$ within an interval about $18$ units wide. Truncation therefore does not drive the comparison with the neural methods, whose $p_2$ intervals are $2.0$ to $3.7$
 times shorter, but this rests on one data set per case.
 
+The long chains also show how well one GPS-ABC chain resolves its own interval. Over the retained $15{,}000$ draws the split $\hat R$ is at most $\glcCaseOneMaxRhat$ (case 1) and $\glcCaseTwoMaxRhat$ (case 2), but
+the effective sample size is only $\glcCaseOneLogPTwoEss$ and $\glcCaseTwoLogPTwoEss$ for $\log_{10}p_2$ and $\glcCaseOneTauEss$ and $\glcCaseTwoTauEss$ for $\tau$, and the length of the $95\%$ interval for
+$\log_{10}p_2$, computed on each quarter of the retained chain, ranges from $\glcCaseOneLogPTwoSegLenMin$ to $\glcCaseOneLogPTwoSegLenMax$ (case 1) and from $\glcCaseTwoLogPTwoSegLenMin$ to $\glcCaseTwoLogPTwoSegLenMax$ (case 2). The
+change in interval length on truncation is therefore within the Monte Carlo noise of a single chain, and the medians of $\tau$ drift between quarters of the chain, as expected for a parameter the data do not identify.
+Against the synthetic-likelihood reference of Section~\ref{sec:oracle} (this data set is one of the four on which it was run), the $20{,}000$-iteration $95\%$ interval for $\log_{10}p_2$ is $\glcCaseOneLogPTwoLenRatioOracle$ times as long in case 1 and
+$\glcCaseTwoLogPTwoLenRatioOracle$ times in case 2, and a difference in means (GPS-ABC minus reference) of $\glcCaseOneLogPTwoMeanDiffOracleSd$ and $\glcCaseTwoLogPTwoMeanDiffOracleSd$ reference standard deviations: a tail towards small $p_2$ that the reference does not have. This agrees with reading GPS-ABC as the conservative method, but it is one data set per case.
+
 \begin{table*}[t]
 \centering
 \caption{Study II, paired comparison on the first twenty data sets of each case. GPS-ABC chains are analysed at
@@ -1274,7 +1281,7 @@ architecture family \citep{radev2022} and to measure the floor before searching.
 fluctuation-experiment data as in \citet{lu2023}; only that can speak to misspecification. Study II has two truth cases with
 $100$ data sets each for the neural methods. GPS-ABC is run on twenty of those data sets per case and for $2{,}000$ (the first $500$ discarded)
 iterations per chain, not the original study's $20{,}000$, because one chain takes days; running one data set per case to $20{,}000$ iterations changed its $\log_{10}p_2$ interval lengths by at most
-$\gtrCaseOneLogPTwoLengthRatio$-fold (Section~\ref{sec:gps}), but that check covers a single data set per case, so its comparison with
+$\gtrCaseOneLogPTwoLengthRatio$-fold (Section~\ref{sec:gps}), but that check covers a single data set per case, the chains' effective sample sizes are in the hundreds (tens for $\tau$), so its comparison with
 the neural methods remains indicative, and what it establishes firmly is its cost. The fast simulator is that of the original
 paper; its $p$ is not the per-division probability of the exact simulator (Section~\ref{sec:groundtruth3D}), which does not affect any comparison here but
 matters for interpreting the estimates. Our data generator is tested against the original authors' released training data at their
