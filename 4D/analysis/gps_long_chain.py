@@ -61,6 +61,9 @@ def main():
         d = {"hours": r["hours"], "acc": r["acc"]}
         for nm, p in r["params"].items():
             d[nm] = dict(rhat=p["rhat"], ess=int(round(p["ess"])), seg_len_min=min(p["seg_len"]), seg_len_max=max(p["seg_len"]))
+            d[nm].update(len_95=p["hi"] - p["lo"], covers=int(p["covers"]))
+            for m_, k_ in (("DNN-ABC", "dnn"), ("NPE", "npe")):
+                if m_ in p["vs"]: d[nm].update({f"len_ratio_{k_}": p["vs"][m_]["len_ratio"], f"wass_{k_}": p["vs"][m_]["w1"]})
             if "Oracle" in p["vs"]: d[nm].update(wass_oracle=p["vs"]["Oracle"]["w1"], len_ratio_oracle=p["vs"]["Oracle"]["len_ratio"], mean_diff_oracle_sd=p["vs"]["Oracle"]["mean_diff_sd"])
         d["max_rhat"] = max(p["rhat"] for p in r["params"].values()); summ[c] = d
     json.dump(summ, open(a.out.replace(".json", "_summary.json"), "w"), indent=1)

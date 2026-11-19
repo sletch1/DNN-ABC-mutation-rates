@@ -1,0 +1,15 @@
+\begin{tabular}{lccccc}
+\toprule
+Sampler & \multicolumn{4}{c}{Coverage of the $95\%$ interval} & Contraction \\
+\cmidrule(lr){2-5}
+ & $\log_{10}p_1$ & $\log_{10}p_2$ & $\tau$ & $\log_{10}\delta$ & $\log_{10}p_2$ \\
+\midrule
+DNN-ABC, random-walk chain (as in Table~\ref{tab:sbc4D}) & 0.934 & 0.885$^{\ast}$ & 0.909$^{\ast}$ & 0.923$^{\ast}$ & 0.979 \\
+DNN-ABC, exact importance resampling & 0.953 & 0.970 & 0.948 & 0.956 & 0.850 \\
+DNN-ABC, Hamiltonian Monte Carlo$^{\dagger}$ & 0.942 & 0.945 & 0.948 & 0.948 & 0.861 \\
+\midrule
+NPE (neural spline flow) & 0.942 & 0.964 & 0.948 & 0.942 & 0.869 \\
+NPE, plain (the draws corrected below) & 0.945 & 0.967 & 0.951 & 0.945 & 0.870 \\
+NPE, importance-corrected by the surrogate likelihood & 0.945 & 0.953 & 0.953 & 0.953 & 0.852 \\
+\bottomrule
+\end{tabular}

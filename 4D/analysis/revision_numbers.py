@@ -11,7 +11,7 @@ SRC = {  # prefix -> file
     "pst": "4D/results/p3/sbc_student_t20.json", "peps": "4D/results/p3/sbc_eps0.1.json", "pepsf": "4D/results/p3/sbc_eps0.05.json", "pepst": "4D/results/p3/sbc_eps0.02.json", "pisself": "4D/results/p3/is_check.json", "pissim": "4D/results/p3/is_check_simulator.json", "pcmp": "4D/results/p3/compare_summary.json", "pscl": "4D/results/p3/sbc_selfconsistent_long.json", "pbl": "4D/results/p3/sbc_base_long.json",
     "prc": "4D/results/p3/recal.json", "pfour": "4D/results/p4.json", "pnpec": "4D/results/npe_candidates_summary.json", "ptwo": "4D/results/tables/p2_oracle.json",
     "pseven": "4D/results/p7_summary.json", "pval": "4D/results/validation_extended_summary.json",
-    "rick": "Ricker/results/sbc_ricker.json", "rickn": "Ricker/results/npe_ricker.json", "sone": "1D/results/tables/study1_summary.json", "gtr": "4D/results/tables/gps_truncation_summary.json", "glc": "4D/results/tables/gps_long_chain_summary.json",
+    "rick": "Ricker/results/sbc_ricker.json", "rickn": "Ricker/results/npe_ricker.json", "sone": "1D/results/tables/study1_summary.json", "gtr": "4D/results/tables/gps_truncation_summary.json", "glc": "4D/results/tables/gps_long_chain_summary.json", "phmc": "4D/results/p9/hmc_check.json", "pnpeis": "4D/results/p10/npe_is.json", "pens": "4D/results/p11/ensemble_is.json",
 }
 W = {"0": "Zero", "1": "One", "2": "Two", "3": "Three", "4": "Four", "5": "Five", "6": "Six", "7": "Seven", "8": "Eight", "9": "Nine"}
 

@@ -1,6 +1,7 @@
 {
   "title": "Deep Neural Network Surrogates for Approximate Bayesian Computation: code and data for a simulation study of mutation-rate estimation in Markov branching processes",
   "upload_type": "software",
+  "license": "MIT",
   "creators": [
     {"name": "Letchumanan, Sachin", "affiliation": "Department of Statistics, Virginia Tech"},
     {"name": "Zhu, Hongxiao", "affiliation": "Department of Statistics, Virginia Tech"},

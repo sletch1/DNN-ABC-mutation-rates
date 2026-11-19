@@ -161,7 +161,7 @@ as in the authors' protocol. Chains are saved every $250$ iterations by a copy o
 Initial design & $1{,}500$ Latin-hypercube points $\times$ $5$ single-culture draws \\
 Refinement & $10$ new points when the unconditional error of the accept/reject decision exceeds $\xi=0.3$ \\
 Surrogate draws per decision & $M=100$; discrepancy $\epsilon=10^{-8}$ \\
-Chain & target $20{,}000$ draws, first $5{,}000$ discarded; analysed here at $2{,}000$ iterations, first $500$ discarded; start $(p_1,p_2,\tau,\delta)=(10^{-9},10^{-8},14,0.8)$ \\
+Chain & target $20{,}000$ draws, first $5{,}000$ discarded; analyzed in full for the first data set of each case and, for twenty data sets per case, at $2{,}000$ iterations with the first $500$ discarded; start $(p_1,p_2,\tau,\delta)=(10^{-9},10^{-8},14,0.8)$ \\
 Proposal step widths & $(0.8,3.5,3.5,4)$ in the code's order $(\log_{10}\delta,\log_{10}p_1,\log_{10}p_2,\tau)$ \\
 Priors & $\mathrm{TN}(\log_{10}\hat p_{\mathrm{MOM}},20)$, $\mathrm{TN}(\log_{10}\hat p_{\mathrm{MOM}},20)$, $\mathrm{TN}(10,20)$, $\mathrm{TN}(0,20)$ on the paper box \\
 \bottomrule

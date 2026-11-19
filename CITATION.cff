@@ -11,5 +11,6 @@ authors:
   - family-names: Wu
     given-names: Xiaowei
     affiliation: "Department of Statistics, Virginia Tech"
+license: MIT
 repository-code: "https://github.com/sletch1/DNN-ABC-mutation-rates"
 # Add `version`, `date-released` and `doi` after the archived release is minted.
