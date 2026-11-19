@@ -21,7 +21,8 @@ def camel(s):
     return "".join(w.capitalize() for w in re.split(r"[^A-Za-z]+", s) if w)
 
 
-def fmt(v):
+def fmt(v, name=""):
+    if name.endswith(("LenRatioDnn", "LenRatioNpe", "LenRatioOracle")): return f"{v:.1f}"
     if isinstance(v, bool): return "yes" if v else "no"
     if isinstance(v, int): return f"{v:,}".replace(",", "{,}")
     if abs(v) >= 100: return f"{v:,.0f}".replace(",", "{,}")
@@ -42,7 +43,7 @@ def walk(o, name, out):
     elif isinstance(o, list):
         if len(o) <= 12 and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in o):
             for i, x in enumerate(o): walk(x, name + "N" + camel(str(i)), out)
-    elif isinstance(o, (int, float)) and o == o: out[name] = fmt(o)
+    elif isinstance(o, (int, float)) and o == o: out[name] = fmt(o, name)
 
 
 def main():
