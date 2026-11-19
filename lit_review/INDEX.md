@@ -39,3 +39,26 @@ Li, Smith, Zhou (2026, S&C), generalized Markov chain importance sampling (multi
 ## Older papers
 
 The earlier collection of mostly pre-2024 papers (Lu et al. 2023, Meeds and Welling 2014, Papamakarios et al., and others) is in `../../DNN_ABC_local_extras/lit_review/`. It is outside this folder because it does not meet the 2024-or-later rule.
+
+## Find these later: the five missing papers (full citations and links)
+
+Save each PDF in this folder under the filename shown. All five are already cited in `manuscript.tex`; the key is the BibTeX key in `manuscript.bib`.
+
+1. **Frazier, D. T., Drovandi, C., Kock, L., Nott, D. J. (2025).** Pooling information in likelihood-free inference. *Bayesian Analysis* (advance publication). https://doi.org/10.1214/25-ba1572
+   Key `frazier2025`. File: `frazier2025_pooling_LFI_BayesAnal.pdf`. Open access on Project Euclid (needs a normal browser; it shows a CAPTCHA to scripts).
+2. **Peng, R., Genest, C., Stephens, D. A. (2026).** Sequential neural posterior estimation in simulation-based Bayesian inference. *Statistics Surveys* 20, 242-283. https://doi.org/10.1214/26-ss158
+   Key `peng2026`. File: `peng2026_sequential_NPE_StatSurveys.pdf`. Open access on Project Euclid (same CAPTCHA).
+3. **Modrak, M., Moon, A. H., Kim, S., et al. (2025).** Simulation-based calibration checking for Bayesian computation: the choice of test quantities shapes sensitivity. *Bayesian Analysis* 20, 461-488. https://doi.org/10.1214/23-ba1404
+   Key `modrak2025`. File: `modrak2025_SBC_BayesAnal.pdf`. Open access on Project Euclid (same CAPTCHA).
+4. **Zammit-Mangion, A., Sainsbury-Dale, M., Huser, R. (2025).** Neural methods for amortized inference. *Annual Review of Statistics and Its Application* 12, 311-335. https://doi.org/10.1146/annurev-statistics-112723-034123
+   Key `zammit2025`. File: `zammit2025_neural_amortized_inference_AnnuRev.pdf`. No open-access PDF found; use the VT library login.
+5. **Nguyen, N.-M., Tran, M.-N., Drovandi, C., Nott, D. (2025).** Wasserstein Gaussianization and efficient variational Bayes for robust Bayesian synthetic likelihood. *Journal of Computational and Graphical Statistics* 35(1), 212-228. https://doi.org/10.1080/10618600.2025.2520581
+   Key `nguyen2025`. File: `nguyen2025_robust_BSL_JCGS.pdf`. No open-access PDF found; use the VT library login.
+
+What the manuscript says about each (so you can check it against the paper when you have it):
+* `frazier2025`: pools posteriors from several summary vectors instead of choosing one (related work, on summary statistics).
+* `peng2026`: surveys sequential NPE (cited where sequential methods are excluded from the NPE comparison).
+* `modrak2025`: the SBC variant with data-dependent test quantities (cited with the SBC references).
+* `zammit2025`: reviews amortized neural inference (related work on NPE).
+* `nguyen2025`: synthetic likelihood's Gaussian assumption can fail, motivating Gaussianising transformations (cited in the synthetic-likelihood paragraph).
+These claims come from the abstracts only; none of the five has been read in full.
