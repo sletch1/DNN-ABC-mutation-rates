@@ -4,6 +4,8 @@ Parameters `(log10 p1, log10 p2, τ, log10 δ)`: the original paper's Simulation
 paper (`t_p = 20`, `J = 100`, `p ∈ [1e-11, 1e-7]`, `τ ∈ [0.1, 19.9]`, `δ ∈ [0.5, 2]`); where paper and released code
 differ we follow the paper (`../paper_code_discrepancy.md`).
 
+From the repository root, `make study2` runs this whole pipeline (and `make paper` the entire paper); see [`HOW_TO_RUN.md`](HOW_TO_RUN.md) for the individual commands.
+
 ```
 sim/          simulators (ports of the authors' MATLAB), Latin hypercube, settings
 datagen/      training data (CSV, same layout as Study I) and observed datasets (+ .mat export for MATLAB)

@@ -500,9 +500,9 @@ input-dependent predictive standard deviation with the GP's flat one.
 
 We ran the ABC-MCMC / GPS-ABC / DNN-ABC comparison at $\soneR$ replicated data sets
 per cell, $600$ MCMC iterations ($250$ burn-in), $n_s=6$ simulator repeats per
-exact iteration, and prior $\theta \sim \mathrm{TruncExp}$ on $[-5,-2]$ (bounded
-so the exact simulator in the loop stays feasible; the surrogates are trained on
-$[-8,-2]$ and queried in range), on the grid $p \in \{10^{-4}, 10^{-3},
+exact iteration, and prior $\theta \sim \mathrm{TruncExp}$ on $[-5,-1.5]$ (bounded
+below so the exact simulator in the loop stays feasible, and above the largest tested $\log_{10}p=-2$ so that the prior does not truncate at the truth; the surrogates are trained on
+$[-8,-1.46]$ and queried in range), on the grid $p \in \{10^{-4}, 10^{-3},
 10^{-2}\} \times J \in \{10, 50, 100\}$. MOM and MLE follow \citeauthor{lu2023}'s
 closed forms as classical baselines. Tables~\ref{tab:mse1D} and \ref{tab:ci1D} report the mean squared error and the interval length.
 

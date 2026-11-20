@@ -42,29 +42,24 @@ ABC-MCMC.** See `manuscript.pdf` for the full Monte-Carlo-SE-aware comparison
   split-conformal calibration (§1, §4.5).
 - A controlled architecture study (§5) that isolates the actual driver of surrogate
   quality — removing BatchNorm, not the choice of activation — which is what took the
-  DNN from *losing* to GPS-ABC to beating it.
+  DNN from *losing* to GPS-ABC to matching it.
 - The multi-parameter two-stage model is Study II of the manuscript and lives in [`../4D/`](../4D/README.md).
-- A fully reproducible pipeline (§8): one command trains the surrogate, one
+- A fully reproducible pipeline (§7): one command trains the surrogate, one
   reproduces all result tables, one regenerates every figure.
 
-**Major findings**
+**Major findings** (from the 100-replicate run in `results/tables/`; Study I is a validation against exact ABC, not a contest between surrogates)
 
-- **Accuracy:** DNN-ABC's MSE is a near-tie with GPS-ABC in 7 of 9 tested 1-D
-  configurations (nominally lower in 5, higher in 2, neither resolved beyond
-  Monte Carlo noise), and clearly lower — up to 61% — at the two largest,
-  highest-`J` `p=1e-2` cells (Table 1, §4.2).
-- **Precision:** ~24% tighter 95% credible intervals than GPS-ABC on average (up to
-  38% tighter), in all 9 cells (Table 2, §4.3) — but tighter is not the same as
-  better calibrated: **posterior coverage** of those intervals is measurably
-  below nominal for both surrogates at small `J`, recovering toward nominal at
-  `J=100` (§4.3b). Regression coverage (0.955, a different quantity) stays
-  near-exact throughout.
-- **Speed:** 65×–2111× faster than exact ABC-MCMC — a dead tie with GPS-ABC in
-  1-D — at flat cost regardless of `p` or `J` (Table 3, §4.4).
-- **Calibration:** the heteroscedastic head + conformal calibration achieve
-  **0.955** test-set coverage, with predictive uncertainty that tracks the data's
-  true input-dependent noise — something GPS-ABC's homoscedastic GP cannot
-  represent (§4.5).
+- **Accuracy:** DNN-ABC's MSE is lower than GPS-ABC's in 4 of 9 cells and higher in the rest. Only one difference is resolved
+  beyond Monte Carlo noise: 2.08 standard errors at `p=1e-2, J=10`, in favour of GPS-ABC; every other cell is a statistical tie (Table 1, §4.2).
+  Both surrogates match, and in several cells slightly improve on, exact ABC-MCMC (DNN-ABC is lower in 3 of 9 cells), and all ABC methods
+  substantially outperform MOM and MLE, reproducing the original paper's central finding.
+- **Precision:** DNN-ABC's 95% credible intervals are shorter than GPS-ABC's in 8 of 9 cells (mean 20.6% shorter, up to 45.7%;
+  one cell is 1.9% longer; Table 2, §4.3). Shorter is not better calibrated: the **posterior coverage** of these intervals
+  averages 0.903 for DNN-ABC, 0.933 for GPS-ABC and 0.910 for exact ABC-MCMC (nominal 0.95; Monte Carlo standard error about 0.029 per cell),
+  so part of DNN-ABC's length advantage is slight undercoverage, not extra precision (§4.3b). Regression coverage (0.950 on the test set, a different quantity) is near-exact.
+- **Speed:** 65×–2526× faster than exact ABC-MCMC, at a cost of 0.18–0.37 s per 100 iterations that does not depend on `p` or `J`.
+  Against GPS-ABC the DNN is 3.5–5.4× faster at `J∈{10,50}` (a 2,750-point design; the GP's query cost grows with the design size) and about 1.1–1.2× at `J=100` (550 points) (Table 3, §4.4).
+- **Calibration:** the heteroscedastic head with conformal calibration reaches 0.950 test-set coverage, with predictive uncertainty that tracks the data's input-dependent noise, which GPS-ABC's homoscedastic GP cannot represent (§4.5).
 - **Higher dimensions:** see Study II (`../4D/`); this package covers the one-parameter benchmark only.
 
 ---
@@ -124,7 +119,7 @@ BatchNorm + dropout**) fit the curve **~11× worse** (mean-curve MSE 4.35e-3 vs
 classification nets — and on a smooth 1-D regression it injects batch-dependent
 noise and biases predictions at the domain edges (where the `p`-grid is one-sided).
 Removing it is what let the network fit cleanly, and is the real reason the DNN went
-from *losing* to GPS-ABC to beating it (see §5).
+from *losing* to GPS-ABC to matching it (see §5).
 
 **No dropout.** Dropout regularizes against overfitting, but early stopping + weight
 decay (1e-5) already do that here, and dropout's injected noise degraded the clean
@@ -188,59 +183,22 @@ slow-simulator `d̄` reproduces the CSV means at every `p`.
 
 ## 3. Results at a glance
 
-- **Accuracy (Table 1):** DNN-ABC's MSE is a near-tie with GPS-ABC in 7 of 9
-  configurations — nominally lower in 5, higher in 2, neither direction resolved
-  beyond Monte Carlo noise — and clearly lower, up to **61%**, at `p=1e-2`, `J∈{50,100}`.
-- **Precision (Table 2):** DNN-ABC's 95% credible intervals are **~24% tighter than
-  GPS-ABC on average** (up to **38% tighter**), in all 9 cells.
-- **Speed (Table 3):** DNN-ABC is **65×–2111× faster** per MCMC iteration than
-  ABC-MCMC (tied with GPS-ABC), at flat cost independent of `p` and `J`.
-- **Calibration:** heteroscedastic + conformal → **0.955** test-set coverage, with a
-  predictive sd that tracks the true input-dependent noise (the GP's is flat).
+All numbers below are from `results/tables/` (**R = 100 replicates** per cell, 600 MCMC iterations with 250 burn-in, prior `θ ∈ [−5, −1.5]`,
+grid `p ∈ {1e-4, 1e-3, 1e-2} × J ∈ {10, 50, 100}`); the manuscript's Study I section reports the same tables.
 
-Run configuration: **40 replicates**, 600 MCMC iterations (250 burn-in), `ns=6`,
-prior `θ ∈ [−5,−2]`, grid `p ∈ {1e-4, 1e-3, 1e-2} × J ∈ {10, 50, 100}`.
+**vs GPS-ABC: accuracy.** DNN-ABC's MSE of p̂ is lower in 4 of 9 cells and higher in 5; the only resolved difference
+(2.08 standard errors, `p=1e-2, J=10`) favours GPS-ABC. The surrogates are not more accurate than a Gaussian process here: for a smooth
+one-dimensional curve a GP on a comparable design is already close to optimal, and the point of Study I is that both reproduce the exact sampler.
 
-### Every improvement, quantified
+**vs GPS-ABC: precision and coverage.** DNN-ABC's intervals are shorter in 8 of 9 cells (mean 20.6%), but mean posterior coverage is
+0.903 against 0.933 (GPS-ABC) and 0.910 (exact ABC-MCMC), so the shorter intervals partly reflect undercoverage (§4.3b).
 
-**vs GPS-ABC — estimation accuracy (reduction in MSE of p̂; the primary comparison):**
-- `p = 1e-4`: **5.8%** lower (J=10), **5.3%** lower (J=50), **4.7%** lower (J=100)
-- `p = 1e-3`: **3.9% higher** (J=10, ~tie), **3.1%** lower (J=50), **1.4% higher** (J=100, ~tie)
-- `p = 1e-2`: **25.0%** lower (J=10), **60.6%** lower (J=50), **60.2%** lower (J=100)
-- **Average across all 9 cells: ~18% lower MSE**, with DNN-ABC nominally higher than
-  GPS-ABC in 2 of 9 cells (both `|Δ/SE| < 0.2` — indistinguishable from noise, see
-  Table 1's Δ/SE column). In nRMSE terms the `p=1e-2` gap is **0.15–0.16 vs 0.24–0.25**
-  (~**36–38% lower** error).
+**vs ABC-MCMC: speed (the exact baseline both surrogates approximate).** 65×–2526× faster; accuracy is within Monte Carlo noise or better in most cells.
 
-**vs GPS-ABC — precision (reduction in mean 95% credible-interval length):**
-- `p = 1e-4`: **11.4%** tighter (J=10), **6.3%** tighter (J=50), **7.3%** tighter (J=100)
-- `p = 1e-3`: **28.9%** tighter (J=10), **28.4%** tighter (J=50), **24.5%** tighter (J=100)
-- `p = 1e-2`: **38.3%** tighter (J=10), **37.5%** tighter (J=50), **34.5%** tighter (J=100)
-- **Average: ~24% tighter intervals**, in all 9 cells, with equal accuracy —
-  but see §4.3b: the *posterior* coverage of these intervals (not the
-  surrogate's own regression coverage) is measurably below nominal at small
-  `J`, so "tighter" should not be read as "more precise at no cost" without
-  that caveat.
+**vs GPS-ABC: speed.** DNN-ABC's cost is flat (0.18–0.37 s per 100 iterations); GPS-ABC's grows with the design size,
+so the DNN is 3.5–5.4× faster at the 2,750-point designs (`J=10, 50`) and about level at the 550-point design (`J=100`).
 
-**vs ABC-MCMC — speed (the exact baseline both surrogates approximate):**
-- **65×** faster (`p=1e-2, J=10`) up to **2111×** faster (`p=1e-4, J=100`) per 100
-  iterations — **~750× on average**.
-- DNN-ABC clearly beats the exact ABC-MCMC on accuracy at the three `p=1e-2`
-  cells (up to **67% lower MSE** at `p=1e-2, J=10`), is within a few percent
-  either way at moderate-to-large `J` for smaller `p`, and trails clearly only at
-  the two smallest-`J`, low-`p` cells (`p∈{1e-4,1e-3}, J=10`) — the same two cells
-  where GPS-ABC also underperforms exact ABC-MCMC.
-
-**vs GPS-ABC — speed:** a **tie in 1-D** (both ~**0.13–0.15 s / 100 iterations**); the
-DNN's flat-cost advantage over a GP only emerges at larger training sets / higher
-dimensions (target #2).
-
-**vs the original architecture — the fix that made the accuracy win possible:**
-- Switching **ReLU + BatchNorm → GELU with no BatchNorm** cut the surrogate's
-  mean-curve fit error by **~91%** (an **11× better** fit — MSE 4.35e-3 → 3.89e-4),
-  which is what turned an earlier DNN that *lost* to GPS-ABC into one that beats it.
-- Test-set 95% coverage **restored to 0.955** (from 0.934 uncalibrated) via the
-  finite-sample-corrected split-conformal calibration.
+**Surrogate fit.** Test-set 95% regression coverage is 0.950 after finite-sample-corrected split-conformal calibration (§4.1).
 
 ---
 
@@ -262,133 +220,96 @@ parity plot is tight across the full 3-order-of-magnitude range.
 
 ### 4.2 Table 1 — MSE of p̂, with nRMSE = √(MSE)/p in parentheses
 
-| p | J | MOM | MLE | ABC-MCMC | GPS-ABC | **DNN-ABC** |
-|---|---|---|---|---|---|---|
-| 1e-4 | 10 | 9.36e-9 (0.97) | 1.02e-8 (1.01) | 2.90e-9 (0.54) | 7.02e-9 (0.84) | **6.61e-9 (0.81)** |
-| 1e-4 | 50 | 8.68e-9 (0.93) | 9.59e-9 (0.98) | 1.91e-9 (0.44) | 1.88e-9 (0.43) | **1.78e-9 (0.42)** |
-| 1e-4 | 100 | 4.18e-9 (0.65) | 4.64e-9 (0.68) | 7.75e-10 (0.28) | 8.21e-10 (0.29) | **7.83e-10 (0.28)** |
-| 1e-3 | 10 | 1.38e-6 (1.17) | 1.60e-6 (1.26) | 4.60e-7 (0.68) | **5.10e-7 (0.71)** | 5.30e-7 (0.73) |
-| 1e-3 | 50 | 3.21e-7 (0.57) | 3.85e-7 (0.62) | 1.15e-7 (0.34) | 1.23e-7 (0.35) | **1.19e-7 (0.34)** |
-| 1e-3 | 100 | 2.71e-7 (0.52) | 3.29e-7 (0.57) | 4.33e-8 (0.21) | **4.29e-8 (0.21)** | 4.35e-8 (0.21) |
-| 1e-2 | 10 | 3.42e-5 (0.58) | 4.40e-5 (0.66) | 2.64e-5 (0.51) | 1.14e-5 (0.34) | **8.57e-6 (0.29)** |
-| 1e-2 | 50 | 7.71e-6 (0.28) | 1.17e-5 (0.34) | 4.78e-6 (0.22) | 5.98e-6 (0.24) | **2.36e-6 (0.15)** |
-| 1e-2 | 100 | 4.01e-6 (0.20) | 6.08e-6 (0.25) | 2.62e-6 (0.16) | 6.22e-6 (0.25) | **2.48e-6 (0.16)** |
+| p | J | MOM | MLE | ABC-MCMC | GPS-ABC | **DNN-ABC** | Δ/SE |
+|---|---|---|---|---|---|---|---|
+| 1e-4 | 10 | 1.79e-08 (1.34) | 2.00e-08 (1.42) | 1.34e-08 (1.16) | **1.31e-08 (1.14)** | 1.98e-08 (1.41) | -0.51 |
+| 1e-4 | 50 | 8.44e-09 (0.92) | 9.35e-09 (0.97) | 2.12e-09 (0.46) | 2.04e-09 (0.45) | **1.85e-09 (0.43)** | +0.37 |
+| 1e-4 | 100 | 5.17e-09 (0.72) | 5.77e-09 (0.76) | 1.00e-09 (0.32) | 9.20e-10 (0.30) | **9.04e-10 (0.30)** | +0.06 |
+| 1e-3 | 10 | 1.14e-06 (1.07) | 1.31e-06 (1.14) | 4.61e-07 (0.68) | 7.05e-07 (0.84) | **6.30e-07 (0.79)** | +0.23 |
+| 1e-3 | 50 | 2.75e-07 (0.52) | 3.24e-07 (0.57) | 1.09e-07 (0.33) | **1.12e-07 (0.33)** | 1.27e-07 (0.36) | -0.60 |
+| 1e-3 | 100 | 2.05e-07 (0.45) | 2.43e-07 (0.49) | 4.32e-08 (0.21) | 4.60e-08 (0.21) | **4.21e-08 (0.21)** | +0.43 |
+| 1e-2 | 10 | 2.64e-05 (0.51) | 3.32e-05 (0.58) | 1.92e-05 (0.44) | **1.57e-05 (0.40)** | 2.21e-05 (0.47) | -2.08 |
+| 1e-2 | 50 | 8.58e-06 (0.29) | 1.21e-05 (0.35) | 6.68e-06 (0.26) | **6.27e-06 (0.25)** | 8.46e-06 (0.29) | -1.37 |
+| 1e-2 | 100 | 4.45e-06 (0.21) | 6.83e-06 (0.26) | 3.59e-06 (0.19) | **3.45e-06 (0.19)** | 3.65e-06 (0.19) | -0.27 |
 
-![Table 1 visualized](results/figures/fig_table1_mse.png)
+Bold marks the lower of GPS-ABC and DNN-ABC in each row. **Δ/SE** is the GPS-ABC − DNN-ABC MSE gap in units of its combined Monte Carlo standard error
+(`results/tables/mcse.md`); values below about 2 in magnitude are not resolved at R = 100.
 
-**Reading this against GPS-ABC (the method to beat):** DNN-ABC's nRMSE is lower in
-7 of 9 cells and marginally higher in the other 2 (`p=1e-3`, `J∈{10,100}`) — every
-one of those seven, including the two nominal reversals, is a statistical tie
-(`|Δ/SE| < 0.9`; see the manuscript's Table 1). The gap opens up at `p = 1e-2` —
-DNN-ABC's nRMSE is **0.15–0.16 vs the GP's 0.24–0.25** at `J = 50,100`, a ~36–38%
-error reduction, resolved beyond Monte Carlo noise at `Δ/SE = 5.8` and `8.1`. Both
-surrogates also match — and in several cells slightly beat — the *exact* ABC-MCMC
-baseline, and all ABC methods dominate the classical MOM/MLE estimators, reproducing
-the paper's central finding.
+**Reading this against GPS-ABC:** DNN-ABC's MSE is lower in 4 of 9 cells and higher in the rest. Only `p=1e-2, J=10` is resolved
+(Δ/SE = -2.08, in favour of GPS-ABC); every other cell is a statistical tie. Both surrogates match, and in several cells slightly beat, the *exact*
+ABC-MCMC baseline, and all ABC methods dominate the classical MOM/MLE estimators, reproducing the original paper's central finding.
 
 ### 4.3 Table 2 — mean length of the 95% credible interval for p̂
 
-| p | J | ABC-MCMC | GPS-ABC | **DNN-ABC** |
-|---|---|---|---|---|
-| 1e-4 | 10 | 2.39e-4 | 1.14e-4 | **1.01e-4** |
-| 1e-4 | 50 | 1.56e-4 | 1.11e-4 | **1.04e-4** |
-| 1e-4 | 100 | 1.21e-4 | 1.23e-4 | **1.14e-4** |
-| 1e-3 | 10 | 2.51e-3 | 1.32e-3 | **0.94e-3** |
-| 1e-3 | 50 | 1.53e-3 | 1.32e-3 | **0.95e-3** |
-| 1e-3 | 100 | 0.95e-3 | 1.19e-3 | **0.90e-3** |
-| 1e-2 | 10 | 7.97e-3 | 4.70e-3 | **2.90e-3** |
-| 1e-2 | 50 | 5.15e-3 | 5.10e-3 | **3.19e-3** |
-| 1e-2 | 100 | 3.89e-3 | 5.24e-3 | **3.43e-3** |
+| p | J | ABC-MCMC | GPS-ABC | **DNN-ABC** | DNN vs GPS |
+|---|---|---|---|---|---|
+| 1e-4 | 10 | 3.35e-04 | 3.65e-04 | **3.16e-04** | 13.4% shorter |
+| 1e-4 | 50 | 1.62e-04 | 1.57e-04 | **1.51e-04** | 3.4% shorter |
+| 1e-4 | 100 | 1.23e-04 | 1.12e-04 | **1.14e-04** | 1.9% longer |
+| 1e-3 | 10 | 2.42e-03 | 3.10e-03 | **2.35e-03** | 24.0% shorter |
+| 1e-3 | 50 | 1.41e-03 | 1.65e-03 | **1.26e-03** | 23.6% shorter |
+| 1e-3 | 100 | 9.60e-04 | 1.17e-03 | **8.82e-04** | 24.5% shorter |
+| 1e-2 | 10 | 1.81e-02 | 2.04e-02 | **1.81e-02** | 11.3% shorter |
+| 1e-2 | 50 | 1.07e-02 | 1.64e-02 | **9.64e-03** | 41.3% shorter |
+| 1e-2 | 100 | 7.54e-03 | 1.23e-02 | **6.70e-03** | 45.7% shorter |
 
-DNN-ABC produces the **narrowest credible intervals** in all 9 cells — e.g. ~38%
-tighter than GPS-ABC at `p=1e-2, J=10`. Because this comes *with* equal accuracy
-(Table 1), it reflects genuinely more
-*precise* inference, not overconfidence.
+DNN-ABC's intervals are shorter than GPS-ABC's in 8 of 9 cells (mean 20.6% shorter, up to 45.7%) and narrower than exact ABC-MCMC's in 8 of 9.
+Because accuracy is a tie (Table 1), this is not evidence of better precision on its own: see §4.3b for how often these intervals actually contain the true `p`.
 
 ### 4.3b Posterior coverage — what §4.1 does not measure
 
-§4.1's 0.955 is **regression** coverage: does the surrogate's own predicted
-mean ± interval bracket the true `log10(d_bar)` 95% of the time, on held-out
-data? That is a guarantee about the surrogate's fit, not about whether the
-downstream ABC credible interval for `p̂` actually brackets the true `p`.
-Table 1 and Table 2 are both silent on the second quantity, so we measured it
-directly — saving each replicate's interval endpoints, not just its length —
-for every method, every `(p, J)` cell.
+§4.1's 0.950 is **regression** coverage: does the surrogate's own predicted mean ± interval bracket the true `log10(d_bar)` 95% of the time on held-out data?
+That is a guarantee about the surrogate's fit, not about whether the downstream ABC credible interval for `p̂` brackets the true `p`. Tables 1 and 2 are silent on
+the second quantity, so we saved each replicate's interval endpoints and measured it for every method and `(p, J)` cell:
 
-**A structural bug caught first.** The first attempt returned exactly **0.000**
-coverage for all three methods at every `J`, at `p=1e-2` specifically. Cause:
-`log10(0.01) = -2.0`, exactly the ABC-MCMC prior's old upper bound — the
-sampler could never propose `theta` above the true value there, so the
-interval's upper endpoint was structurally incapable of reaching `p=0.01`
-(confirmed directly: it topped out at 0.0096–0.0099 across replicates, every
-time). Not a surrogate defect — even the exact simulator baseline showed it.
-Fixed by extending the ground-truth grid 9 points further in `log10(p)` (same
-spacing as the original 101-point design; `RCode/extendSlowData_1D.R`) and
-moving the prior's upper bound to `-1.5`, giving `p=1e-2` real headroom
-instead of sitting on the wall. Tables 1–3's numbers are unchanged under this
-fix (expected: a truncation at the truth wrecks the interval's tail while
-barely moving the posterior mean) — only coverage was broken.
+| p | J | R | ABC-MCMC | GPS-ABC | DNN-ABC |
+|---|---|---|---|---|---|
+| 1e-4 | 10 | 100 | 0.830 (0.038) | 0.850 (0.036) | 0.850 (0.036) |
+| 1e-4 | 50 | 100 | 0.920 (0.027) | 0.920 (0.027) | 0.920 (0.027) |
+| 1e-4 | 100 | 100 | 0.910 (0.029) | 0.920 (0.027) | 0.940 (0.024) |
+| 1e-3 | 10 | 100 | 0.840 (0.037) | 0.870 (0.034) | 0.830 (0.038) |
+| 1e-3 | 50 | 100 | 0.960 (0.020) | 0.950 (0.022) | 0.940 (0.024) |
+| 1e-3 | 100 | 100 | 0.950 (0.022) | 0.990 (0.010) | 0.950 (0.022) |
+| 1e-2 | 10 | 100 | 0.870 (0.034) | 0.930 (0.026) | 0.900 (0.030) |
+| 1e-2 | 50 | 100 | 0.960 (0.020) | 0.970 (0.017) | 0.890 (0.031) |
+| 1e-2 | 100 | 100 | 0.950 (0.022) | 1.000 (0.000) | 0.910 (0.029) |
 
-**The real picture, measured after that fix (R=40, binomial MCSE in parens):**
+(binomial Monte Carlo standard error in parentheses, nominal 0.95.)
 
-| p | J | ABC-MCMC | GPS-ABC | DNN-ABC |
-|---|---|---|---|---|
-| 1e-4 | 10 | 0.775 (0.066) | 0.450 (0.079) | 0.500 (0.079) |
-| 1e-4 | 50 | 0.900 (0.047) | 0.775 (0.066) | 0.800 (0.063) |
-| 1e-4 | 100 | 0.925 (0.042) | 0.950 (0.034) | 0.950 (0.034) |
-| 1e-3 | 10 | 0.800 (0.063) | 0.525 (0.079) | 0.450 (0.079) |
-| 1e-3 | 50 | 0.975 (0.025) | 0.900 (0.047) | 0.875 (0.052) |
-| 1e-3 | 100 | 0.950 (0.034) | 0.975 (0.025) | 0.925 (0.042) |
-| 1e-2 | 10 | 0.850 (0.056) | 0.775 (0.066) | 0.425 (0.078) |
-| 1e-2 | 50 | 1.000 (0.000) | 1.000 (0.000) | 0.850 (0.056) |
-| 1e-2 | 100 | 0.950 (0.034) | 1.000 (0.000) | 0.925 (0.042) |
+**A structural problem caught first.** An earlier attempt returned exactly 0.000 coverage for all three methods at `p=1e-2`. Cause: `log10(0.01) = -2.0` was exactly
+the ABC-MCMC prior's old upper bound, so the sampler could never propose a value above the truth there. Fixed by extending the ground-truth grid further in `log10(p)`
+(`RCode/extendSlowData_1D.R`) and moving the prior's upper bound to `-1.5`, which gives `p=1e-2` real headroom.
 
-Two things, and only one is about the surrogates. **GPS-ABC and DNN-ABC
-coverage rises with `J`** in every row — badly under nominal at `J=10`
-(0.425–0.775), close to it by `J=100` (0.925–1.000), the *only* culture count
-either surrogate was ever trained on. A surrogate trained exclusively at
-`J=100` has no way to know a `J=10` observation is intrinsically noisier, so
-its interval is calibrated for the wrong noise level whenever `J≠100`.
-DNN-ABC under-covers most at `J=10` (0.425–0.500) — the same overconfidence
-that makes its interval shortest there (§4.3) makes it wrong there.
-**Separately**, exact ABC-MCMC itself sits below nominal at `J=10`
-(0.775–0.850) despite simulating at the true `J` every iteration — a property
-of the ABC acceptance kernel at this culture count, unrelated to either
-surrogate.
+**What the table shows.** The surrogates are `J`-specific (`results/model/surrogate_1d_J10.pt`, `_J50.pt` and the deployed `J=100` model). At `J=10` DNN-ABC covers at
+0.83–0.90, GPS-ABC at 0.85–0.93 and exact ABC-MCMC at 0.83–0.87; at `J=100` they cover at
+0.91–0.95, 0.92–1.00 and 0.91–0.95. Averaged over the nine cells, coverage is 0.903 (DNN-ABC), 0.933 (GPS-ABC) and 0.910 (ABC-MCMC),
+against a Monte Carlo standard error of about 0.029 per cell. DNN-ABC is slightly the least covering of the three, most visibly at `p=1e-2` where GPS-ABC is conservative.
+Exact ABC-MCMC is itself below nominal at `J=10` even though it simulates at the true `J` every iteration, a property of the ABC kernel at this culture count rather than of either surrogate.
 
-**Not fixed in this pass.** The surrogates' `J`-blindness needs retraining on
-`J`-specific data to fix honestly (the raw per-culture values needed already
-exist, no new simulation required) — not an adjustment to numbers already
-reported. What this section establishes: **the interval-length advantage in
-§4.3 is not evidence of better calibration**, and a surrogate trained at one
-condition should be expected to misjudge its own uncertainty away from it, in
-a way §4.1's regression diagnostic — computed at that same training
-condition — cannot reveal.
+In an earlier run whose surrogates were trained only at `J=100`, querying them at `J=10` dropped GPS-ABC and DNN-ABC coverage to about 0.43–0.53, because a surrogate trained at one culture
+count cannot know that another is noisier. Training at the deployment `J` recovers most of that shortfall; the residual gap at `J=10` should not be explained away
+(split-conformal calibration is a marginal guarantee over the training distribution). **The interval-length advantage in §4.3 is therefore not evidence of better calibration.**
 
 ### 4.4 Table 3 — computation time (seconds / 100 MCMC iterations)
 
 | p | J | ABC-MCMC | GPS-ABC | **DNN-ABC** | **ABC-MCMC / DNN speedup** |
 |---|---|---|---|---|---|
-| 1e-4 | 10 | 51.08 | 0.128 | 0.150 | **340×** |
-| 1e-4 | 50 | 171.79 | 0.127 | 0.145 | **1182×** |
-| 1e-4 | 100 | 303.99 | 0.126 | 0.144 | **2111×** |
-| 1e-3 | 10 | 16.48 | 0.123 | 0.143 | **116×** |
-| 1e-3 | 50 | 67.59 | 0.125 | 0.144 | **469×** |
-| 1e-3 | 100 | 125.68 | 0.124 | 0.143 | **876×** |
-| 1e-2 | 10 | 9.33 | 0.123 | 0.143 | **65×** |
-| 1e-2 | 50 | 44.34 | 0.124 | 0.144 | **309×** |
-| 1e-2 | 100 | 88.22 | 0.124 | 0.144 | **614×** |
+| 1e-4 | 10 | 102.82 | 1.237 | 0.242 | **425×** |
+| 1e-4 | 50 | 323.96 | 1.293 | 0.369 | **877×** |
+| 1e-4 | 100 | 538.76 | 0.236 | 0.213 | **2526×** |
+| 1e-3 | 10 | 26.39 | 1.130 | 0.208 | **127×** |
+| 1e-3 | 50 | 107.38 | 1.095 | 0.237 | **453×** |
+| 1e-3 | 100 | 201.85 | 0.229 | 0.213 | **949×** |
+| 1e-2 | 10 | 14.38 | 1.198 | 0.221 | **65×** |
+| 1e-2 | 50 | 65.55 | 1.110 | 0.236 | **278×** |
+| 1e-2 | 100 | 123.45 | 0.220 | 0.185 | **669×** |
 
-![timing](results/figures/fig_timing.png)
+Timings were taken on a shared server under load, so absolute seconds are larger than on an idle machine; the ratios, measured under the same conditions, are what matter.
 
-**The efficiency gap is the headline.** ABC-MCMC's per-iteration cost explodes with
-`p` and `J` (it runs the exact simulator every step); both surrogates are **flat at
-~0.13–0.15 s / 100 iterations regardless of `p` or `J`**, because they skip the
-simulator entirely. Against ABC-MCMC the DNN is **65×–2111× faster**. Against
-GPS-ABC it is a **tie in 1-D** — as expected, since a GP over ~800 training points
-is itself cheap to query here; the DNN's *scaling* advantage (a fixed-cost forward
-pass vs. a GP's per-query cost that grows with training-set size) only bites at
-larger training sets and higher dimensions.
+**The efficiency gap is the headline.** ABC-MCMC's per-iteration cost grows with `p` and `J` (it runs the exact simulator at every step); DNN-ABC stays at
+0.18–0.37 s per 100 iterations regardless of `p` or `J`, because its query cost does not depend on the training-set size. DNN-ABC is 65×–2526× faster than exact ABC-MCMC.
+GPS-ABC is 3.5–5.4 times slower than DNN-ABC at `J=10` and `J=50` (a 2,750-point design) and about level at `J=100` (a 550-point design), tracking the GP's query cost against the design size, which is
+the clearest direct demonstration in Study I of the scaling difference between a GP and a network.
 
 ### 4.5 Calibrated, input-dependent uncertainty (DNN vs GP)
 
@@ -430,7 +351,7 @@ all within ~7% of each other and of the GP — a statistical tie — with ReLU m
 best. What broke the old model by **11×** was BatchNorm (+ dropout): per-mini-batch
 normalization biases a smooth 1-D regression at the domain edges. Removing it closed
 the gap to the GP; the DNN's calibrated heteroscedastic variance then pushes it to
-match-or-beat GPS-ABC on the *actual* estimation task (Table 1). GELU is used for
+match GPS-ABC on the *actual* estimation task (Table 1). GELU is used for
 smooth gradients + dead-neuron robustness at no accuracy cost (see §1); ReLU would
 serve equally well. Deep ensembles were also tried
 (`.../benchmark_round2.py`) but did not beat a single network on this smooth curve,
@@ -573,7 +494,7 @@ cd Models/1D
 # train + conformally calibrate the DNN surrogate (~seconds)
 python network/train.py
 
-# reproduce Tables 1/2/3 with the DNN column (this run's settings, ~minutes)
+# reproduce Tables 1/2/3 with the DNN column (the paper's settings: hours; `python run_all.py --quick` is the minutes-long test)
 python abc/run_experiments.py --reps 100 --nmcmc 600 --burnin 250 --ns 6 \
     --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
 
