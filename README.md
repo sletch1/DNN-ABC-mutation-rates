@@ -108,6 +108,11 @@ the exact synthetic-likelihood sampler by simulation-based calibration. As in St
 
 The version of the code and data used for the paper is archived on Zenodo: https://doi.org/10.5281/zenodo.24388275 (cite it with `CITATION.cff`).
 
+The record (published 2026-11-20, version 1.0.0, DOI above) holds `DNN-ABC-mutation-rates-v1.0.0-code-and-paper.zip` (the repository at v1.0.0 without the
+64 MB Study II training file) and that file as three gzip parts, `slow_data_4D.csv.gz.part-aa/ab/ac`. Restore it from the unzipped folder with
+`cat slow_data_4D.csv.gz.part-* | gunzip > DNN-ABC-mutation-rates-v1.0.0/4D/data/slow_data_4D.csv`, or regenerate it in about a minute (`4D/HOW_TO_RUN.md`, step 1).
+The GitHub repository is the living copy and may be ahead of the archived version.
+
 ## Notes on provenance
 
 * The published paper's PDF and the cited papers are not redistributed here (copyright); cite them via their DOIs.
