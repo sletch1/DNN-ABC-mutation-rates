@@ -30,13 +30,14 @@ ARCH  ?= res_128x3_gelu
 ifdef SMOKE
   FULL1D   := --quick
   GEN_X    := --n 3000 --rep 2
-  OBS_X    := 3
+  OBS_X    := 10
   ARCH_X   := --seeds 1 --archs res_128x3_gelu
-  DNN_X    := --iters 600 --n 3
+  DNN_X    := --iters 600 --n 10
   SBC_X    := --iters 600
   KSBC     := 12
-  NPE_X    := --n 3 --draws 300
-  P4_X     := --iters 600
+  KCMP     := 12
+  NPE_X    := --n 10 --draws 300
+  P4_X     := --iters 16000
   P3_X     := --iters 16000
   GP_X     := --budgets 50,100
   P7_X     := --K 50 --seeds 1
@@ -57,6 +58,7 @@ else
   DNN_X    :=
   SBC_X    :=
   KSBC     := 500
+  KCMP     := 48
   NPE_X    :=
   P4_X     :=
   P3_X     :=
@@ -73,7 +75,8 @@ else
   VAL_X    := --m 4000 --seeds 5
 endif
 export PYTHONUNBUFFERED = 1
-export KERAS_BACKEND = torch   # for the BayesFlow NPE candidates (needs Python <= 3.13: see README)
+# for the BayesFlow NPE candidates (needs Python <= 3.13: see README); no trailing comment, make would keep the spaces in the value
+export KERAS_BACKEND = torch
 
 R4 := 4D/results
 CANDS := nsf maf mdn fmpe npse bf_affine bf_spline
@@ -167,7 +170,7 @@ $(R4)/p3/is_check.json: | $(R4)/p3/data.npz
 $(R4)/p3/is_check_simulator.json: | $(R4)/p3/data.npz
 	cd 4D && $(PY) inference/p3_is_check.py --surrogate results/surrogate_4d.pt --simulator
 $(R4)/p3/compare.json: | $(R4)/p3/sbc_selfconsistent.json
-	cd 4D && $(PY) inference/p3_compare.py 48
+	cd 4D && $(PY) inference/p3_compare.py $(KCMP)
 $(R4)/p4.json: | $(R4)/surrogate_4d.pt
 	cd 4D && $(PY) inference/p4_npe_vs_surrogate.py --data data/slow_data_4D.csv --surrogate results/surrogate_4d.pt --out results/p4.json --K $(KSBC) $(P4_X)
 $(R4)/p7_extra_features.json: | 4D/data/slow_data_4D.csv

@@ -130,9 +130,12 @@ def _job(k):
     return out
 
 
+def _init(g): G.update(g)   # pool initializer: workers started by spawn/forkserver (macOS, Python 3.14) do not inherit G
+
+
 def sbc(a):
     G.update(net=load_net(), iters=a.iters, adapt=a.iters // 3, thin=20, sl=a.sl, sl_iters=a.sl_iters)
-    with Pool(a.cores, initializer=G.update, initargs=(dict(G),)) as p: res = p.map(_job, range(a.K), chunksize=1)   # initializer: workers started by spawn/forkserver (macOS, Python 3.14) do not inherit G
+    with Pool(a.cores, initializer=_init, initargs=(dict(G),)) as p: res = p.map(_job, range(a.K), chunksize=1)   # initializer: workers started by spawn/forkserver (macOS, Python 3.14) do not inherit G
     from scipy.stats import chi2; summ = {}
     for meth in ["dnn"] + (["sl"] if a.sl else []):
         R = np.array([(r[meth] < r["theta"]).sum(0) for r in res]); Lr = len(res[0][meth]); V = np.array([r[meth].var(0) for r in res]); nz = np.array([r["f"][0] > 0 for r in res])
