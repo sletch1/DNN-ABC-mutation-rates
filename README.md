@@ -40,8 +40,9 @@ paper_code_discrepancy.md  where the published paper and the released code disag
 
 ## Requirements
 
-Python 3.9+ with `requirements.txt` (`numpy`, `pandas`, `scipy`, `matplotlib`, `scikit-learn`, `torch`, `sbi`); no GPU. The optional
-BayesFlow candidate in the NPE comparison also needs `bayesflow>=2.0` (run with `KERAS_BACKEND=torch`).
+**Python 3.12 or 3.13** with `requirements.txt` (`numpy`, `pandas`, `scipy`, `matplotlib`, `scikit-learn`, `torch`, `sbi`, `bayesflow`); no GPU.
+Use 3.12 or 3.13, not 3.14: BayesFlow (two of the seven NPE candidates, so needed for a full `make paper`) does not install on 3.14. The Makefile
+sets `KERAS_BACKEND=torch` itself. Everything except the BayesFlow candidates runs on 3.9+.
 Running the original GPS-ABC sampler (Study II baseline) additionally needs MATLAB with the Statistics and
 Parallel Computing toolboxes. Heavy steps (data generation, the architecture search, GPS-ABC) are written for a
 multi-core Linux server; see `4D/server/`.
@@ -51,10 +52,10 @@ multi-core Linux server; see `4D/server/`.
 ### 1. Set up (once)
 
 ```bash
-git clone <this repository> && cd DNN_ABC
-python3 -m venv .venv
+git clone https://github.com/sletch1/DNN-ABC-mutation-rates.git && cd DNN-ABC-mutation-rates
+python3.12 -m venv .venv               # Python 3.12 or 3.13 (see Requirements); the Makefile uses .venv/bin/python automatically
 source .venv/bin/activate
-pip install -r requirements.txt        # numpy, pandas, scipy, matplotlib, scikit-learn, torch, sbi, ...
+pip install -r requirements.txt        # numpy, pandas, scipy, matplotlib, scikit-learn, torch, sbi, bayesflow
 ```
 
 You also need `latexmk` and a LaTeX distribution (MacTeX/BasicTeX or TeX Live) to compile the PDFs. The `Makefile` uses
@@ -62,8 +63,12 @@ You also need `latexmk` and a LaTeX distribution (MacTeX/BasicTeX or TeX Live) t
 
 ### 2. Run everything from scratch
 
+This repository ships the finished results, and `make paper` skips any step whose output already exists. So for a true from-scratch run
+you first delete the shipped experiment outputs:
+
 ```bash
 make check                 # 10 s: tests the simulator
+make rerun-all             # deletes every regenerable experiment output (asks you to type "yes"); skip it to keep the shipped results
 make paper                 # runs ALL experiments, then builds every number, table, figure and both PDFs
 ```
 
@@ -89,6 +94,15 @@ multi-core machine** (the 1D comparison and the 4D architecture search, calibrat
 Individual steps, with their exact commands, are in [`1D/HOW_TO_RUN.md`](1D/HOW_TO_RUN.md) (Study I) and
 [`4D/HOW_TO_RUN.md`](4D/HOW_TO_RUN.md) (Study II). Every table and figure of the paper is regenerated from the result files by
 `4D/analysis/` and `1D/analysis/`, with no hand-copied numbers.
+
+## The Ricker benchmark (`Ricker/`)
+
+A second test case, to check that the findings are not specific to the mutation model. The stochastic Ricker map (Wood 2010, *Nature* 466:1102)
+is a standard population-dynamics model: `N(t+1) = r N(t) exp(-N(t) + e(t))` with `e(t) ~ N(0, sigma^2)`, extinction when `N` falls below
+`1e-6`, and Poisson counts `y(t) ~ Poisson(phi N(t))` observed. The parameters are `(log r, sigma, phi)`. About a quarter of prior draws give a mean
+count of exactly zero, the same zero-inflation as the mutation model. We compare DNN-ABC (a hurdle network for the zero atom), a zero-aware NPE and
+the exact synthetic-likelihood sampler by simulation-based calibration. As in Study II, NPE is calibrated and DNN-ABC is not. `make ricker` runs it
+(`Ricker/ricker.py gen|train|sbc|npe`); it is also part of `make paper`.
 
 ## Archive
 
