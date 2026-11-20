@@ -1,0 +1,11 @@
+DNN-ABC exact done {"log10 p1": 0.942, "log10 p2": 0.961, "tau": 0.953, "log10 delta": 0.946}
+/Users/sachinletchumanan/Desktop/Research/DNN_ABC/4D/inference/p7_extra_features.py:36: UserWarning: Maximum number of epochs `max_num_epochs=300` reached, but network has not yet fully converged. Consider increasing it.
+  de = inf.train(max_num_epochs=300, training_batch_size=512)
+/Users/sachinletchumanan/Desktop/Research/DNN_ABC/.venv/lib/python3.14/site-packages/nflows/transforms/lu.py:80: UserWarning: torch.triangular_solve is deprecated in favor of torch.linalg.solve_triangularand will be removed in a future PyTorch release.
+torch.linalg.solve_triangular has its arguments reversed and does not return a copy of one of the inputs.
+X = torch.triangular_solve(B, A).solution
+should be replaced with
+X = torch.linalg.solve_triangular(A, B). (Triggered internally at /Users/runner/work/pytorch/pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:2258.)
+  outputs, _ = torch.triangular_solve(
+NPE-Z done {"log10 p1": 0.924, "log10 p2": 0.933, "tau": 0.926, "log10 delta": 0.921}
+done results/budget_k1000/p12_n500_s1.json

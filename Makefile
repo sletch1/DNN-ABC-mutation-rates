@@ -226,7 +226,7 @@ gpsnumbers:
 	cd 4D && $(PY) analysis/gps_truncation.py && $(PY) analysis/gps_long_chain.py
 
 tables:
-	cd 4D && $(PY) analysis/study2_analysis.py --model 4d && $(PY) analysis/make_tables_tex.py && $(PY) analysis/make_repair_tables.py && $(PY) analysis/make_figures.py --model 4d
+	cd 4D && $(PY) analysis/study2_analysis.py --model 4d && $(PY) analysis/make_tables_tex.py && $(PY) analysis/make_repair_tables.py && $(PY) analysis/make_budget_table.py --results results/budget_k1000 --out ../tables && $(PY) analysis/make_figures.py --model 4d
 
 check:
 	cd 4D && $(PY) tests/test_sim.py
