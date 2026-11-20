@@ -6,3 +6,4 @@ scikit-learn>=1.6
 threadpoolctl>=3.1
 torch>=2.8
 sbi>=0.23
+bayesflow>=2.0; python_version < "3.14"   # optional: two of the seven NPE candidates (needs Python <= 3.13)
