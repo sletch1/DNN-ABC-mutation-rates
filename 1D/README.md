@@ -443,7 +443,8 @@ Files are grouped so a reader can find the neural network in one place
     ├── figures/                   # 7 PNGs + architecture.svg
     ├── tables/                    # TABLES.md, table1/2/3_*.csv, mcse.md
     ├── model/                     # surrogate_1d.pt, surrogate_metrics.json
-    └── logs/                      # experiment_config.json, raw_replicates.csv, benchmark_*.md
+    └── logs/                      # benchmark_*.md; experiment_config.json and raw_replicates.csv (per-replicate output) are written here by run_experiments.py
+                                   #   (`make study1`) and are not shipped: the committed tables come from a 100-replicate run whose raw file was not kept
 ```
 
 Runnable scripts add their sibling code folders to `sys.path` (a small header),
