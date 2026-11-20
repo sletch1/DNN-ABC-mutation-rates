@@ -32,7 +32,7 @@ bash server/run_matched.sh ; bash server/run_corr.sh                  # 1,500-po
 python model/gp_baseline.py --data data/slow_data_4D.csv --out results/gp_baseline_4D.json
 # 4. GPS-ABC (MATLAB, the authors' code; ~hours per replicate)
 python datagen/export_mat.py data/obs_4d_case1.npz data/mat/obs_4d_case1   # and case2
-(cd gps_abc && matlab -batch "make_init(12)")  &&  bash server/run_gps_case.sh 1 5 20000 5 & bash server/run_gps_case.sh 2 5 20000 5
+(cd gps_abc && matlab -batch "make_init(12)")  &&  bash server/run_gps_4d.sh 5 20000 5   # K=5 datasets per case, 20,000 iterations, 5 chains in parallel
 # chains are checkpointed every 250 iterations; copy gps_abc/out/ckpt_*.mat to results/gps/ and analyse at a common length:
 python analysis/study2_analysis.py --model 4d --gps-horizon 2000
 # 5. tables and figures
