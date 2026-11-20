@@ -65,7 +65,7 @@
 \author[1]{\fnm{Xiaowei} \sur{Wu}}\email{xwwu@vt.edu}
 \affil*[1]{\orgdiv{Department of Statistics}, \orgname{Virginia Tech}, \orgaddress{\city{Blacksburg}, \state{VA}, \postcode{24061}, \country{USA}}}
 
-\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference, but slow simulators, such as branching-process models of mutation rates, defeat it. Gaussian-process (GP) surrogates inside an ABC Markov chain Monte Carlo (MCMC) sampler (GPS-ABC) help, yet the GP's cubic fitting cost limits the output it can use, and a $20{,}000$-iteration chain in the original four-parameter study took \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours. No one has tested a neural substitute or checked whether such samplers are calibrated. We do both with DNN-ABC, a zero-aware neural surrogate with a conformally calibrated regression. In one dimension it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter model the summary is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor, where a GP on the original $1{,}500$ points is $1.45$ times above it, and, beside GPS-ABC run for its original $20{,}000$ iterations, estimates the second mutation probability comparably, with shorter intervals, in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are overconfident; exact, Hamiltonian and importance-corrected sampling of that posterior are calibrated, and an ensemble of surrogates changes nothing, so the chain, not the surrogate, is at fault. A neural posterior estimator (NPE), chosen from seven candidates, is the better default for calibrated inference, on the zero-inflated Ricker map as well. The summary identifies two of four parameters; extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
+\abstract{Approximate Bayesian computation (ABC) enables likelihood-free inference, but slow simulators, such as branching-process mutation-rate models, defeat it. Gaussian-process (GP) surrogates inside an ABC Markov chain Monte Carlo (MCMC) sampler (Gaussian-process-surrogate ABC, GPS-ABC) help, yet the GP's cubic fitting cost limits the output it can use, and a $20{,}000$-iteration chain in the original study took \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours. No one has tested a neural substitute or checked such samplers' calibration. We do both with DNN-ABC (deep-neural-network ABC), a zero-aware neural surrogate with a conformally calibrated regression. In one dimension it matches exact ABC-MCMC at \soneSpeedupMin{} to \soneSpeedupMax{} times lower cost. In the four-parameter model the summary is exactly zero for 30\% of data sets; a hurdle network fits it at the noise floor, where a GP on the original $1{,}500$ points is $1.45$ times above it, and, beside GPS-ABC run for its original $20{,}000$ iterations, estimates the second mutation probability comparably, with shorter intervals, in about forty seconds per data set. Simulation-based calibration shows the Markov-chain samplers are overconfident; exact, Hamiltonian and importance-corrected sampling of that posterior are calibrated, and an ensemble of surrogates changes nothing, so the chain, not the surrogate, is at fault. A neural posterior estimator (NPE), chosen from seven candidates, is the better default for calibrated inference, on the zero-inflated Ricker map as well. The summary identifies two of four parameters; extra statistics raise the contraction of $\tau$ from \psevenBaseTauContraction{} to \psevenExtrasTauContraction{}, so the limit is the summary, not the method.}
 
 \keywords{approximate Bayesian computation; likelihood-free
 inference; surrogate modeling; simulation-based calibration; heteroscedastic
@@ -1349,15 +1349,14 @@ is not redistributed here and must be obtained from them (place it in \texttt{Or
 disagree, with the side we took, are listed in \texttt{paper\_code\_discrepancy.md}.
 
 \noindent\textbf{Environment.} All code is Python (\texttt{numpy}, \texttt{pandas}, \texttt{scipy}, \texttt{matplotlib},
-\texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE (and \texttt{bayesflow} for the BayesFlow candidates, which are not used for the results); minimum versions in
-\texttt{requirements.txt}) except the GPS-ABC baseline, which is the authors' MATLAB (R2022b with the Statistics and Parallel
-Computing toolboxes). No GPU is required. The heavy steps were run on a 32-core server; on it the architecture search takes
-under an hour, the DNN-ABC chains for $200$ data sets about thirty minutes, NPE training about six hours and each $20{,}000$-iteration GPS-ABC chain \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours.
+\texttt{scikit-learn} for the GP baseline, \texttt{torch} for the surrogates, \texttt{sbi} for NPE and \texttt{bayesflow} for two of the seven NPE candidates; minimum versions in
+\texttt{requirements.txt}, and BayesFlow needs Python 3.12 or 3.13) except the GPS-ABC baseline, which is the authors' MATLAB (R2022b with the Statistics and Parallel
+Computing toolboxes). No GPU is required. The heavy steps were run on multi-core servers. In our runs the architecture search took $44$ minutes on $16$ cores, NPE training $5.6$ hours, one DNN-ABC chain about forty seconds of processor time and each $20{,}000$-iteration GPS-ABC chain \gtrCaseTwoHours{} to \gtrCaseOneHours{} hours.
 
-\noindent\textbf{Running it.} Study I has a single entry point, \texttt{1D/run\_all.py}. Study II is a short sequence of
-scripts documented in \texttt{4D/README.md}: data generation, the architecture search and final fit (\texttt{model/arch\_search.py}, \texttt{model/select\_and\_report.py}), DNN-ABC,
+\noindent\textbf{Running it.} After \texttt{pip install -r requirements.txt}, the command \texttt{make paper} in the repository root runs every experiment of Studies~I and II and of the Ricker benchmark, skipping steps whose output already exists so that an interrupted run resumes, and then regenerates every number, table and figure and compiles the manuscript and its Online Resource; \texttt{make paper SMOKE=1} runs the same pipeline at toy size, in minutes, to test it. A complete run from empty result folders takes days on a multi-core machine. The steps can also be run one by one. Study I has a single entry point, \texttt{1D/run\_all.py}. Study II is a short sequence of
+scripts documented in \texttt{4D/HOW\_TO\_RUN.md}: data generation, the architecture search and final fit (\texttt{model/arch\_search.py}, \texttt{model/select\_and\_report.py}), DNN-ABC,
 NPE and calibration (\texttt{server/run\_study2.sh}), the matched-budget and correlated-feature variants
-(\texttt{server/run\_matched.sh}, \texttt{server/run\_corr.sh}), GPS-ABC (\texttt{server/run\_gps\_case.sh}) and the analysis
+(\texttt{server/run\_matched.sh}, \texttt{server/run\_corr.sh}), GPS-ABC (\texttt{server/run\_gps\_4d.sh}, which needs MATLAB and is not part of \texttt{make paper}) and the analysis
 (\texttt{analysis/study2\_analysis.py}, which writes every table and figure that the manuscript includes).
 All Study II tables are generated as \LaTeX{} fragments by \texttt{analysis/make\_tables\_tex.py}, so no number in them is copied by hand; numbers in the running text come either from generated macros (\texttt{tables/revision\_numbers.tex}) or were typed and then checked against the result files.
 
@@ -1391,6 +1390,9 @@ conclusions should apply beyond this model to ABC procedures built on a regressi
 % =============================================================================
 \backmatter
 
+\section*{Supplementary information}
+Online Resource 1 (ESM\_1.pdf) gives the full architecture, activation and capacity search for Study I; for Study II the full architecture search, the settings of the GPS-ABC runs, the comparison of our data generator with the training sets released by the original authors, and the calibration rank histograms.
+
 \section*{Statements and Declarations}
 
 \bmhead{Data availability}
@@ -1404,9 +1406,8 @@ The version of the repository analyzed here is archived on Zenodo, \url{https://
 All code used to produce the results in this paper (surrogate training,
 ABC-MCMC sampling, Monte Carlo standard error computation, and figure/table
 generation) is available in the same repository as above,
-\url{https://github.com/sletch1/DNN-ABC-mutation-rates}. Study I has a
-single entry point, \texttt{1D/run\_all.py}; Study II is a short sequence of scripts
-(see Section~\ref{sec:repro}). The version of the repository used for this paper is archived on Zenodo, \url{https://doi.org/10.5281/zenodo.24388275}.
+\url{https://github.com/sletch1/DNN-ABC-mutation-rates}. The command \texttt{make paper} reruns every
+experiment and rebuilds all numbers, tables and figures (Section~\ref{sec:repro}). The version of the repository used for this paper is archived on Zenodo \citep{letchumanan2026code}, \url{https://doi.org/10.5281/zenodo.24388275}.
 
 \bmhead{Competing interests}
 The authors have no relevant financial or non-financial interests to disclose.

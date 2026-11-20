@@ -3,6 +3,8 @@
 Two-stage mutation rate, parameters `(log10 p1, log10 p2, tau, log10 delta)` — the paper's Study 2.
 Run everything from inside this folder (`4D/`); all paths below are relative to it.
 
+> From the repository root, `make study2` runs every step below (and `make paper` runs the whole paper, Studies I and II and the Ricker benchmark), skipping steps whose output exists. This file documents the individual commands.
+
 ---
 
 ## 1. What you need

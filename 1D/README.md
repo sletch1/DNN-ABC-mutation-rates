@@ -574,7 +574,7 @@ cd Models/1D
 python network/train.py
 
 # reproduce Tables 1/2/3 with the DNN column (this run's settings, ~minutes)
-python abc/run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 \
+python abc/run_experiments.py --reps 100 --nmcmc 600 --burnin 250 --ns 6 \
     --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
 
 # regenerate all figures + the architecture SVG

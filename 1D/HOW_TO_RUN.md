@@ -22,7 +22,7 @@ Which run do you want?
   [1] Quick  - a smoke test, roughly 3 minutes. Confirms the pipeline works
                end to end. Its numbers are noisy: do not read results off it.
 
-  [2] Full   - the paper's settings: 40 replicates, 3 mutation rates, 3 culture
+  [2] Full   - the paper's settings: 100 replicates, 3 mutation rates, 3 culture
                counts. Several hours (see section 6). You very likely do not
                need this -- results/ already holds a full run.
 
@@ -78,7 +78,7 @@ yourself instead. The paper's settings:
 
 ```bash
 python network/train.py --seed 0
-python abc/run_experiments.py --reps 40 --nmcmc 600 --burnin 250 --ns 6 --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
+python abc/run_experiments.py --reps 100 --nmcmc 600 --burnin 250 --ns 6 --p-grid 1e-4 1e-3 1e-2 --J-grid 10 50 100
 python abc/mcse.py
 python figures/make_figures.py
 ```
@@ -129,7 +129,7 @@ Folder:      C:\...\Models\1D
 Which run do you want?
 
   [1] Quick  - a smoke test, roughly 3 minutes. ...
-  [2] Full   - the paper's settings: 40 replicates, ...
+  [2] Full   - the paper's settings: 100 replicates, ...
 
 Enter 1 or 2 [1]: 1
 === QUICK MODE: pipeline check only, NOT paper-scale results ===
@@ -142,8 +142,8 @@ conformal sd_scale = 1.0500
 
 --- [2/4] Estimator comparison: Tables 1, 2 and 3 (this is the long one) ---
 === Phase A: accuracy (Table 1 & 2) ===
-accuracy: 360 tasks (3p x 3J x 40 reps) on 30 workers
-  [10/360] done  elapsed 11.0m  eta 385.4m
+accuracy: 900 tasks (3p x 3J x 100 reps) on 30 workers
+  [10/900] done  elapsed 11.0m  eta 385.4m
   ...
 === Phase B: timing (Table 3) ===
 
@@ -187,11 +187,11 @@ iteration: roughly **340 seconds per 100 iterations** at `p=1e-4, J=100`,
 against **0.135 seconds** for either surrogate.
 
 That ~2500× gap *is* the headline result, so reproducing it means paying the
-cost once. Replicates run in parallel across all your cores, but there are 360
-of them (3 mutation rates x 3 culture counts x 40 replicates).
+cost once. Replicates run in parallel across all your cores, but there are 900
+of them (3 mutation rates x 3 culture counts x 100 replicates).
 
 **Concretely: on a 32-core Linux server using 30 workers, the full run takes
-about 7 hours.** On a laptop with 4-8 cores, expect several times that. If step
+about 7 hours at 40 replicates, so roughly 17 hours at the 100 replicates of the paper (scaled, not re-timed).** On a laptop with 4-8 cores, expect several times that. If step
 2 sits at a low task count for a long time, nothing is wrong -- a single slow
 cell is tens of minutes of genuine simulation.
 
